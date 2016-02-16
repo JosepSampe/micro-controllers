@@ -19,8 +19,6 @@
 			<classpath>
 		        <pathelement 
 		        	path="lib/CDaemon.jar"/>
-				<pathelement 
-					path="lib/json-simple-1.1.1.jar"/>
 			</classpath>		</javac>
 
 	     <jar destfile="bin/transgrep-1.0.jar" 

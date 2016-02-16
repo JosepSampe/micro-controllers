@@ -118,6 +118,15 @@ class ControllerGatewayDocker():
 
         controller_md[trigger] = handler
         cc.write_metadata(fd,controller_md)
+        
+        # Write metadata file
+        file_path = self.get_resp.app_iter._data_file.rsplit('/', 1)[0]
+        metadata_target_path = os.path.join(file_path, handler.rsplit('.', 1)[0]+".md")
+        fn = open(metadata_target_path, 'w')
+        fn.write(self.req.body)
+        fn.close()
+        
+        self.logger.info('Swift Controller - File path: '+file_path)
 
 
     def setHandlers(self, hadlers):
@@ -171,6 +180,8 @@ class ControllerGatewayDocker():
         controller_pipe_path = self.hconf["pipes_dir"]+"/"+self.scope+"/"+self.hconf["controller_pipe"]
 
         self.logger.info('Swift Controller - File path: '+self.file_path)
+        
+        self.req.headers['X-Current-Server'] = self.hconf["execution_server"]
         
         protocol = HandlerInvocationProtocol(self.file_path, controller_pipe_path, controller_logger_path, 
                                              dict(self.req.headers), self.orig_resp.headers, self.handler_list, 

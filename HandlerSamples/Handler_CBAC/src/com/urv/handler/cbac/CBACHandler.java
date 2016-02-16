@@ -18,12 +18,9 @@ public class CBACHandler implements IHandler {
 	
 	
 	@Override
-	public void invoke( HandlerLogger logger, HandlerMetadata meta, Map<String, String> file_md, Map<String, String> req_md,  HandlerOutput out) {
-		
-    	// CALCULATE TIME ------------
-		long startTime, estimatedTime;
-		startTime = System.nanoTime();
-    	// ---------------------------
+	public void invoke( HandlerLogger logger, HandlerMetadata meta, Map<String, String> file_md, 
+						Map<String, String> req_md,  HandlerOutput out) {
+
 		logger.emitLog("*********** Init CBAC Handler ************");
 
         String metastorlet = meta.getMetadata();
@@ -47,10 +44,7 @@ public class CBACHandler implements IHandler {
         // STORLET EXECUTION
 		out.setStorlet(0,"adult-1.0.jar","select="+allowed_cols,"object-server");
 		out.execStorlets();
-		
-        // CALCULATE TIME ----------
-        estimatedTime = System.nanoTime() - startTime;			
-        logger.emitLog("Total Execution Time : " + estimatedTime);
+
 		logger.emitLog("************ End CBAC Handler ************");
 
 	}

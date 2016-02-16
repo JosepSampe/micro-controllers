@@ -35,11 +35,16 @@ def put_handler_dependency(url, token, dep_name, local_path_to_dep):
     assert (status == 200 or status == 201)
     
     
-AUTH_IP = '10.30.239.240'
+AUTH_IP = 'iostack.urv.cat'
 AUTH_PORT = '5000'
-ACCOUNT = 'service'
-USER_NAME = 'swift'
-PASSWORD = 'urv'
+ACCOUNT = 'josep'
+USER_NAME = 'josep'
+PASSWORD = 'jsampe'
+
+#AUTH_IP = '10.30.239.240'
+#ACCOUNT = 'service'
+#USER_NAME = 'swift'
+#PASSWORD = 'urv'
 
 os_options = {'tenant_name': ACCOUNT}
 
@@ -54,11 +59,11 @@ put_handler_object(url, token,'prefetching-1.0.jar','/home/josep/Josep/workspace
 put_handler_dependency(url, token,'json-simple-1.1.1.jar','/home/josep/Josep/workspace/Handler_WebPrefetching/lib')
 
 #COUNTER
-put_handler_object(url, token,'counter-1.0.jar','/home/josep/Josep/workspace/Handler_Counter/bin' ,'com.urv.handler.counter.CounterHandler', 'json-simple-1.1.1.jar')
-put_handler_dependency(url, token,'json-simple-1.1.1.jar','/home/josep/Josep/workspace/Handler_Counter/lib')
+#put_handler_object(url, token,'counter-1.0.jar','/home/josep/Josep/workspace/Handler_Counter/bin' ,'com.urv.handler.counter.CounterHandler', 'json-simple-1.1.1.jar')
+#put_handler_dependency(url, token,'json-simple-1.1.1.jar','/home/josep/Josep/workspace/Handler_Counter/lib')
 
 #TransGrep
-put_handler_object(url, token,'transgrep-1.0.jar','/home/josep/Josep/workspace/Handler_TransGrep/bin' ,'com.urv.handler.transgrep.TransGrepHandler', 'json-simple-1.1.1.jar')
+#put_handler_object(url, token,'transgrep-1.0.jar','/home/josep/Josep/workspace/Handler_TransGrep/bin' ,'com.urv.handler.transgrep.TransGrepHandler', 'json-simple-1.1.1.jar')
 
 #CBAC
-put_handler_object(url, token,'cbac-1.0.jar','/home/josep/Josep/workspace/Handler_CBAC/bin' ,'com.urv.handler.cbac.CBACHandler', 'json-simple-1.1.1.jar')
+#put_handler_object(url, token,'cbac-1.0.jar','/home/josep/Josep/workspace/Handler_CBAC/bin' ,'com.urv.handler.cbac.CBACHandler', 'json-simple-1.1.1.jar')
