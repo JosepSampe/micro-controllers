@@ -60,4 +60,7 @@ target/
 
 #Ipython Notebook
 .ipynb_checkpoints
+
 /Utils/
+.pydevproject
+.project
