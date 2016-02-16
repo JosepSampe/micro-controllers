@@ -1,0 +1,36 @@
+<!-- 
+ Licensed Materials - Property of IBM
+
+ Copyright IBM Corp. 2014, 2014 All Rights Reserved
+
+ US Government Users Restricted Rights - Use, duplication or
+ disclosure restricted by GSA ADP Schedule Contract with
+ IBM Corp.
+-->
+
+<project>
+	
+	<target name="common">
+		<mkdir dir="bin" />
+	</target>
+
+	<target name="adaptative">
+		<javac srcdir="src/com/urv/storlet/adaptative/" destdir="bin" includeantruntime="false">
+			<classpath>
+		        <pathelement 
+		        	path="lib/SCommon.jar"/>
+			</classpath>		</javac>
+
+	     <jar destfile="bin/adaptative-1.0.jar" 
+	          basedir="bin"
+	     	  includes="com/urv/storlet/adaptative/*">
+	     </jar>
+	</target>
+	
+	<target name="clean">
+		<delete dir="bin" />
+	</target>
+	
+	<target name="build" depends="clean, common, adaptative"/>
+
+</project>

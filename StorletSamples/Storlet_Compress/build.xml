@@ -1,0 +1,41 @@
+<!-- 
+ Licensed Materials - Property of IBM
+
+ Copyright IBM Corp. 2014, 2014 All Rights Reserved
+
+ US Government Users Restricted Rights - Use, duplication or
+ disclosure restricted by GSA ADP Schedule Contract with
+ IBM Corp.
+-->
+
+<project>
+	
+	<target name="common">
+		<mkdir dir="bin" />
+	</target>
+
+	<target name="compress">
+		<javac srcdir="src/com/urv/storlet/compress/" destdir="bin" includeantruntime="false">
+			<classpath>
+		        <pathelement 
+		        	path="lib/SCommon.jar"/>
+				<pathelement 
+					path="lib/commons-compress-1.2.jar"/>
+				<pathelement 
+					path="lib/lz4-1.3.0.jar"/>
+			</classpath>
+		</javac>
+
+	     <jar destfile="bin/compress-1.0.jar" 
+	          basedir="bin"
+	     	  includes="com/urv/storlet/compress/*">
+	     </jar>
+	</target>
+	
+	<target name="clean">
+		<delete dir="bin" />
+	</target>
+	
+	<target name="build" depends="clean, common, compress"/>
+
+</project>

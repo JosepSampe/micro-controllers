@@ -1,0 +1,45 @@
+<!-- 
+ Licensed Materials - Property of IBM
+
+ Copyright IBM Corp. 2014, 2014 All Rights Reserved
+
+ US Government Users Restricted Rights - Use, duplication or
+ disclosure restricted by GSA ADP Schedule Contract with
+ IBM Corp.
+-->
+
+<project>
+	
+	<target name="common">
+		<mkdir dir="bin" />
+	</target>
+
+	<target name="daemon">
+		<javac srcdir="src/com/urv/controller/daemon/" destdir="bin" includeantruntime="false">
+			<classpath>
+		        <pathelement 
+		        	path="lib/json_simple-1.1.jar"/>
+				<pathelement 
+					path="lib/logback-classic-1.1.2.jar"/>
+				<pathelement 
+					path="lib/logback-core-1.1.2.jar"/>
+		        <pathelement 
+		        	path="lib/SBusJavaFacade.jar"/>
+				<pathelement 
+					path="lib/slf4j-api-1.7.7.jar"/>
+			</classpath>
+		</javac>
+
+	     <jar destfile="bin/CDaemon.jar" 
+	          basedir="bin"
+	     	  includes="com/urv/controller/daemon/*">
+	     </jar>
+	</target>
+	
+	<target name="clean">
+		<delete dir="bin" />
+	</target>
+	
+	<target name="build" depends="clean, common, daemon"/>
+
+</project>
