@@ -34,17 +34,12 @@ def put_handler_dependency(url, token, dep_name, local_path_to_dep):
     status = response.get('status') 
     assert (status == 200 or status == 201)
     
-    
-AUTH_IP = 'iostack.urv.cat'
-AUTH_PORT = '5000'
-ACCOUNT = 'josep'
-USER_NAME = 'josep'
-PASSWORD = 'jsampe'
 
-#AUTH_IP = '10.30.239.240'
-#ACCOUNT = 'service'
-#USER_NAME = 'swift'
-#PASSWORD = 'urv'
+AUTH_IP = '10.30.239.240'
+AUTH_PORT = '5000'
+ACCOUNT = 'service'
+USER_NAME = 'swift'
+PASSWORD = 'urv'
 
 os_options = {'tenant_name': ACCOUNT}
 

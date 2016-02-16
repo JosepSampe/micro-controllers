@@ -52,21 +52,12 @@ def put_storlet_dependency(url, token, dep_name, local_path_to_dep):
     assert (status == 200 or status == 201)
     
     
-AUTH_IP = 'iostack.urv.cat'
+
 AUTH_PORT = '5000'
-
-#ACCOUNT = 'spark-tenant'
-#USER_NAME = 'spark-user'
-#PASSWORD = 'spark-pass'
-
-ACCOUNT = 'josep'
-USER_NAME = 'josep'
-PASSWORD = 'jsampe'
-
-#AUTH_IP = '10.30.239.240'
-#ACCOUNT = 'service'
-#USER_NAME = 'swift'
-#PASSWORD = 'urv'
+AUTH_IP = '10.30.239.240'
+ACCOUNT = 'service'
+USER_NAME = 'swift'
+PASSWORD = 'urv'
 
 os_options = {'tenant_name': ACCOUNT}
 
