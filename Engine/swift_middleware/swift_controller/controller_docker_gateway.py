@@ -44,32 +44,7 @@ class ControllerGatewayDocker():
         self.docker_image_name_prefix = "controller"
         self.docker_repo = hconf['docker_repo']
 
-                 
-                 
-    def startInternalClient(self):
-        self.logger.info('Swift Controller - Going to execute Internal Client')
- 
-        pid = os.popen( "ps -aef | grep -i 'InternalClient.py' | grep -v 'grep' | awk '{ print $2 }'" ).read()
-
-        if pid != "":
-            self.logger.info('Swift Controller - Internal Client is already started')
-        else:
-            #TODO: Change IC path
-            cmd='/usr/bin/python /home/lab144/josep/ControllerMiddleware/InternalClient.py' \
-                '/home/lxc_device/pipes/scopes/bd34c4073b654/internal_client_pipe DEBUG &'
-                  
-            self.logger.info(cmd)
-            p = subprocess.call(cmd,shell=True)
-                    
-            if p == 0:
-                self.logger.info('Swift Controller - Internal Client started')   
-            else:
-                self.logger.info('Swift Controller - Error starting Internal Client')
-            
-            time.sleep(1)
-        
-        
-        
+    
     def startContainer(self):
 
         # Extract the account's ID from the account
@@ -324,7 +299,7 @@ class HandlerInvocationProtocol(object):
             raise Exception("Failed to send execute command")
     
     def _wait_for_read_with_timeout(self, fd):
-        r, w, e = select.select([fd], [], [], self.timeout)
+        r, _, _ = select.select([fd], [], [], self.timeout)
         if len(r) == 0:
             if self.task_id:
                 self._cancel()

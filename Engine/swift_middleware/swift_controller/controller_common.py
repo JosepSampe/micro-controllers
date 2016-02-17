@@ -2,7 +2,9 @@
 19-Oct-2015    josep.sampe    Initial implementation.
 ==========================================================================='''
 from swift.common.internal_client import InternalClient as ic
-from swift.common.exceptions import DiskFileNotExist, DiskFileXattrNotSupported,DiskFileNoSpace
+from swift.common.exceptions import DiskFileNotExist
+from swift.common.exceptions import DiskFileXattrNotSupported 
+from swift.common.exceptions import DiskFileNoSpace
 from swift.obj.diskfile import _get_filename
 from swift.common.swob import Request
 import xattr
@@ -10,6 +12,8 @@ import logging
 import pickle
 import errno
 import os
+import time
+import subprocess
 
 PICKLE_PROTOCOL = 2
 METADATA_KEY = 'user.swift.controller'
@@ -81,7 +85,6 @@ def write_metadata(fd, metadata, xattr_size=65536, md_key = None):
                 raise DiskFileNoSpace()
             raise
 
-
 def getAccountMetadata(account):
     iclient = ic(INTERNAL_CLIENT, 'SA', 1)       
     resp = iclient.get_account_metadata(account)
@@ -91,9 +94,7 @@ def makeSwiftRequest(op, account, container=None, obj=None ):
     iclient = ic(INTERNAL_CLIENT, 'SA', 1)
     path = iclient.make_path(account, container, obj)          
     resp = iclient.make_request(op, path, {'PATH_INFO': path}, [200])
-    
     return resp
-
 
 def verify_access(self, env, version, account, container, objecte):
     self.logger.info('Verify access to {0}/{1}/{2}'.format(account,
@@ -122,36 +123,6 @@ def verify_access(self, env, version, account, container, objecte):
         return True
     return False
 
-def verify_virtual_folder_file_access(self, env, version, account, container, folder ,obj):
-    self.logger.info('Verify access to {0}/{1}/{2}'.format(account,
-                                                           container,
-                                                           obj))
-    new_env = env.copy()
-    if 'HTTP_TRANSFER_ENCODING' in new_env.keys():
-        del new_env['HTTP_TRANSFER_ENCODING']
-    new_env['REQUEST_METHOD'] = 'GET'
-    new_env['swift.source'] = 'CM'
-    new_env['PATH_INFO'] = os.path.join('/' + version, account, container, folder)
-    new_env['RAW_PATH_INFO'] = os.path.join('/' + version, account, container, folder)
-    req = Request.blank(new_env['PATH_INFO'], new_env)
-
-    if 'X-Controller-Onget' in req.headers:
-        req.headers.pop('X-Controller-Onget')
-        
-    if 'X-Controller-Onput' in req.headers:
-        req.headers.pop('X-Controller-Onput')
-
-    #if 'X-Use-Controller' in req.headers:
-        #req.headers.pop('X-Use-Controller')
-        
-    req.headers["X-User-Object"] = obj
-    
-    resp = req.get_response(self.app)
-    
-    if resp.status_int < 300 and resp.status_int >= 200 and 'Requested-file' in resp.headers:
-        return resp.headers["Requested-file"], True
-    return False,False
-
 def get_file(self, env, version, account, path):
 
     self.logger.info('Verify access to {0}/{1}'.format(account,path))
@@ -178,87 +149,24 @@ def get_file(self, env, version, account, path):
         return resp
     return False
 
-def create_virtual_folder(self, env, version, account, container, obj):
-    self.logger.info('Go to create {0}/{1}/{2}'.format(account,container,obj))
-    
-    new_env = env.copy()
-    if 'HTTP_TRANSFER_ENCODING' in new_env.keys():
-        del new_env['HTTP_TRANSFER_ENCODING']
-    
-    del(new_env['wsgi.input'])
-    del(new_env['HTTP_X_USE_CONTROLLER'])
-    new_env["CONTENT_LENGTH"] = 0
-    new_env['REQUEST_METHOD'] = 'PUT'
-    new_env['swift.source'] = 'CM'
-    new_env['PATH_INFO'] = os.path.join('/' + version, account, container, obj)
-    new_env['RAW_PATH_INFO'] = os.path.join('/' + version, account, container, obj)
-    req = Request.blank(new_env['PATH_INFO'], new_env)
-    
-    resp = req.get_response(self.app)
-    if resp.status_int < 300 and resp.status_int >= 200:
-        return True
-    return False
+def start_internal_client(self):
+    self.logger.info('Swift Controller - Going to execute Internal Client')
 
-def create_container(self, env, version, account, container):
-    new_env = env.copy()
-    if 'HTTP_TRANSFER_ENCODING' in new_env.keys():
-        del new_env['HTTP_TRANSFER_ENCODING']
-    
-    del(new_env['wsgi.input'])
-    del(new_env['HTTP_X_USE_CONTROLLER'])
-    new_env["CONTENT_LENGTH"] = 0
-    new_env['REQUEST_METHOD'] = 'PUT'
-    new_env['swift.source'] = 'CM'
-    new_env['PATH_INFO'] = os.path.join('/' + version, account, container)
-    new_env['RAW_PATH_INFO'] = os.path.join('/' + version, account, container)
-    req = Request.blank(new_env['PATH_INFO'], new_env)
+    pid = os.popen( "ps -aef | grep -i 'internal_client_daemon.py' | grep -v 'grep' | awk '{ print $2 }'" ).read()
+
+    if pid != "":
+        self.logger.info('Swift Controller - Internal Client is already started')
+    else:
+        #TODO: Change IC path
+        cmd='/usr/bin/python /home/lab144/josep/ControllerMiddleware/internal_client_daemon.py' \
+            '/home/lxc_device/pipes/scopes/bd34c4073b654/internal_client_pipe DEBUG &'
+              
+        self.logger.info(cmd)
+        p = subprocess.call(cmd,shell=True)
+                
+        if p == 0:
+            self.logger.info('Swift Controller - Internal Client daemon started')   
+        else:
+            self.logger.info('Swift Controller - Error starting Internal Client daemon')
         
-    resp = req.get_response(self.app)
-    if resp.status_int < 300 and resp.status_int >= 200:
-        return True
-    return False
-
-def save_file(self, env, version, account, container, obj, folder):
-
-    if create_container(self, env, version, account, container):
-        new_env = env.copy()
-        if 'HTTP_TRANSFER_ENCODING' in new_env.keys():
-            del new_env['HTTP_TRANSFER_ENCODING']
-        del(new_env['HTTP_X_USE_CONTROLLER'])
-        
-        new_env['PATH_INFO'] = os.path.join('/' + version, account, container, obj)
-        new_env['RAW_PATH_INFO'] = os.path.join('/' + version, account, container, obj)
-        req = Request.blank(new_env['PATH_INFO'], new_env)    
-
-        req.headers["X-Object-Meta-Virtual-Folder"] = folder
-        req.headers["X-Object-Meta-Controlled"] = "True"
-        
-        resp = req.get_response(self.app)    
-        if resp.status_int < 300 and resp.status_int >= 200:
-            return resp, True
-    return resp, False
-
-def update_virtual_folder(self, env, version, account, container, folder, name, path):
-    new_env = env.copy()
-    
-    if 'HTTP_TRANSFER_ENCODING' in new_env.keys():
-        del new_env['HTTP_TRANSFER_ENCODING']
-    
-    del(new_env['wsgi.input'])
-    new_env["CONTENT_LENGTH"] = 0
-    new_env['REQUEST_METHOD'] = 'PUT'
-    new_env['swift.source'] = 'CM'
-    new_env['PATH_INFO'] = os.path.join('/' + version, account, container,folder)
-    new_env['RAW_PATH_INFO'] = os.path.join('/' + version, account, container, folder)
-    req = Request.blank(new_env['PATH_INFO'], new_env)
-    
-    req.headers["X-Metadata"] = {'name':name,'path':path}
-    
-    
-    
-    resp = req.get_response(self.app)
-    if resp.status_int < 300 and resp.status_int >= 200:
-        return True
-    return False
-       
-    
+        time.sleep(1)

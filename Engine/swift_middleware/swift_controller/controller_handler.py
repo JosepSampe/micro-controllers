@@ -15,16 +15,22 @@ import controller_storlet_gateway as csg
 import controller_common as cc
 import pickle
 
-
 class SwiftControllerMiddleware(object):
     def __init__(self, app, conf):
+        self.memcache = None
         self.app = app
         self.execution_server = conf.get('execution_server')
         self.logger = get_logger(conf, log_route='swift_controller')
-        self.logger.info('Swift Controller - Init OK')
         self.hconf = conf
-        self.available_triggers = ['X-Controller-Onget','X-Controller-Ondelete']
-        self.memcache = None
+        self.containers = [conf.get('handler_container'),
+                           conf.get('handler_dependency'),
+                           conf.get('storlet_container'),
+                           conf.get('storlet_dependency')]
+        self.available_triggers = ['X-Controller-Onget',
+                                   'X-Controller-Ondelete',
+                                   'X-Controller-Onput',
+                                   'X-Controller-Ontimer']
+        self.logger.debug('Swift Controller - Init OK')
 
     @wsgify
     def __call__(self, req):
@@ -190,7 +196,7 @@ class SwiftControllerMiddleware(object):
                 self.logger.info('Swift Controller - There are micro-controllers to execute')
                 
                 # We need to start Internal CLient
-                docker_gateway.startInternalClient()
+                cc.start_internal_client()
                 # We need to start container if it is stopped
                 docker_gateway.startContainer()
                 
@@ -248,7 +254,7 @@ class SwiftControllerMiddleware(object):
                 self.logger.info('Swift Controller - There are micro-controllers to execute')
                 
                 # We need to start Internal CLient
-                docker_gateway.startInternalClient()
+                cc.start_internal_client()
                 # We need to start container if it is stopped
                 docker_gateway.startContainer()  # TODO: NO SEMPRE
 
@@ -287,9 +293,9 @@ class SwiftControllerMiddleware(object):
     
                             old_env = req.environ.copy()
                             orig_req = Request.blank(old_env['PATH_INFO'], old_env)
-                            out_fd, app_iter = storlet_gateway.executeStorlet(orig_resp,parameters, out_fd)
+                            out_fd, app_iter = storlet_gateway.executeStorletOnObject(orig_resp,parameters,out_fd)
                             
-                            # Notify to proxy that Storlet was executed in the object-server
+                            # Notify to the Proxy that Storlet was executed in the object-server
                             orig_resp.headers["Storlet-Executed"] = "True"
                         
                         else:
@@ -320,9 +326,7 @@ class SwiftControllerMiddleware(object):
         return orig_resp
 
     def valid_request(self, req, container):
-        if (req.method == 'GET') and container != self.hconf["storlet_container"] and \
-            container != self.hconf["handler_dependency"] and container != self.hconf["handler_container"]:
-        
+        if req.method == 'GET' and container in self.containers:
             #Also we need to discard the copy calls.    
             if not "HTTP_X_COPY_FROM" in req.environ.keys():
                 self.logger.info('Swift Controller - Valid req: OK!')        
@@ -337,29 +341,35 @@ def filter_factory(global_conf, **local_conf):
     conf = global_conf.copy()
     conf.update(local_conf)
     
-    controller_conf = dict()
-    controller_conf['execution_server'] = conf.get('execution_server', 'object')
-    controller_conf['controller_timeout'] = conf.get('controller_timeout', 20)
-    controller_conf['controller_pipe'] = conf.get('controller_pipe', 'controller_pipe')
-    controller_conf['handlers_dir'] = conf.get('handlers_dir', '/home/lxc_device/handlers/scopes')
-    controller_conf['handler_container'] = conf.get('handler_container', "handler")
-    controller_conf['handler_dependency'] = conf.get('handler_dependency', "dependency")
+    mc_conf = dict()
+    mc_conf['execution_server'] = conf.get('execution_server','object')
+    mc_conf['controller_timeout'] = conf.get('controller_timeout', 20)
+    mc_conf['controller_pipe'] = conf.get('controller_pipe', 
+                                          'controller_pipe')
+    mc_conf['handlers_dir'] = conf.get('handlers_dir', 
+                                       '/home/lxc_device/handlers/scopes')
+    mc_conf['handler_container'] = conf.get('handler_container', 
+                                                    'handler')
+    mc_conf['handler_dependency'] = conf.get('handler_dependency', 
+                                                     'dependency')
     
-    controller_conf['storlet_timeout'] = conf.get('storlet_timeout', 40) 
-    controller_conf['storlet_container'] = conf.get('storlet_container', "storlet")
-    controller_conf['storlet_dependency'] = conf.get('storlet_dependency', "dependency")
+    mc_conf['storlet_timeout'] = conf.get('storlet_timeout',40) 
+    mc_conf['storlet_container'] = conf.get('storlet_container','storlet')
+    mc_conf['storlet_dependency'] = conf.get('storlet_dependency', 
+                                             'dependency')
     
-    controller_conf['docker_repo'] = conf.get('docker_repo', "10.30.239.240:5001")
+    mc_conf['docker_repo'] = conf.get('docker_repo','10.30.239.240:5001')
        
     configParser = ConfigParser.RawConfigParser()
-    configParser.read(conf.get('storlet_gateway_conf', '/etc/swift/storlet_docker_gateway.conf'))
+    configParser.read(conf.get('storlet_gateway_conf', 
+                               '/etc/swift/storlet_docker_gateway.conf'))
     
     additional_items = configParser.items("DEFAULT")
     for key, val in additional_items:
-        controller_conf[key] = val
+        mc_conf[key] = val
 
     def swift_controller(app):
-        return SwiftControllerMiddleware(app, controller_conf)
+        return SwiftControllerMiddleware(app, mc_conf)
 
     return swift_controller
 
