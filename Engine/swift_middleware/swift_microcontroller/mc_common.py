@@ -85,12 +85,11 @@ def write_metadata(fd, metadata, xattr_size=65536, md_key = None):
                 raise DiskFileNoSpace()
             raise
 
-def getAccountMetadata(account):
+def get_account_metadata(account):
     iclient = ic(INTERNAL_CLIENT, 'SA', 1)       
-    resp = iclient.get_account_metadata(account)
-    return resp
+    return iclient.get_account_metadata(account)
 
-def makeSwiftRequest(op, account, container=None, obj=None ):
+def make_swift_request(op, account, container=None, obj=None ):
     iclient = ic(INTERNAL_CLIENT, 'SA', 1)
     path = iclient.make_path(account, container, obj)          
     resp = iclient.make_request(op, path, {'PATH_INFO': path}, [200])
@@ -149,7 +148,7 @@ def get_file(self, env, version, account, path):
         return resp
     return False
 
-def start_internal_client(self):
+def start_internal_client_daemon(self):
     self.logger.info('Swift Controller - Going to execute Internal Client')
 
     pid = os.popen( "ps -aef | grep -i 'internal_client_daemon.py' | grep -v 'grep' | awk '{ print $2 }'" ).read()

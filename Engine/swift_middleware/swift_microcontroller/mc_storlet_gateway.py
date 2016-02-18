@@ -4,7 +4,7 @@
 ==========================================================================='''
 from swift.common.swob import Request
 from storlet_gateway.storlet_docker_gateway import StorletGatewayDocker
-import controller_common as cc
+import mc_common as cc
 
 
 class ControllerGatewayStorlet():
@@ -20,23 +20,20 @@ class ControllerGatewayStorlet():
         self.gateway = None
         self.storlet_metadata = None
         self.storlet_name = None
-        
-   
-    def getAccountInfo(self):
-        return cc.getAccountMetadata(self.account)
-        
-    
-    def authorizeStorletExecution(self,storlet):
-        resp = cc.makeSwiftRequest("HEAD",self.account, 
-                                   self.hconf["storlet_container"], 
-                                   storlet)
+          
+    def get_account_info(self):
+        return cc.get_account_metadata(self.account)
+          
+    def authorize_storlet_execution(self,storlet):
+        resp = cc.make_swift_request("HEAD",self.account,
+                                    self.hconf["storlet_container"], 
+                                    storlet)
         if resp.status_int < 300 and resp.status_int >= 200:
             self.storlet_metadata = resp.headers
             self.storlet_name = storlet
             return True
         return False
-      
-      
+           
     def set_storlet_request(self,orig_resp,params):
         self.gateway = StorletGatewayDocker(self.hconf, self.logger, self.app, 
                                             self.version, self.account, 
@@ -54,22 +51,18 @@ class ControllerGatewayStorlet():
         
         return req
     
-    def executeStorletOnObject(self, orig_resp, params, input_pipe=None):   
+    def execute_storlet_on_object(self, orig_resp, params, input_pipe=None):   
         req = self.set_storlet_rquest(orig_resp, params)
-                
-        # Execute Storlet request
+
         (_, app_iter) = self.gateway.gatewayObjectGetFlow(req, self.container, 
                                                           self.obj, orig_resp, 
                                                           input_pipe)  
         return app_iter.obj_data, app_iter
     
-    
-    def executeStorletOnProxy(self, orig_resp, params, input_pipe=None):
+    def execute_storlet_on_proxy(self, orig_resp, params, input_pipe=None):
         req = self.set_storlet_rquest(orig_resp, params)      
-        
-        # Execute Storlet request
+
         (_, app_iter) = self.gateway.gatewayProxyGETFlow(req, self.container, 
                                                          self.obj, orig_resp, 
                                                          input_pipe)        
         return app_iter.obj_data, app_iter
-

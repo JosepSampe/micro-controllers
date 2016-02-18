@@ -8,11 +8,10 @@ from swift.common.swob import HTTPAccepted
 from swift.common.swob import Response
 from swift.common.swob import Request
 from swift.common.utils import get_logger, is_success, cache_from_env
-
 import ConfigParser
-import controller_docker_gateway as cdg
-import controller_storlet_gateway as csg
-import controller_common as cc
+import mc_docker_gateway as cdg
+import mc_storlet_gateway as csg
+import mc_common as cc
 import pickle
 
 class SwiftControllerMiddleware(object):
@@ -22,8 +21,8 @@ class SwiftControllerMiddleware(object):
         self.execution_server = conf.get('execution_server')
         self.logger = get_logger(conf, log_route='swift_controller')
         self.hconf = conf
-        self.containers = [conf.get('handler_container'),
-                           conf.get('handler_dependency'),
+        self.containers = [conf.get('mc_container'),
+                           conf.get('mc_dependency'),
                            conf.get('storlet_container'),
                            conf.get('storlet_dependency')]
         self.available_triggers = ['X-Controller-Onget',
@@ -85,12 +84,12 @@ class SwiftControllerMiddleware(object):
  
             header = [i for i in self.available_triggers if i in req.headers.keys()]
             if len(header) > 1:
-                return HTTPUnauthorized('The system can only set 1 controller each time.\n')
-            handler = req.headers[header[0]]
+                return HTTPUnauthorized('The system can only set 1 micro-controller each time.\n')
+            mc = req.headers[header[0]]
             
-            # Verify if handler is in Swift
-            if not cc.verify_access(self, req.environ, version, account, self.hconf["handler_container"], handler):
-                return HTTPUnauthorized('Handler error: Perhaps '+handler+' doesn\'t exists in Swift.\n')
+            # Verify if Micro-controller is in Swift
+            if not cc.verify_access(self, req.environ, version, account, self.hconf["handler_container"], mc):
+                return HTTPUnauthorized('Handler error: Perhaps '+mc+' doesn\'t exists in Swift.\n')
             
             # Verify if object is in Swift
             if not cc.verify_access(self, req.environ, version, account, container, obj):
@@ -106,7 +105,7 @@ class SwiftControllerMiddleware(object):
             header = [i for i in self.available_triggers if i in req.headers.keys()]
             if len(header) > 1:
                 return HTTPUnauthorized('The system can only set 1 controller each time.\n')
-            handler = req.headers[header[0]]
+            mc = req.headers[header[0]]
              
             # Put to Get to get physical location of main file   
             get_req = req.copy_get()
@@ -114,19 +113,114 @@ class SwiftControllerMiddleware(object):
 
             docker_gateway = cdg.ControllerGatewayDocker(req, get_resp, self.hconf, self.logger, self.app, 
                                                          device, partition, account, container, obj)
-            #write handler to file metadata
-            docker_gateway.setHandler(header[0],handler)
+            #write micro-controller to file metadata
+            docker_gateway.set_microcontroller(header[0],mc)
 
 
             return HTTPAccepted('Metadata file saved correctly.\n')
         
-
         # -----------------------------------------------------------------------------------------------------------------
         # -----------------------------------------------------------------------------------------------------------------
         orig_resp = req.get_response(self.app)   
         # -----------------------------------------------------------------------------------------------------------------
         # -----------------------------------------------------------------------------------------------------------------
 
+        """
+        ################################### OBJECT SERVER CASE: POST-PROCESSING ############################################
+        """             
+        if self.execution_server == 'object':
+            
+            #print "----------------------------------------------------"
+            #print orig_resp.app_iter  #TODO: THERE IS A BUG
+            #print "----------------------------------------------------"
+        
+            
+            self.logger.info('Swift Controller - Object Server execution')
+            
+            #check if is a valid request
+            if not self.valid_request(req, container):
+                # We only want to process PUT and GET requests
+                # Also we ignore the calls that goes to the storlet, handler and dependency container  
+                return orig_resp
+            
+            
+            docker_gateway = cdg.ControllerGatewayDocker(req, orig_resp, self.hconf, self.logger, self.app, 
+                                                         device, partition, account, container, obj)
+            
+            if docker_gateway.get_microcontrollers():
+                self.logger.info('Swift Controller - There are micro-controllers to execute')
+                
+                # We need to start Internal CLient
+                cc.start_internal_client_daemon()
+                # We need to start container if it is stopped
+                docker_gateway.start_container()  # TODO: NO SEMPRE
+
+                # Go to run the micro-controller         
+                storlet_list = docker_gateway.execute_controller_handlers()     
+                
+                # Go to run the Storlet whether the microcontroller sends back any.
+                if storlet_list: 
+                    storlet_gateway = csg.ControllerGatewayStorlet(self.hconf, self.logger, self.app, account, container, obj)
+                    account_meta = storlet_gateway.get_account_info()
+                    out_fd = None
+                    toProxy = 0
+                      
+                    # Verify if the account can execute Storlets    
+                    storlets_enabled = account_meta.get('x-account-meta-storlet-enabled','False')
+                    
+                    if storlets_enabled == 'False':
+                        self.logger.info('Swift Controller - Account disabled for storlets')
+                        return HTTPBadRequest('Swift Controller - Account disabled for storlets')
+                    
+                    
+                    # Execute multiple Storlets, PIPELINE, if any.
+                    for key in sorted(storlet_list):
+                        self.logger.info('************************ VISUAL STORLET EXECUTION DIVISOR ***************************')
+                        
+                        # Get Storlet and parameters
+                        storlet, parameters = storlet_list[key]["Storlet"].items()[0]                        
+                        nodeToExecute = storlet_list[key]["NodeToExecute"]
+                        
+                        self.logger.info('Swift Controller - Go to execute '+storlet+' storlet with parameters"' \
+                                         +parameters+'"'+ " on "+ nodeToExecute)
+                        
+                        if nodeToExecute == "object-server":
+                            if not storlet_gateway.authorize_storlet_execution(storlet):
+                                return HTTPUnauthorized('Swift Controller - Storlet: No permission')
+    
+                            old_env = req.environ.copy()
+                            orig_req = Request.blank(old_env['PATH_INFO'], old_env)
+                            out_fd, app_iter = storlet_gateway.execute_storlet_on_object(orig_resp,parameters,out_fd)
+                            
+                            # Notify to the Proxy that Storlet was executed in the object-server
+                            orig_resp.headers["Storlet-Executed"] = "True"
+                        
+                        else:
+                            orig_resp.headers["Storlet-Execute-On-Proxy-"+str(toProxy)] = storlet
+                            orig_resp.headers["Storlet-Execute-On-Proxy-Parameters-"+str(toProxy)] = parameters
+                            toProxy = toProxy + 1
+                            orig_resp.headers["Total-Storlets-To-Execute-On-Proxy"] = toProxy
+                    
+                    
+                    # Delete headers for the correct working of the Storlet framework
+                    if 'Content-Length' in orig_resp.headers:
+                        orig_resp.headers.pop('Content-Length')
+                    if 'Transfer-Encoding' in orig_resp.headers:
+                        orig_resp.headers.pop('Transfer-Encoding')
+  
+                    # Return Storlet response
+                    return Response(app_iter=app_iter,
+                                    headers=orig_resp.headers,
+                                    request=orig_req,
+                                    conditional_response=True)
+                else:
+                    self.logger.info('Swift Controller - No Storlets to execute')
+            else:    
+                self.logger.info('Swift Controller - No micro-controllers to execute')
+        
+            self.logger.info("Object Path: "+orig_resp.app_iter._data_file.rsplit('/', 1)[0])
+         
+        
         """
         ################################### PROXY SERVER CASE: POST-PROCESSING ############################################
         """
@@ -136,7 +230,7 @@ class SwiftControllerMiddleware(object):
             self.logger.info('Swift Controller - There are Storlets to execute from object server micro-controller')
             
             storlet_gateway = csg.ControllerGatewayStorlet(self.hconf, self.logger, self.app, account, container, obj)
-            account_meta = storlet_gateway.getAccountInfo()     
+            account_meta = storlet_gateway.get_account_info()     
             out_fd = None
               
             # Verify if the account can execute Storlets    
@@ -153,12 +247,12 @@ class SwiftControllerMiddleware(object):
                 
                 self.logger.info('Swift Controller - Go to execute '+storlet+' storlet with parameters "'+parameters+'"')
                 
-                if not storlet_gateway.authorizeStorletExecution(storlet):
+                if not storlet_gateway.authorize_storlet_execution(storlet):
                     return HTTPUnauthorized('Swift Controller - Storlet: No permission')
 
                 old_env = req.environ.copy()
                 orig_req = Request.blank(old_env['PATH_INFO'], old_env)
-                out_fd, app_iter = storlet_gateway.executeStorletOnProxy(orig_resp, parameters, out_fd)
+                out_fd, app_iter = storlet_gateway.execute_storlet_on_proxy(orig_resp, parameters, out_fd)
                 
                 
              
@@ -191,12 +285,12 @@ class SwiftControllerMiddleware(object):
                                                              None, None, account, container, obj)
                 
                 #RUN MICROCONTROLLER HERE
-                docker_gateway.setHandlers(micro_controller)
+                docker_gateway.set_microcontroller_list(micro_controller)
                 
                 self.logger.info('Swift Controller - There are micro-controllers to execute')
                 
                 # We need to start Internal CLient
-                cc.start_internal_client()
+                cc.start_internal_client_daemon()
                 # We need to start container if it is stopped
                 docker_gateway.startContainer()
                 
@@ -223,110 +317,11 @@ class SwiftControllerMiddleware(object):
                                 headers=resp_headers,
                                 request=orig_req,
                                 conditional_response=True)
-            return orig_resp
-        
-      
-              
-              
-        """
-        ################################### OBJECT SERVER CASE: POST-PROCESSING ############################################
-        """             
-        if self.execution_server == 'object':
-            
-            #print "----------------------------------------------------"
-            #print orig_resp.app_iter  #TODO: THERE IS A BUG
-            #print "----------------------------------------------------"
-        
-            
-            self.logger.info('Swift Controller - Object Server execution')
-            
-            #check if is a valid request
-            if not self.valid_request(req, container):
-                # We only want to process PUT and GET requests
-                # Also we ignore the calls that goes to the storlet, handler and dependency container  
-                return orig_resp
-            
-            
-            docker_gateway = cdg.ControllerGatewayDocker(req, orig_resp, self.hconf, self.logger, self.app, 
-                                                         device, partition, account, container, obj)
-            
-            if docker_gateway.getHandlers():
-                self.logger.info('Swift Controller - There are micro-controllers to execute')
-                
-                # We need to start Internal CLient
-                cc.start_internal_client()
-                # We need to start container if it is stopped
-                docker_gateway.startContainer()  # TODO: NO SEMPRE
-
-                # Go to run the micro-controller         
-                storlet_list = docker_gateway.executeControllerHandlers()     
-                
-                # Go to run the Storlet whether the microcontroller sends back any.
-                if storlet_list: 
-                    storlet_gateway = csg.ControllerGatewayStorlet(self.hconf, self.logger, self.app, account, container, obj)
-                    account_meta = storlet_gateway.getAccountInfo()     
-                    out_fd = None
-                    toProxy = 0
-                      
-                    # Verify if the account can execute Storlets    
-                    storlets_enabled = account_meta.get('x-account-meta-storlet-enabled','False')
-                    
-                    if storlets_enabled == 'False':
-                        self.logger.info('Swift Controller - Account disabled for storlets')
-                        return HTTPBadRequest('Swift Controller - Account disabled for storlets')
-                    
-                    
-                    # Execute multiple Storlets, PIPELINE, if any.
-                    for key in sorted(storlet_list):
-                        self.logger.info('************************ VISUAL STORLET EXECUTION DIVISOR ***************************')
-                        
-                        # Get Storlet and parameters
-                        storlet, parameters = storlet_list[key]["Storlet"].items()[0]                        
-                        nodeToExecute = storlet_list[key]["NodeToExecute"]
-                        
-                        self.logger.info('Swift Controller - Go to execute '+storlet+' storlet with parameters"' \
-                                         +parameters+'"'+ " on "+ nodeToExecute)
-                        
-                        if nodeToExecute == "object-server":
-                            if not storlet_gateway.authorizeStorletExecution(storlet):
-                                return HTTPUnauthorized('Swift Controller - Storlet: No permission')
-    
-                            old_env = req.environ.copy()
-                            orig_req = Request.blank(old_env['PATH_INFO'], old_env)
-                            out_fd, app_iter = storlet_gateway.executeStorletOnObject(orig_resp,parameters,out_fd)
-                            
-                            # Notify to the Proxy that Storlet was executed in the object-server
-                            orig_resp.headers["Storlet-Executed"] = "True"
-                        
-                        else:
-                            orig_resp.headers["Storlet-Execute-On-Proxy-"+str(toProxy)] = storlet
-                            orig_resp.headers["Storlet-Execute-On-Proxy-Parameters-"+str(toProxy)] = parameters
-                            toProxy = toProxy + 1
-                            orig_resp.headers["Total-Storlets-To-Execute-On-Proxy"] = toProxy
-                    
-                    
-                    # Delete headers for the correct working of the Storlet framework
-                    if 'Content-Length' in orig_resp.headers:
-                        orig_resp.headers.pop('Content-Length')
-                    if 'Transfer-Encoding' in orig_resp.headers:
-                        orig_resp.headers.pop('Transfer-Encoding')
   
-                    # Return Storlet response
-                    return Response(app_iter=app_iter,
-                                    headers=orig_resp.headers,
-                                    request=orig_req,
-                                    conditional_response=True)
-                else:
-                    self.logger.info('Swift Controller - No Storlets to execute')
-            else:    
-                self.logger.info('Swift Controller - No micro-controllers to execute')
-        
-            self.logger.info("Object Path: "+orig_resp.app_iter._data_file.rsplit('/', 1)[0])
-            
         return orig_resp
 
     def valid_request(self, req, container):
-        if req.method == 'GET' and container in self.containers:
+        if req.method == 'GET' and container not in self.containers:
             #Also we need to discard the copy calls.    
             if not "HTTP_X_COPY_FROM" in req.environ.keys():
                 self.logger.info('Swift Controller - Valid req: OK!')        
@@ -346,19 +341,17 @@ def filter_factory(global_conf, **local_conf):
     mc_conf['controller_timeout'] = conf.get('controller_timeout', 20)
     mc_conf['controller_pipe'] = conf.get('controller_pipe', 
                                           'controller_pipe')
-    mc_conf['handlers_dir'] = conf.get('handlers_dir', 
-                                       '/home/lxc_device/handlers/scopes')
-    mc_conf['handler_container'] = conf.get('handler_container', 
-                                                    'handler')
-    mc_conf['handler_dependency'] = conf.get('handler_dependency', 
-                                                     'dependency')
+    mc_conf['mc_dir'] = conf.get('mc_dir','/home/lxc_device/handlers/scopes')
+    
+    mc_conf['mc_container'] = conf.get('mc_container','handler')
+    mc_conf['mc_dependency'] = conf.get('mc_dependency','dependency')
     
     mc_conf['storlet_timeout'] = conf.get('storlet_timeout',40) 
     mc_conf['storlet_container'] = conf.get('storlet_container','storlet')
     mc_conf['storlet_dependency'] = conf.get('storlet_dependency', 
                                              'dependency')
     
-    mc_conf['docker_repo'] = conf.get('docker_repo','10.30.239.240:5001')
+    mc_conf['docker_repo'] = conf.get('docker_repo','192.168.2.1:5001')
        
     configParser = ConfigParser.RawConfigParser()
     configParser.read(conf.get('storlet_gateway_conf', 

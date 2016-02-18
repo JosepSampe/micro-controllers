@@ -1,5 +1,5 @@
 """
-Controller interceptor module for OpenStack Swift
+Micro-controller interceptor module for OpenStack Swift
 """
 
 #: Version information ``(major, minor, revision)``.
