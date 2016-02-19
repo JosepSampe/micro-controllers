@@ -44,7 +44,7 @@ class ControllerGatewayDocker():
         self.scope = account[5:18]
         self.file_path = None
         self.current_server = self.hconf["execution_server"]
-        self.mc_timeout = hconf["controller_timeout"]
+        self.mc_timeout = hconf["mc_timeout"]
         self.mc_container = self.hconf["mc_container"]
         self.mc_dependency = self.hconf["mc_dependency"]
         self.mc_list = None
@@ -83,39 +83,38 @@ class ControllerGatewayDocker():
 
         self.logger.info(cmd)
         
-        self.logger.info('Swift Controller - Starting container ' \
+        self.logger.info('MicroController - Starting container ' \
                          +docker_container_name+'...')
                
         p = subprocess.call(cmd,shell=True)
         
         if p == 0:
             time.sleep(1)
-            self.logger.info('Swift Controller - Container ' + \
+            self.logger.info('MicroController - Container ' + \
                              docker_container_name+' started')   
         else:
-            self.logger.info('Swift Controller - Container ' + \
+            self.logger.info('MicroController - Container ' + \
                              docker_container_name+' is already started')
 
     def set_microcontroller(self,trigger,mc):     
         trigger = trigger.rsplit('-', 1)[1].lower()
         fd = self.orig_resp.app_iter._fp
         object_mc_md = cc.read_metadata(fd)
-        
         if not object_mc_md:
             object_mc_md = DEFAULT_MD_STRING
-
-        object_mc_md[trigger] = mc
+        object_mc_md[trigger] = mc     
         cc.write_metadata(fd,object_mc_md)
         
         # Write micro-controller metadata file
-        file_path = self.get_resp.app_iter._data_file.rsplit('/', 1)[0]
+        file_path = self.orig_resp.app_iter._data_file.rsplit('/', 1)[0]
+        self.logger.info('MicroController - File path: '+file_path)
         metadata_target_path = os.path.join(file_path, 
                                             mc.rsplit('.', 1)[0]+".md")
         fn = open(metadata_target_path, 'w')
         fn.write(self.req.body)
         fn.close()
         
-        self.logger.info('Swift Controller - File path: '+file_path)
+        self.logger.info('MicroController - File path: '+file_path)
 
 
     def set_microcontroller_list(self, mc_list):
@@ -136,7 +135,7 @@ class ControllerGatewayDocker():
         else:
             return False
          
-    def execute_controller_handlers(self, server = None):
+    def execute_microcontrollers(self, server = None):
         """
         if server == "proxy":
             self.file_path = "/tmp/"
@@ -145,36 +144,34 @@ class ControllerGatewayDocker():
         
         self.file_path = self.orig_resp.app_iter._data_file.rsplit('/', 1)[0]
       
-        #verify access to micro-controllers and dependencies, and update cache
+        # Verify access to micro-controllers and dependencies, and update cache
+        # TODO: Update cache only if node doesn't have the MCF
         for mc_name in self.mc_list:
             mc_verified = self.verify_access(self.mc_container, mc_name)
-            
-            #"""
+            """
             if mc_verified:
-                self.update_mc_cache("handler",mc_name,mc_name)                
-                dep_list = self.mc_metadata[mc_name][MC_DEP_HEADER].split(",")
-                
-                for dep in dep_list:
+                self.update_mc_cache(self.mc_container,mc_name,mc_name)                
+                dep_list = self.mc_metadata[mc_name][MC_DEP_HEADER].split(",") 
+                for dep in dep_list:                                            
                     dep_verified = self.verify_access(self.mc_dependency,dep)
-                    
                     if dep_verified:
-                        self.update_handler_cache("dependency",mc_name,dep)
+                        self.update_mc_cache(self.mc_dependency,mc_name,dep)
                     else:
-                        self.logger.error('Swift Controller - Dependency ' + \
+                        self.logger.error('MicroController - Dependency ' + \
                                           dep+" not found in Swift")
-                        raise NameError("Swift Controller - Dependency " + \
+                        raise NameError("MicroController - Dependency " + \
                                         dep+" not found in Swift")          
             else:
-                raise NameError("Swift Controller - Micro-controller " + \
+                raise NameError("MicroController - Micro-controller " + \
                                 mc_name +" not found in Swift")
-            #"""       
+            """       
         
         
         mc_logger_path = self.hconf["log_dir"]+"/"+self.scope+"/"
         mc_pipe_path = self.hconf["pipes_dir"]+"/"+self.scope+"/" + \
-                       self.hconf["controller_pipe"]
+                       self.hconf["mc_pipe"]
 
-        self.logger.info('Swift Controller - File path: '+self.file_path)
+        self.logger.info('MicroController - Object path: '+self.file_path)
         
         self.req.headers['X-Current-Server'] = self.current_server
         
@@ -187,7 +184,7 @@ class ControllerGatewayDocker():
                                                      self.mc_metadata, 
                                                      self.mc_timeout, 
                                                      self.logger)
-               
+
         return protocol.communicate()
                 
     def verify_access(self, container, mc_name):
@@ -220,13 +217,13 @@ class MicroControllerInvocationProtocol(object):
     def __init__(self, file_path, mc_pipe_path, mc_logger_path, req_haders, 
                  file_headers, mc_list, mc_metadata, timeout, logger):
         self.logger = logger
-        self.controller_pipe_path = mc_pipe_path
-        self.controller_logger_path = mc_logger_path
+        self.mc_pipe_path = mc_pipe_path
+        self.mc_logger_path = mc_logger_path
         self.timeout = timeout
         self.req_md = req_haders
         self.file_md = file_headers
         self.mc_list = mc_list # Micro-controller name list
-        self.mc_metadata = mc_metadata # Micro-controller metadata
+        self.mc_md = mc_metadata # Micro-controller metadata
         self.file_path = file_path # Path of requested object
         self.micro_controllers = list() # Micro-controller object list
 
@@ -254,7 +251,6 @@ class MicroControllerInvocationProtocol(object):
             md = dict()
             md['type'] = SBUS_FD_LOGGER
             md['handler'] = mc.get_name()
-            #print md
             self.fdmd.append(md)
         
     def _add_metadata_stream(self): ##ADDED
@@ -265,7 +261,6 @@ class MicroControllerInvocationProtocol(object):
             md['handler'] = mc.get_name()
             md['main'] = mc.get_main()
             md['dependencies'] = mc.get_dependencies()
-            #print md
             self.fdmd.append(md)
             
     def _add_file_req_md(self):
@@ -310,7 +305,7 @@ class MicroControllerInvocationProtocol(object):
         dtg.set_command(SBUS_CMD_EXECUTE)
         
         # Send datagram to container daemon
-        rc = SBus.send(self.controller_pipe_path, dtg)
+        rc = SBus.send(self.mc_pipe_path, dtg)
         if (rc < 0):
             raise Exception("Failed to send execute command")
     
@@ -331,17 +326,17 @@ class MicroControllerInvocationProtocol(object):
         return out_data
 
     def communicate(self):
-        for mc_name in self.mc_list:  
+        for mc_name in self.mc_list:        
             mc = MicroController(self.file_path, 
-                                 self.controller_logger_path, 
+                                 self.mc_logger_path, 
                                  mc_name, 
                                  self.mc_md[mc_name][MC_MAIN_HEADER], 
                                  self.mc_md[mc_name][MC_DEP_HEADER])
             self.micro_controllers.append(mc)
-        
+     
         for mc in self.micro_controllers:
             mc.open()
-        
+   
         self._prepare_invocation_descriptors()
         
         try:

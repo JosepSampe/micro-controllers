@@ -4,7 +4,6 @@ import time
 import pwd
 import os
 import pickle
-
 from logging.handlers import SysLogHandler
 from SBusPythonFacade.SBus import SBus
 from swiftclient import client as ic
@@ -17,13 +16,6 @@ def md5hash(key):
     return md5(key).hexdigest()
 
 class internal_client(object):
-    '''@summary: This class acts as the manager for storlet daemons.
-              It listens to commands and reacts on them in an internal loop.
-              As for now (01-Dec-2014) it is a single thread, synchronous
-              processing.
-    '''
-
-    '''--------------------------------------------------------------------'''
     
     def __init__(self, path, logger):
         '''@summary:             CTOR
@@ -44,7 +36,7 @@ class internal_client(object):
         self.mc = memcache.Client(['controller:11211'], debug=0)
     '''--------------------------------------------------------------------'''
        
-    def copy_file(self, token, source_file, dest_file, source_type):      
+    def _copy_file(self, token, source_file, dest_file, source_type):      
         self.logger.debug('Going to copy '+source_file+" to "+dest_file)
 
         url = source_file.rsplit("/",2)[0]
@@ -58,11 +50,19 @@ class internal_client(object):
         response = dict() 
         if source_type == "original":
             headers = {'X-Copy-From':'/'+container+'/'+name}
-            ic.put_object(url, token, dest_container, dest_name, None, None, None, None, None, headers, None, None, None, response)
+            ic.put_object(url=url, token=token, 
+                          container=dest_container, 
+                          name=dest_name, 
+                          headers=headers, 
+                          response_dict=response)
       
         else: #PROCESSED BY STROELTS: EXECUTE ON PROXY
             headers = {'X-Copy-File':'True'}
-            data = ic.get_object(url, token, container, name, None, None, None, response, headers)
+            data = ic.get_object(url=url, token=token, 
+                                 container=dest_container, 
+                                 name=dest_name, 
+                                 headers=headers, 
+                                 response_dict=response)
             
             #Copy to another Container?                     
             #ic.put_object(url, token, dest_container, dest_name, data[1], None, None, None, None, headers, None, None, None, response)
@@ -71,17 +71,19 @@ class internal_client(object):
             key = md5hash(account+"/"+container+"/"+name)
             self.mc.set(key, data[1])
 
-    def delete_object(self, token, source_file):
+    def _delete_object(self, token, source_file):
         self.logger.debug('Going to delete '+source_file)
         response = dict()
         url = source_file.rsplit("/",2)[0]
         container = source_file.rsplit("/",2)[1]
         name = source_file.rsplit("/",2)[2]
         
-        ic.delete_object(url, token, container, name, None, None, None, None, response)
-
+        ic.delete_object(url=url, token=token, 
+                         container=container, 
+                         name=name, 
+                         response_dict=response)
         
-    def  prefetch_object(self, token, original_object_path, source_files_list):
+    def _prefetch_object(self, token, original_object_path, source_files_list):
         self.logger.debug('Going to prefetch '+source_files_list)
         headers = {'X-Copy-File':'True'}
         response = dict()       
@@ -95,19 +97,19 @@ class internal_client(object):
             key = md5hash(account+"/"+container+"/"+file_name)
             self.mc.delete(key)
 
-            data = ic.get_object(url, token, container, file_name, None, None, None, response, headers)
-            #PREFETCH
-            
+            data = ic.get_object(url=url, token=token, 
+                                 container=container, 
+                                 name=file_name, 
+                                 headers=headers, 
+                                 response_dict=response)
+            #PREFETCH        
             object_data = dict()
             object_data["Headers"] = data[0]
             object_data["Body"] = data[1]
                         
             value = pickle.dumps(object_data, 2)
-          
             self.mc.set(key, value)
-        
-    
-         
+   
     def dispatch_command(self, dtg):
         command = -1
                 
@@ -131,13 +133,13 @@ class internal_client(object):
             #time.sleep(3)
             
             if swift_command == "DELETE":
-                self.delete_object(prms['swift_token'],prms['source_file'])
+                self._delete_object(prms['swift_token'],prms['source_file'])
                 
             if swift_command == "COPY":
-                self.copy_file(prms['swift_token'],prms['source_file'],prms['dest_file'],prms['source_type'])
+                self._copy_file(prms['swift_token'],prms['source_file'],prms['dest_file'],prms['source_type'])
                 
             if swift_command == "PREFETCH":
-                self.prefetch_object(prms['swift_token'],prms['object_path'],prms['source_file_list'])
+                self._prefetch_object(prms['swift_token'],prms['object_path'],prms['source_file_list'])
             
         
     def main_loop(self):
@@ -167,11 +169,8 @@ class internal_client(object):
             if not dtg:
                 self.logger.error("Failed to receive message. exiting.")
                 return
-            else:
-                self.logger.debug("----- DATAGRAM RECIVED -----")
 
             self.dispatch_command(dtg)
-            
 
         # We left the main loop for some reason. Terminating.
         self.logger.debug('Leaving main loop')
@@ -238,7 +237,7 @@ def usage():
               Print the expected command line arguments.
     @rtype:   void
     '''
-    print("daemon_factory <path> <log level> <container_id>")
+    print("internal_client_daemon <path> <log level>")
 
 '''------------------------------------------------------------------------'''
 
@@ -259,8 +258,8 @@ def main(argv):
     pipe_path = argv[0]
     log_level = argv[1]
     # container_id = argv[2]
-    logger = start_logger("Controller Framework Internal Client", log_level)
-    logger.debug("Internal client started")
+    logger = start_logger("Micro-controller Framework Internal Client", log_level)
+    logger.debug("Internal client daemon started")
     SBus.start_logger("DEBUG", container_id="InternalClient")
 
     # Impersonate the swift user

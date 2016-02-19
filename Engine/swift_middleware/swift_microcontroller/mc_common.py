@@ -16,7 +16,7 @@ import time
 import subprocess
 
 PICKLE_PROTOCOL = 2
-METADATA_KEY = 'user.swift.controller'
+METADATA_KEY = 'user.swift.microcontroller'
 
 INTERNAL_CLIENT = '/etc/swift/storlet-proxy-server.conf'
 
@@ -24,6 +24,7 @@ def read_metadata(fd, md_key = None):
     """
     Helper function to read the pickled metadata from an object file.
     :param fd: file descriptor or filename to load the metadata from
+    :param md_key: metadata key to be read from object file
     :returns: dictionary of metadata
     """
     if md_key:
@@ -56,9 +57,9 @@ def write_metadata(fd, metadata, xattr_size=65536, md_key = None):
     """
     Helper function to write pickled metadata for an object file.
     :param fd: file descriptor or filename to write the metadata
+    :param md_key: metadata key to be write to object file
     :param metadata: metadata to write
     """
-    
     if md_key:
         meta_key = md_key
     else:
@@ -86,6 +87,11 @@ def write_metadata(fd, metadata, xattr_size=65536, md_key = None):
             raise
 
 def get_account_metadata(account):
+    """
+    Helper function to read the account metadata.
+    :param account: account name
+    :returns: dictionary of metadata
+    """
     iclient = ic(INTERNAL_CLIENT, 'SA', 1)       
     return iclient.get_account_metadata(account)
 
@@ -95,17 +101,17 @@ def make_swift_request(op, account, container=None, obj=None ):
     resp = iclient.make_request(op, path, {'PATH_INFO': path}, [200])
     return resp
 
-def verify_access(self, env, version, account, container, objecte):
+def verify_access(self, env, ver, account, container, obj):
     self.logger.info('Verify access to {0}/{1}/{2}'.format(account,
                                                            container,
-                                                           objecte))
+                                                           obj))
     new_env = env.copy()
     if 'HTTP_TRANSFER_ENCODING' in new_env.keys():
         del new_env['HTTP_TRANSFER_ENCODING']
     new_env['REQUEST_METHOD'] = 'HEAD'
     new_env['swift.source'] = 'CM'
-    new_env['PATH_INFO'] = os.path.join('/' + version, account, container, objecte)
-    new_env['RAW_PATH_INFO'] = os.path.join('/' + version, account, container, objecte)
+    new_env['PATH_INFO'] = os.path.join('/' + ver, account, container, obj)
+    new_env['RAW_PATH_INFO'] = os.path.join('/' + ver, account, container, obj)
     req = Request.blank(new_env['PATH_INFO'], new_env)
 
     if 'X-Controller-Onget' in req.headers:
@@ -148,24 +154,30 @@ def get_file(self, env, version, account, path):
         return resp
     return False
 
-def start_internal_client_daemon(self):
-    self.logger.info('Swift Controller - Going to execute Internal Client')
+def start_internal_client_daemon(logger):
+    
+    print "*********************"
+    logger.info('MicroController - Going to execute Internal Client')
 
-    pid = os.popen( "ps -aef | grep -i 'internal_client_daemon.py' | grep -v 'grep' | awk '{ print $2 }'" ).read()
+    pid = os.popen( "ps -aef | grep -i 'internal_client_daemon.py' | grep" + \
+                    " -v 'grep' | awk '{ print $2 }'" ).read()
 
     if pid != "":
-        self.logger.info('Swift Controller - Internal Client is already started')
+        logger.info('MicroController - Internal Client is already' + \
+                         ' started')
     else:
         #TODO: Change IC path
-        cmd='/usr/bin/python /home/lab144/josep/ControllerMiddleware/internal_client_daemon.py' \
+        cmd='/usr/bin/python /opt/urv/internal_client_daemon.py' \
             '/home/lxc_device/pipes/scopes/bd34c4073b654/internal_client_pipe DEBUG &'
               
-        self.logger.info(cmd)
+        logger.info(cmd)
         p = subprocess.call(cmd,shell=True)
                 
         if p == 0:
-            self.logger.info('Swift Controller - Internal Client daemon started')   
+            logger.info('MicroController - Internal Client daemon' + \
+                             'started')   
         else:
-            self.logger.info('Swift Controller - Error starting Internal Client daemon')
+            logger.info('MicroController - Error starting Internal' + \
+                             'Client daemon')
         
         time.sleep(1)

@@ -1,5 +1,5 @@
 from setuptools import setup
-paste_factory = ['controller_handler = '
+paste_factory = ['microcontroller_handler = '
                  'swift_microcontroller.mc_handler:filter_factory']
 
 setup(name='swift_microcontroller',

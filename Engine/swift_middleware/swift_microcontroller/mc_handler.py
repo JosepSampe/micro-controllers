@@ -4,32 +4,33 @@
 from swift.common.swob import wsgify
 from swift.common.swob import HTTPBadRequest
 from swift.common.swob import HTTPUnauthorized
-from swift.common.swob import HTTPAccepted
 from swift.common.swob import Response
 from swift.common.swob import Request
-from swift.common.utils import get_logger, is_success, cache_from_env
+from swift.common.utils import get_logger 
+from swift.common.utils import is_success 
+from swift.common.utils import cache_from_env
 import ConfigParser
 import mc_docker_gateway as cdg
 import mc_storlet_gateway as csg
 import mc_common as cc
 import pickle
 
-class SwiftControllerMiddleware(object):
+class SwiftMicroControllerMiddleware(object):
     def __init__(self, app, conf):
         self.memcache = None
         self.app = app
         self.execution_server = conf.get('execution_server')
-        self.logger = get_logger(conf, log_route='swift_controller')
+        self.logger = get_logger(conf, log_route='microcontroller_handler')
         self.hconf = conf
         self.containers = [conf.get('mc_container'),
                            conf.get('mc_dependency'),
                            conf.get('storlet_container'),
                            conf.get('storlet_dependency')]
-        self.available_triggers = ['X-Controller-Onget',
-                                   'X-Controller-Ondelete',
-                                   'X-Controller-Onput',
-                                   'X-Controller-Ontimer']
-        self.logger.debug('Swift Controller - Init OK')
+        self.available_triggers = ['X-Microcontroller-Onget',
+                                   'X-Microcontroller-Ondelete',
+                                   'X-Microcontroller-Onput',
+                                   'X-Microcontroller-Ontimer']
+        self.logger.debug('MicroController - Init OK')
 
     @wsgify
     def __call__(self, req):
@@ -37,7 +38,7 @@ class SwiftControllerMiddleware(object):
         try:
             if self.execution_server == 'proxy':
  
-                self.logger.info('Swift Controller - Proxy Server execution')
+                self.logger.info('MicroController - Proxy Server execution')
                 version, account, container, obj = req.split_path(2, 4, rest_with_last=True)
                 
                 
@@ -47,12 +48,12 @@ class SwiftControllerMiddleware(object):
       
                     cached = self.memcache.get(account+"/"+container+"/"+obj)
                                         
-                    self.logger.info('Swift Controller - Checking in cache: '+account+"/"+container+"/"+obj)
+                    self.logger.info('MicroController - Checking in cache: '+account+"/"+container+"/"+obj)
                     
                     if cached is not None:
                         value = pickle.loads(cached)
                     
-                        self.logger.info('Swift Controller - *+---------- OBJECT IN CACHE -----------+*')
+                        self.logger.info('MicroController - *+---------- OBJECT IN CACHE -----------+*')
                         # Return Cached
                         old_env = req.environ.copy()
                         orig_req = Request.blank(old_env['PATH_INFO'],old_env)
@@ -88,12 +89,13 @@ class SwiftControllerMiddleware(object):
             mc = req.headers[header[0]]
             
             # Verify if Micro-controller is in Swift
-            if not cc.verify_access(self, req.environ, version, account, self.hconf["handler_container"], mc):
+            if not cc.verify_access(self, req.environ, version, account, self.hconf["mc_container"], mc):
                 return HTTPUnauthorized('Handler error: Perhaps '+mc+' doesn\'t exists in Swift.\n')
             
             # Verify if object is in Swift
             if not cc.verify_access(self, req.environ, version, account, container, obj):
                 return HTTPUnauthorized('Object error: Perhaps '+obj+' doesn\'t exists in Swift.\n')
+            
   
         """
         ########### OBJECT SERVER CASE: PRE-PROCESSING -> PUT METADATA FILE
@@ -103,10 +105,11 @@ class SwiftControllerMiddleware(object):
             ( any((True for x in self.available_triggers if x in req.headers.keys())) ):
             
             header = [i for i in self.available_triggers if i in req.headers.keys()]
+            
             if len(header) > 1:
                 return HTTPUnauthorized('The system can only set 1 controller each time.\n')
             mc = req.headers[header[0]]
-             
+                         
             # Put to Get to get physical location of main file   
             get_req = req.copy_get()
             get_resp = get_req.get_response(self.app)
@@ -116,8 +119,9 @@ class SwiftControllerMiddleware(object):
             #write micro-controller to file metadata
             docker_gateway.set_microcontroller(header[0],mc)
 
-
-            return HTTPAccepted('Metadata file saved correctly.\n')
+            # TODO: Return Httpaccepted
+            return HTTPUnauthorized('Metadata file saved correctly.\n')
+            
         
         # -----------------------------------------------------------------------------------------------------------------
         # -----------------------------------------------------------------------------------------------------------------
@@ -135,7 +139,7 @@ class SwiftControllerMiddleware(object):
             #print "----------------------------------------------------"
         
             
-            self.logger.info('Swift Controller - Object Server execution')
+            self.logger.info('MicroController - Object Server execution')
             
             #check if is a valid request
             if not self.valid_request(req, container):
@@ -148,15 +152,15 @@ class SwiftControllerMiddleware(object):
                                                          device, partition, account, container, obj)
             
             if docker_gateway.get_microcontrollers():
-                self.logger.info('Swift Controller - There are micro-controllers to execute')
+                self.logger.info('MicroController - There are micro-controllers to execute')
                 
                 # We need to start Internal CLient
-                cc.start_internal_client_daemon()
+                #cc.start_internal_client_daemon(self.logger)
                 # We need to start container if it is stopped
-                docker_gateway.start_container()  # TODO: NO SEMPRE
-
+                #docker_gateway.start_container()  # TODO: NO SEMPRE
+                
                 # Go to run the micro-controller         
-                storlet_list = docker_gateway.execute_controller_handlers()     
+                storlet_list = docker_gateway.execute_microcontrollers()     
                 
                 # Go to run the Storlet whether the microcontroller sends back any.
                 if storlet_list: 
@@ -169,27 +173,28 @@ class SwiftControllerMiddleware(object):
                     storlets_enabled = account_meta.get('x-account-meta-storlet-enabled','False')
                     
                     if storlets_enabled == 'False':
-                        self.logger.info('Swift Controller - Account disabled for storlets')
-                        return HTTPBadRequest('Swift Controller - Account disabled for storlets')
+                        self.logger.info('MicroController - Account disabled for storlets')
+                        return HTTPBadRequest('MicroController - Account disabled for storlets')
                     
                     
                     # Execute multiple Storlets, PIPELINE, if any.
                     for key in sorted(storlet_list):
-                        self.logger.info('************************ VISUAL STORLET EXECUTION DIVISOR ***************************')
+                        self.logger.info('************* VISUAL STORLET EXECUTION DIVISOR *************')
                         
                         # Get Storlet and parameters
                         storlet, parameters = storlet_list[key]["Storlet"].items()[0]                        
                         nodeToExecute = storlet_list[key]["NodeToExecute"]
                         
-                        self.logger.info('Swift Controller - Go to execute '+storlet+' storlet with parameters"' \
+                        self.logger.info('MicroController - Go to execute '+storlet+' storlet with parameters"' \
                                          +parameters+'"'+ " on "+ nodeToExecute)
                         
                         if nodeToExecute == "object-server":
                             if not storlet_gateway.authorize_storlet_execution(storlet):
-                                return HTTPUnauthorized('Swift Controller - Storlet: No permission')
+                                return HTTPUnauthorized('MicroController - Storlet: No permission')
     
                             old_env = req.environ.copy()
                             orig_req = Request.blank(old_env['PATH_INFO'], old_env)
+                            
                             out_fd, app_iter = storlet_gateway.execute_storlet_on_object(orig_resp,parameters,out_fd)
                             
                             # Notify to the Proxy that Storlet was executed in the object-server
@@ -214,9 +219,9 @@ class SwiftControllerMiddleware(object):
                                     request=orig_req,
                                     conditional_response=True)
                 else:
-                    self.logger.info('Swift Controller - No Storlets to execute')
+                    self.logger.info('MicroController - No Storlets to execute')
             else:    
-                self.logger.info('Swift Controller - No micro-controllers to execute')
+                self.logger.info('MicroController - No micro-controllers to execute')
         
             self.logger.info("Object Path: "+orig_resp.app_iter._data_file.rsplit('/', 1)[0])
          
@@ -227,7 +232,7 @@ class SwiftControllerMiddleware(object):
         
         if self.execution_server == 'proxy' and 'Total-Storlets-To-Execute-On-Proxy' in orig_resp.headers:
 
-            self.logger.info('Swift Controller - There are Storlets to execute from object server micro-controller')
+            self.logger.info('MicroController - There are Storlets to execute from object server micro-controller')
             
             storlet_gateway = csg.ControllerGatewayStorlet(self.hconf, self.logger, self.app, account, container, obj)
             account_meta = storlet_gateway.get_account_info()     
@@ -237,18 +242,18 @@ class SwiftControllerMiddleware(object):
             storlets_enabled = account_meta.get('x-account-meta-storlet-enabled','False')
             
             if storlets_enabled == 'False':
-                self.logger.info('Swift Controller - Account disabled for storlets')
-                return HTTPBadRequest('Swift Controller - Account disabled for storlets')
+                self.logger.info('MicroController - Account disabled for storlets')
+                return HTTPBadRequest('MicroController - Account disabled for storlets')
 
             for index in range(int(orig_resp.headers["Total-Storlets-To-Execute-On-Proxy"])):
                 self.logger.info('************************ VISUAL STORLET EXECUTION DIVISOR ***************************')
                 storlet = orig_resp.headers["Storlet-Execute-On-Proxy-"+str(index)]
                 parameters = orig_resp.headers["Storlet-Execute-On-Proxy-Parameters-"+str(index)]
                 
-                self.logger.info('Swift Controller - Go to execute '+storlet+' storlet with parameters "'+parameters+'"')
+                self.logger.info('MicroController - Go to execute '+storlet+' storlet with parameters "'+parameters+'"')
                 
                 if not storlet_gateway.authorize_storlet_execution(storlet):
-                    return HTTPUnauthorized('Swift Controller - Storlet: No permission')
+                    return HTTPUnauthorized('MicroController - Storlet: No permission')
 
                 old_env = req.environ.copy()
                 orig_req = Request.blank(old_env['PATH_INFO'], old_env)
@@ -272,7 +277,7 @@ class SwiftControllerMiddleware(object):
         elif self.execution_server == 'proxy' and req.method == "GET" and \
             (orig_resp.headers["Storlet-Executed"] or "X-Object-Meta-Run-Micro-Controller" in orig_resp.headers):
             
-            self.logger.info('Swift Controller - There are NO Storlets to execute from object server micro-controller')           
+            self.logger.info('MicroController - There are NO Storlets to execute from object server micro-controller')           
                         
                         
             # We must execute the micro-controller here in the proxy
@@ -287,7 +292,7 @@ class SwiftControllerMiddleware(object):
                 #RUN MICROCONTROLLER HERE
                 docker_gateway.set_microcontroller_list(micro_controller)
                 
-                self.logger.info('Swift Controller - There are micro-controllers to execute')
+                self.logger.info('MicroController - There are micro-controllers to execute')
                 
                 # We need to start Internal CLient
                 cc.start_internal_client_daemon()
@@ -324,10 +329,10 @@ class SwiftControllerMiddleware(object):
         if req.method == 'GET' and container not in self.containers:
             #Also we need to discard the copy calls.    
             if not "HTTP_X_COPY_FROM" in req.environ.keys():
-                self.logger.info('Swift Controller - Valid req: OK!')        
+                self.logger.info('MicroController - Valid req: OK!')        
                 return True
             
-        self.logger.info('Swift Controller - Valid req: NO!')        
+        self.logger.info('MicroController - Valid req: NO!')        
         return False
 
 
@@ -338,11 +343,9 @@ def filter_factory(global_conf, **local_conf):
     
     mc_conf = dict()
     mc_conf['execution_server'] = conf.get('execution_server','object')
-    mc_conf['controller_timeout'] = conf.get('controller_timeout', 20)
-    mc_conf['controller_pipe'] = conf.get('controller_pipe', 
-                                          'controller_pipe')
+    mc_conf['mc_timeout'] = conf.get('mc_timeout', 20)
+    mc_conf['mc_pipe'] = conf.get('mc_pipe','controller_pipe')
     mc_conf['mc_dir'] = conf.get('mc_dir','/home/lxc_device/handlers/scopes')
-    
     mc_conf['mc_container'] = conf.get('mc_container','handler')
     mc_conf['mc_dependency'] = conf.get('mc_dependency','dependency')
     
@@ -361,8 +364,8 @@ def filter_factory(global_conf, **local_conf):
     for key, val in additional_items:
         mc_conf[key] = val
 
-    def swift_controller(app):
-        return SwiftControllerMiddleware(app, mc_conf)
+    def swift_microcontroller(app):
+        return SwiftMicroControllerMiddleware(app, mc_conf)
 
-    return swift_controller
+    return swift_microcontroller
 

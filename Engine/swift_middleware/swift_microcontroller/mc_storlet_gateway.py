@@ -34,7 +34,7 @@ class ControllerGatewayStorlet():
             return True
         return False
            
-    def set_storlet_request(self,orig_resp,params):
+    def set_storlet_request(self,orig_resp,params):        
         self.gateway = StorletGatewayDocker(self.hconf, self.logger, self.app, 
                                             self.version, self.account, 
                                             self.container, self.obj)
@@ -51,8 +51,8 @@ class ControllerGatewayStorlet():
         
         return req
     
-    def execute_storlet_on_object(self, orig_resp, params, input_pipe=None):   
-        req = self.set_storlet_rquest(orig_resp, params)
+    def execute_storlet_on_object(self, orig_resp, params, input_pipe=None):           
+        req = self.set_storlet_request(orig_resp, params)
 
         (_, app_iter) = self.gateway.gatewayObjectGetFlow(req, self.container, 
                                                           self.obj, orig_resp, 
@@ -60,7 +60,7 @@ class ControllerGatewayStorlet():
         return app_iter.obj_data, app_iter
     
     def execute_storlet_on_proxy(self, orig_resp, params, input_pipe=None):
-        req = self.set_storlet_rquest(orig_resp, params)      
+        req = self.set_storlet_request(orig_resp, params)      
 
         (_, app_iter) = self.gateway.gatewayProxyGETFlow(req, self.container, 
                                                          self.obj, orig_resp, 
