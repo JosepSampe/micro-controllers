@@ -1,13 +1,3 @@
-<!-- 
- Licensed Materials - Property of IBM
-
- Copyright IBM Corp. 2014, 2014 All Rights Reserved
-
- US Government Users Restricted Rights - Use, duplication or
- disclosure restricted by GSA ADP Schedule Contract with
- IBM Corp.
--->
-
 <project>
 	
 	<target name="common">
@@ -15,7 +5,7 @@
 	</target>
 
 	<target name="transgrep">
-		<javac srcdir="src/com/urv/handler/transgrep/" destdir="bin" includeantruntime="false">
+		<javac srcdir="src/com/urv/vertigo/mc/transgrep/" destdir="bin" includeantruntime="false">
 			<classpath>
 		        <pathelement 
 		        	path="lib/CDaemon.jar"/>
@@ -23,7 +13,7 @@
 
 	     <jar destfile="bin/transgrep-1.0.jar" 
 	          basedir="bin"
-	     	  includes="com/urv/handler/transgrep/*">
+	     	  includes="com/urv/vertigo/mc/transgrep/*">
 	     </jar>
 	</target>
 	
@@ -32,5 +22,4 @@
 	</target>
 	
 	<target name="build" depends="clean, common, transgrep"/>
-
 </project>

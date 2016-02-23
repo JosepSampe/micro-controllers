@@ -4,20 +4,18 @@
 		<mkdir dir="bin" />
 	</target>
 
-	<target name="counter">
-		<javac srcdir="src/com/urv/vertigo/mc/counter/" destdir="bin" includeantruntime="false">
+	<target name="prefetching">
+		<javac srcdir="src/com/urv/vertigo/mc/prefetching/" destdir="bin" includeantruntime="false">
 			<classpath>
 		        <pathelement 
 		        	path="lib/CDaemon.jar"/>
 				<pathelement 
-					path="lib/commons-compress-1.6.jar"/>
-				<pathelement 
 					path="lib/json-simple-1.1.1.jar"/>
 			</classpath>		</javac>
 
-	     <jar destfile="bin/counter-1.0.jar" 
+	     <jar destfile="bin/prefetching-1.0.jar" 
 	          basedir="bin"
-	     	  includes="com/urv/vertigo/mc/counter/*">
+	     	  includes="com/urv/vertigo/mc/prefetching/*">
 	     </jar>
 	</target>
 	
@@ -25,6 +23,6 @@
 		<delete dir="bin" />
 	</target>
 	
-	<target name="build" depends="clean, common, counter"/>
-
+	<target name="build" depends="clean, common, prefetching"/>
+	
 </project>
