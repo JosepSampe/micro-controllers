@@ -1,0 +1,30 @@
+<project>
+	
+	<target name="common">
+		<mkdir dir="bin" />
+	</target>
+
+	<target name="cbac">
+		<javac srcdir="src/com/urv/vertigo/mc/cbac/" destdir="bin" includeantruntime="false">
+			<classpath>
+		        <pathelement 
+		        	path="lib/CDaemon.jar"/>
+				<pathelement 
+					path="lib/commons-compress-1.6.jar"/>
+				<pathelement 
+					path="lib/json-simple-1.1.1.jar"/>
+			</classpath>		</javac>
+
+	     <jar destfile="bin/cbac-1.0.jar" 
+	          basedir="bin"
+	     	  includes="com/urv/vertigo/mc/cbac/*">
+	     </jar>
+	</target>
+	
+	<target name="clean">
+		<delete dir="bin" />
+	</target>
+	
+	<target name="build" depends="clean, common, cbac"/>
+
+</project>
