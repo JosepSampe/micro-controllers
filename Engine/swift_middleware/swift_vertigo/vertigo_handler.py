@@ -20,16 +20,16 @@ class SwiftMicroControllerMiddleware(object):
         self.memcache = None
         self.app = app
         self.execution_server = conf.get('execution_server')
-        self.logger = get_logger(conf, log_route='microcontroller_handler')
+        self.logger = get_logger(conf, log_route='vertigo_handler')
         self.hconf = conf
         self.containers = [conf.get('mc_container'),
                            conf.get('mc_dependency'),
                            conf.get('storlet_container'),
                            conf.get('storlet_dependency')]
-        self.available_triggers = ['X-Microcontroller-Onget',
-                                   'X-Microcontroller-Ondelete',
-                                   'X-Microcontroller-Onput',
-                                   'X-Microcontroller-Ontimer']
+        self.available_triggers = ['X-Vertigo-Onget',
+                                   'X-Vertigo-Ondelete',
+                                   'X-Vertigo-Onput',
+                                   'X-Vertigo-Ontimer']
         self.logger.debug('Vertigo - Init OK')
 
     @wsgify
