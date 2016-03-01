@@ -38,8 +38,8 @@ public class HandlerOutput {
 		JSONObject storletPack = new JSONObject();
 		JSONObject execStorlet = new JSONObject();
 		execStorlet.put(name,parameters);
-		storletPack.put("Storlet",execStorlet);
-		storletPack.put("NodeToExecute",node);		
+		storletPack.put("storlet",execStorlet);
+		storletPack.put("node",node);		
 		outMetadata.put(i,storletPack);
 	}
 	

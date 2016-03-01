@@ -85,31 +85,36 @@ class internal_client(object):
         
     def _prefetch_object(self, token, original_object_path, source_files_list):
         self.logger.debug('Going to prefetch '+source_files_list)
-        headers = {'X-Copy-File':'True'}
-        response = dict()       
         
+        headers = {'X-Copy-File':'True'}
+        response = dict() 
+          
+        original_object_path = original_object_path.split(" ")[1]        
         url = original_object_path.rsplit("/",2)[0]
         account = url.rsplit("/",1)[1]
         container = original_object_path.rsplit("/",2)[1]
         file_list = source_files_list.split(",")
-                
-        for file_name in file_list:
-            key = md5hash(account+"/"+container+"/"+file_name)
-            self.mc.delete(key)
 
-            data = ic.get_object(url=url, token=token, 
-                                 container=container, 
-                                 name=file_name, 
-                                 headers=headers, 
-                                 response_dict=response)
+        swift_conn = ic.Connection(preauthtoken=token, preauthurl=url)
+
+        for obj in file_list:
+            key = md5hash(account+"/"+container+"/"+obj)
+            self.mc.delete(key)
+            
+            data = swift_conn.get_object(container=container, 
+                                         obj=obj, 
+                                         headers=headers, 
+                                         response_dict=response)
             #PREFETCH        
             object_data = dict()
-            object_data["Headers"] = data[0]
-            object_data["Body"] = data[1]
+            object_data["headers"] = data[0]
+            object_data["body"] = data[1]
                         
             value = pickle.dumps(object_data, 2)
             self.mc.set(key, value)
-   
+
+        swift_conn.close()
+        
     def dispatch_command(self, dtg):
         command = -1
                 

@@ -17,8 +17,8 @@ public class TransGrepHandler implements IHandler {
 						Map<String, String> req_md,  HandlerOutput out) {
 		logger.emitLog("*********** Init TransGrep MicroController ************");
 		
-		out.setStorlet(0,"transcoder-1.0.jar","","object-server");
-		out.setStorlet(1,"grep-1.0.jar","regexp=*^a*","object-server");
+		out.setStorlet(0,"transcoder-1.0.jar","","object");
+		out.setStorlet(1,"grep-1.0.jar","regexp=*^a*","proxy");
 		out.execStorlets();
 		
 		logger.emitLog("To execute:" + out.getStorletList());

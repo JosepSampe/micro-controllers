@@ -114,19 +114,15 @@ def verify_access(self, env, ver, account, container, obj):
     new_env['RAW_PATH_INFO'] = os.path.join('/' + ver, account, container, obj)
     req = Request.blank(new_env['PATH_INFO'], new_env)
 
-    if 'X-Controller-Onget' in req.headers:
-        req.headers.pop('X-Controller-Onget')
-        
-    if 'X-Controller-Onput' in req.headers:
-        req.headers.pop('X-Controller-Onput')
-
-    if 'X-Use-Controller' in req.headers:
-        req.headers.pop('X-Use-Controller')
+    if 'X-Vertigo-Onget' in req.headers:
+        req.headers.pop('X-Vertigo-Onget')
     
     resp = req.get_response(self.app)
     if resp.status_int < 300 and resp.status_int >= 200:
         return True
     return False
+
+
 
 def get_file(self, env, version, account, path):
 
@@ -153,31 +149,3 @@ def get_file(self, env, version, account, path):
     if resp.status_int < 300 and resp.status_int >= 200:
         return resp
     return False
-
-def start_internal_client_daemon(logger):
-    
-    print "*********************"
-    logger.info('Vertigo - Going to execute Internal Client')
-
-    pid = os.popen( "ps -aef | grep -i 'internal_client_daemon.py' | grep" + \
-                    " -v 'grep' | awk '{ print $2 }'" ).read()
-
-    if pid != "":
-        logger.info('Vertigo - Internal Client is already' + \
-                         ' started')
-    else:
-        #TODO: Change IC path
-        cmd='/usr/bin/python /opt/urv/internal_client_daemon.py' \
-            '/home/lxc_device/pipes/scopes/bd34c4073b654/internal_client_pipe DEBUG &'
-              
-        logger.info(cmd)
-        p = subprocess.call(cmd,shell=True)
-                
-        if p == 0:
-            logger.info('Vertigo - Internal Client daemon' + \
-                             'started')   
-        else:
-            logger.info('Vertigo - Error starting Internal' + \
-                             'Client daemon')
-        
-        time.sleep(1)

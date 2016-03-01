@@ -3,337 +3,438 @@
 ==========================================================================='''
 from swift.common.swob import wsgify
 from swift.common.swob import HTTPBadRequest
-from swift.common.swob import HTTPUnauthorized
+from swift.common.swob import HTTPUnauthorized 
+from swift.common.swob import HTTPException 
+from swift.common.swob import HTTPInternalServerError
 from swift.common.swob import Response
-from swift.common.swob import Request
-from swift.common.utils import get_logger 
-from swift.common.utils import is_success 
+from swift.common.utils import get_logger
+from swift.common.utils import config_true_value
 from swift.common.utils import cache_from_env
 import ConfigParser
 import vertigo_docker_gateway as vdg
 import vertigo_storlet_gateway as vsg
 import vertigo_common as vc
 import pickle
+from swift.proxy.controllers.base import get_account_info
 
-class SwiftMicroControllerMiddleware(object):
-    def __init__(self, app, conf):
-        self.memcache = None
-        self.app = app
-        self.execution_server = conf.get('execution_server')
-        self.logger = get_logger(conf, log_route='vertigo_handler')
-        self.hconf = conf
-        self.containers = [conf.get('mc_container'),
-                           conf.get('mc_dependency'),
-                           conf.get('storlet_container'),
-                           conf.get('storlet_dependency')]
+
+
+class NotVertigoRequest(Exception):
+    pass
+
+def _request_instance_property():
+    """
+    Set and retrieve the request instance.
+    This works to force to tie the consistency between the request path and
+    self.vars (i.e. api_version, account, container, obj) even if unexpectedly
+    (separately) assigned.
+    """
+    def getter(self):
+        return self._request
+
+    def setter(self, request):
+        self._request = request
+        try:
+            self._extract_vaco()
+        except ValueError:
+            raise NotVertigoRequest()
+
+    return property(getter, setter,
+                    doc="Force to tie the request to acc/con/obj vars")
+
+
+class BaseVertigoHandler(object):
+    """
+    This is an abstract handler for Proxy/Object Server middleware
+    """
+    request = _request_instance_property()
+
+    def __init__(self, request, conf, app, logger):
+        """
+        :param request: swob.Request instance
+        :param conf: gatway conf dict
+        """
+        self.request = request
+        self.vertigo_containers = [conf.get('mc_container'),
+                                   conf.get('mc_dependency'),
+                                   conf.get('storlet_container'),
+                                   conf.get('storlet_dependency')]
         self.available_triggers = ['X-Vertigo-Onget',
                                    'X-Vertigo-Ondelete',
                                    'X-Vertigo-Onput',
                                    'X-Vertigo-Ontimer']
-        self.logger.debug('Vertigo - Init OK')
+        self.app = app
+        self.logger = logger
+        self.conf = conf
+
+    def _setup_docker_gateway(self, original_resp = None):
+        self.docker_gateway = vdg.VertigoGatewayDocker(
+            self.request, original_resp,
+            self.conf, self.logger, self.app, self.api_version,
+            self.account, self.container, self.obj)
+        
+                
+        #self._update_storlet_parameters_from_headers()
+        
+    def _setup_storlet_gateway(self):      
+        self.storlet_gateway = vsg.VertigoGatewayStorlet(
+            self.conf, self.logger, self.app, self.api_version,
+            self.account, self.container, self.obj, self.request.method)
+
+    def _extract_vaco(self):
+        """
+        Set version, account, container, obj vars from self._parse_vaco result
+        :raises ValueError: if self._parse_vaco raises ValueError while
+                            parsing, this method doesn't care and raise it to
+                            upper caller.
+        """
+        self._api_version, self._account, self._container, self._obj = \
+            self._parse_vaco()
+
+
+    def get_vertigo_mc_data(self):
+        header = [i for i in self.available_triggers \
+                  if i in self.request.headers.keys()]
+        if len(header) > 1:
+            raise HTTPUnauthorized('The system can only set 1 controller' + \
+                                   ' each time.\n')
+        mc = self.request.headers[header[0]]
+        
+        return header[0], mc
+                
+    @property
+    def api_version(self):
+        return self._api_version
+
+    @property
+    def account(self):
+        return self._account
+
+    @property
+    def container(self):
+        return self._container
+
+    @property
+    def obj(self):
+        return self._obj
+
+    def _parse_vaco(self):
+        """
+        Parse method of path from self.request which depends on child class
+        (Proxy or Object)
+        :return tuple: a string tuple of (version, account, container, object)
+        """
+        raise NotImplementedError()
+
+    def handle_request(self):
+        """
+        Run storlet
+        """
+        raise NotImplementedError()
+
+    @property
+    def is_storlet_execution(self):
+        return 'X-Run-Storlet' in self.request.headers
+
+    @property
+    def is_range_request(self):
+        """
+        Determines whether the request is a byte-range request
+        """
+        return 'Range' in self.request.headers
+
+    def is_available_trigger(self):
+        return any((True for x in self.available_triggers if x in self.request.headers.keys()))
+    
+    def is_slo_response(self, resp):
+        self.logger.debug(
+            'Verify if {0}/{1}/{2} is an SLO assembly object'.format(
+                self.account, self.container, self.obj))
+        is_slo = 'X-Static-Large-Object' in resp.headers
+        if is_slo:
+            self.logger.debug(
+                '{0}/{1}/{2} is indeed an SLO assembly '
+                'object'.format(self.account, self.container, self.obj))
+        else:
+            self.logger.debug(
+                '{0}/{1}/{2} is NOT an SLO assembly object'.format(
+                    self.account, self.container, self.obj))
+        return is_slo
+    
+    def is_account_storlet_enabled(self):       
+        account_meta = get_account_info(self.request.environ,
+                                            self.app)['meta']
+        storlets_enabled = account_meta.get('storlet-enabled',
+                                            'False')
+        if not config_true_value(storlets_enabled):
+            self.logger.debug('Vertigo - Account disabled for storlets')
+            return HTTPBadRequest('Vertigo - Account disabled for storlets',
+                                 request=self.request)
+        
+        return True
+
+   
+    def _call_storlet_gateway(self, resp):
+        """
+        Call gateway module to get result of storlet execution
+        in GET flow
+        """
+        raise NotImplementedError()
+
+    def apply_storlet(self, resp, storlet_list):
+        original_resp = self._call_storlet_gateway(resp, storlet_list)
+
+        if 'Content-Length' in original_resp.headers:
+            original_resp.headers.pop('Content-Length')
+        if 'Transfer-Encoding' in original_resp.headers:
+            original_resp.headers.pop('Transfer-Encoding')
+
+        return original_resp
+
+class VertigoProxyHandler(BaseVertigoHandler):
+    def __init__(self, request, conf, app, logger):
+        super(VertigoProxyHandler, self).__init__(
+            request, conf, app, logger)
+        
+        self.memcache = None
+
+    def _parse_vaco(self):
+        return self.request.split_path(4, 4, rest_with_last=True)
+    
+    def is_proxy_runnable(self, resp):
+        # SLO / proxy only case:
+        # storlet to be invoked now at proxy side:
+        runnable = any(
+            [self.is_range_request, self.is_slo_response(resp),
+             self.conf['storlet_execute_on_proxy_only']])
+        return runnable
+        
+    def is_object_in_cache(self):
+    
+        if self.memcache is None:
+            self.memcache = cache_from_env(self.request.environ)
+            
+        self.cached_object = self.memcache.get(self.account+"/" + \
+                                               self.container+"/"+self.obj)                    
+        self.logger.info('Vertigo - Checking in cache: '+self.account+"/" + \
+                         self.container+"/"+self.obj)
+        
+        return self.cached_object is not None
+        
+    
+    @property
+    def is_vertigo_object_put(self):
+        return (self.container in self.vertigo_containers and self.obj
+                and self.request.method == 'PUT')
+        
+    def handle_request(self):
+        if hasattr(self, self.request.method):
+            resp = getattr(self, self.request.method)()
+            return resp
+        else:
+            return self.request.get_response(self.app)
+        
+    def _call_storlet_gateway(self, resp, storlet_list):
+        resp = self.storlet_gateway.execute_storlet(resp, storlet_list)
+        resp.headers.pop('Vertigo')
+        resp.headers.pop("Storlet-Executed")
+        return resp
+
+    def GET(self):
+        """
+        GET handler on Proxy
+        """
+        if self.is_object_in_cache():   
+            value = pickle.loads(self.cached_object)
+            
+            self.logger.info('Vertigo - OBJECT IN CACHE')                        
+            
+            resp_headers = value["Headers"]
+            resp_headers['content-length'] = len(value["Body"])   
+            
+            return Response(body=value["Body"],
+                            headers=resp_headers,
+                            request=self.request)
+        else:
+            original_resp = self.request.get_response(self.app)
+            
+            if 'Vertigo' in original_resp.headers and \
+                self.is_account_storlet_enabled():
+
+                self.logger.info('Vertigo - There are Storlets to execute')
+                
+                self._setup_storlet_gateway()
+                return self.apply_storlet(original_resp, 
+                                          original_resp.headers['Vertigo'])
+
+            # NO STORTLETS TO EXECUTE ON PROXY 
+            elif 'Storlet-Executed' in original_resp.headers:                
+                if 'Transfer-Encoding' in original_resp.headers:
+                    original_resp.headers.pop('Transfer-Encoding')
+                original_resp.headers['Content-Length'] = None      
+
+            return original_resp
+        
+#=============================================================================
+
+    def PUT(self):
+        """
+        PUT handler on Proxy
+        """  
+        if self.is_available_trigger():           
+            _, micro_controller = self.get_vertigo_mc_data()
+            
+            # Verify if Micro-controller is in Swift
+            if not vc.verify_access(self, self.request.environ, 
+                                    self.api_version, 
+                                    self.account, 
+                                    self.conf["mc_container"], 
+                                    micro_controller):
+                return HTTPUnauthorized('MicroController error: Perhaps ' + \
+                                        micro_controller+' doesn\'t exists'+ \
+                                        ' in Swift.\n')
+            
+            # Verify if object is in Swift
+            if not vc.verify_access(self, self.request.environ, 
+                                    self.api_version, 
+                                    self.account, 
+                                    self.container, 
+                                    self.obj):
+                return HTTPUnauthorized('Object error: Perhaps '+self.obj + \
+                                        ' doesn\'t exists in Swift.\n')
+            
+        return self.request.get_response(self.app)
+
+    def HEAD(self):
+        return self.request.get_response(self.app)
+
+
+class VertigoObjectHandler(BaseVertigoHandler):
+    def __init__(self, request, conf, app, logger):
+        super(VertigoObjectHandler, self).__init__(
+            request, conf, app, logger)
+        
+    def _parse_vaco(self):
+        _, _, acc, cont, obj = self.request.split_path(
+            5, 5, rest_with_last=True)
+        return ('0', acc, cont, obj)
+
+    @property
+    def is_slo_get_request(self):
+        """
+        Determines from a GET request and its  associated response
+        if the object is a SLO
+        """
+        return self.request.params.get('multipart-manifest') == 'get'
+
+    def handle_request(self):        
+        if hasattr(self, self.request.method):
+            return getattr(self, self.request.method)()
+        else:
+            return self.request.get_response(self.app)
+            # un-defined method should be NOT ALLOWED
+            #return HTTPMethodNotAllowed(request=self.request)
+
+    def _call_storlet_gateway(self, resp, storlet_list):
+        return self.storlet_gateway.execute_storlet(resp, storlet_list)
+
+    def GET(self):
+        """
+        GET handler on Object
+        """ 
+        original_resp = self.request.get_response(self.app)
+        self._setup_docker_gateway(original_resp)
+
+        if self.docker_gateway.get_microcontrollers():
+            self.logger.info('Vertigo - There are micro-controllers' + \
+                             ' to execute')
+            # Go to run the micro-controller(s)        
+            storlet_list = self.docker_gateway.execute_microcontrollers() 
+                
+            # Go to run the Storlet(s) whether the microcontroller 
+            # sends back any.
+            
+            if storlet_list and self.is_account_storlet_enabled(): 
+                self._setup_storlet_gateway()
+                return self.apply_storlet(original_resp, storlet_list)
+            else:
+                self.logger.info('Vertigo - No Storlets to execute or ' + \
+                                 'Account disabled for Storlets')
+        else:    
+            self.logger.info('Vertigo - No Micro-Controllers to execute')
+
+        return original_resp
+     
+    def PUT(self):
+        """
+        PUT handler on Object
+        """ 
+        if self.is_available_trigger():
+            trigger, micro_controller = self.get_vertigo_mc_data()
+            self._setup_docker_gateway()
+            self.docker_gateway.set_microcontroller(trigger, 
+                                                    micro_controller)
+            # TODO: Return Httpaccepted
+            return HTTPUnauthorized('Metadata file saved correctly.\n')
+        else:
+            return self.request.get_response(self.app)
+        
+        
+    def HEAD(self):
+        #
+        return self.request.get_response(self.app)
+
+
+class VertigoHandlerMiddleware(object):
+
+    def __init__(self, app, conf, vertigo_conf):
+        self.app = app
+        self.exec_server = vertigo_conf.get('execution_server')
+        self.logger = get_logger(conf, log_route='vertigo_handler')
+        self.vertigo_conf = vertigo_conf
+        self.containers = [vertigo_conf.get('mc_container'),
+                           vertigo_conf.get('mc_dependency'),
+                           vertigo_conf.get('storlet_container'),
+                           vertigo_conf.get('storlet_dependency')]
+        self.available_triggers = ['X-Vertigo-Onget',
+                                   'X-Vertigo-Ondelete',
+                                   'X-Vertigo-Onput',
+                                   'X-Vertigo-Ontimer']
+        self.handler_class = self._get_handler(self.exec_server)
+        
+    def _get_handler(self, exec_server):
+        if exec_server == 'proxy':
+            return VertigoProxyHandler
+        elif exec_server == 'object':
+            return VertigoObjectHandler
+        else:
+            raise ValueError(
+                'configuration error: execution_server must be either proxy'
+                ' or object but is %s' % exec_server)
 
     @wsgify
     def __call__(self, req):
-        
         try:
-            if self.execution_server == 'proxy':
- 
-                self.logger.info('Vertigo - Proxy Server execution')
-                version, account, container, obj = req.split_path(2, 4, rest_with_last=True)
-                
-                
-                if req.method == 'GET':
-                    if self.memcache is None:
-                        self.memcache = cache_from_env(req.environ)
-      
-                    cached = self.memcache.get(account+"/"+container+"/"+obj)
-                                        
-                    self.logger.info('Vertigo - Checking in cache: '+account+"/"+container+"/"+obj)
-                    
-                    if cached is not None:
-                        value = pickle.loads(cached)
-                    
-                        self.logger.info('Vertigo - *+---------- OBJECT IN CACHE -----------+*')
-                        # Return Cached
-                        old_env = req.environ.copy()
-                        orig_req = Request.blank(old_env['PATH_INFO'],old_env)
-                                               
-                        resp_headers = value["Headers"]
-                        resp_headers['Content-Length'] = None
-                        
-                        return Response(body=value["Body"],
-                                        headers=resp_headers,
-                                        request=req,
-                                        conditional_response=True)
-                              
-            else: # OBJECT SERVER
-                device, partition, account, container, obj = req.split_path(5, 5, rest_with_last=True)
-                version = '0'
-                
-        except Exception as e:
-            self.logger.info(e)
+            request_handler = self.handler_class(
+                req, self.vertigo_conf, self.app, self.logger)
+            self.logger.debug('vertigo_handler call in %s: with %s/%s/%s' %
+                              (self.exec_server, request_handler.account,
+                               request_handler.container, 
+                               request_handler.obj))
+        except HTTPException:
+            raise
+        except NotVertigoRequest:
             return req.get_response(self.app)
-        
 
-        """
-        ########### PROXY SERVER CASE: PRE-PROCESSING -> PUT METADATA FILE
-        """
-        
-        # ASSING HANDLER AND PUT METADADA
-        if self.execution_server == 'proxy' and req.method == 'PUT' and \
-            ( any((True for x in self.available_triggers if x in req.headers.keys())) ):
- 
-            header = [i for i in self.available_triggers if i in req.headers.keys()]
-            if len(header) > 1:
-                return HTTPUnauthorized('The system can only set 1 micro-controller each time.\n')
-            mc = req.headers[header[0]]
-            
-            # Verify if Micro-controller is in Swift
-            if not vc.verify_access(self, req.environ, version, account, self.hconf["mc_container"], mc):
-                return HTTPUnauthorized('MicroController error: Perhaps '+mc+' doesn\'t exists in Swift.\n')
-            
-            # Verify if object is in Swift
-            if not vc.verify_access(self, req.environ, version, account, container, obj):
-                return HTTPUnauthorized('Object error: Perhaps '+obj+' doesn\'t exists in Swift.\n')
-            
-  
-        """
-        ########### OBJECT SERVER CASE: PRE-PROCESSING -> PUT METADATA FILE
-        """
+        try:
+            return request_handler.handle_request()
 
-        if self.execution_server == 'object' and req.method == 'PUT' and \
-            ( any((True for x in self.available_triggers if x in req.headers.keys())) ):
-            
-            header = [i for i in self.available_triggers if i in req.headers.keys()]
-            
-            if len(header) > 1:
-                return HTTPUnauthorized('The system can only set 1 controller each time.\n')
-            mc = req.headers[header[0]]
-                         
-            # Put to Get to get physical location of main file   
-            get_req = req.copy_get()
-            get_resp = get_req.get_response(self.app)
-
-            docker_gateway = vdg.VertigoGatewayDocker(req, get_resp, self.hconf, self.logger, self.app, 
-                                                         device, partition, account, container, obj)
-            #write micro-controller to file metadata
-            docker_gateway.set_microcontroller(header[0],mc)
-
-            # TODO: Return Httpaccepted
-            return HTTPUnauthorized('Metadata file saved correctly.\n')
-            
-        
-        # -----------------------------------------------------------------------------------------------------------------
-        # -----------------------------------------------------------------------------------------------------------------
-        orig_resp = req.get_response(self.app)   
-        # -----------------------------------------------------------------------------------------------------------------
-        # -----------------------------------------------------------------------------------------------------------------
-
-        """
-        ################################### OBJECT SERVER CASE: POST-PROCESSING ############################################
-        """             
-        if self.execution_server == 'object':
-            
-            #print "----------------------------------------------------"
-            #print orig_resp.app_iter  #TODO: THERE IS A BUG
-            #print "----------------------------------------------------"
-        
-            
-            self.logger.info('Vertigo - Object Server execution')
-            
-            #check if is a valid request
-            if not self.valid_request(req, container):
-                # We only want to process PUT and GET requests
-                # Also we ignore the calls that goes to the storlet, handler and dependency container  
-                return orig_resp
-            
-            
-            docker_gateway = vdg.VertigoGatewayDocker(req, orig_resp, self.hconf, self.logger, self.app, 
-                                                         device, partition, account, container, obj)
-            
-            if docker_gateway.get_microcontrollers():
-                self.logger.info('Vertigo - There are micro-controllers to execute')
-                
-                # We need to start Internal CLient
-                #cc.start_internal_client_daemon(self.logger)
-                # We need to start container if it is stopped
-                #docker_gateway.start_container()  # TODO: NO SEMPRE
-                
-                # Go to run the micro-controller         
-                storlet_list = docker_gateway.execute_microcontrollers()     
-                
-                # Go to run the Storlet whether the microcontroller sends back any.
-                if storlet_list: 
-                    storlet_gateway = vsg.VertigoGatewayStorlet(self.hconf, self.logger, self.app, account, container, obj)
-                    account_meta = storlet_gateway.get_account_info()
-                    out_fd = None
-                    toProxy = 0
-                      
-                    # Verify if the account can execute Storlets    
-                    storlets_enabled = account_meta.get('x-account-meta-storlet-enabled','False')
-                    
-                    if storlets_enabled == 'False':
-                        self.logger.info('Vertigo - Account disabled for storlets')
-                        return HTTPBadRequest('Vertigo - Account disabled for storlets')
-                    
-                    
-                    # Execute multiple Storlets, PIPELINE, if any.
-                    for key in sorted(storlet_list):
-                        self.logger.info('************* VISUAL STORLET EXECUTION DIVISOR *************')
-                        
-                        # Get Storlet and parameters
-                        storlet, parameters = storlet_list[key]["Storlet"].items()[0]                        
-                        nodeToExecute = storlet_list[key]["NodeToExecute"]
-                        
-                        self.logger.info('Vertigo - Go to execute '+storlet+' storlet with parameters"' \
-                                         +parameters+'"'+ " on "+ nodeToExecute)
-                        
-                        if nodeToExecute == "object-server":
-                            if not storlet_gateway.authorize_storlet_execution(storlet):
-                                return HTTPUnauthorized('Vertigo - Storlet: No permission')
-    
-                            old_env = req.environ.copy()
-                            orig_req = Request.blank(old_env['PATH_INFO'], old_env)
-                            
-                            out_fd, app_iter = storlet_gateway.execute_storlet_on_object(orig_resp,parameters,out_fd)
-                            
-                            # Notify to the Proxy that Storlet was executed in the object-server
-                            orig_resp.headers["Storlet-Executed"] = "True"
-                        
-                        else:
-                            orig_resp.headers["Storlet-Execute-On-Proxy-"+str(toProxy)] = storlet
-                            orig_resp.headers["Storlet-Execute-On-Proxy-Parameters-"+str(toProxy)] = parameters
-                            toProxy = toProxy + 1
-                            orig_resp.headers["Total-Storlets-To-Execute-On-Proxy"] = toProxy
-                    
-                    
-                    # Delete headers for the correct working of the Storlet framework
-                    if 'Content-Length' in orig_resp.headers:
-                        orig_resp.headers.pop('Content-Length')
-                    if 'Transfer-Encoding' in orig_resp.headers:
-                        orig_resp.headers.pop('Transfer-Encoding')
-  
-                    # Return Storlet response
-                    return Response(app_iter=app_iter,
-                                    headers=orig_resp.headers,
-                                    request=orig_req,
-                                    conditional_response=True)
-                else:
-                    self.logger.info('Vertigo - No Storlets to execute')
-            else:    
-                self.logger.info('Vertigo - No micro-controllers to execute')
-        
-            self.logger.info("Vertigo - Object Path: "+orig_resp.app_iter._data_file.rsplit('/', 1)[0])
-         
-        
-        """
-        ################################### PROXY SERVER CASE: POST-PROCESSING ############################################
-        """
-        
-        if self.execution_server == 'proxy' and 'Total-Storlets-To-Execute-On-Proxy' in orig_resp.headers:
-
-            self.logger.info('Vertigo - There are Storlets to execute from object server micro-controller')
-            
-            storlet_gateway = vsg.VertigoGatewayStorlet(self.hconf, self.logger, self.app, account, container, obj)
-            account_meta = storlet_gateway.get_account_info()     
-            out_fd = None
-                          
-            # Verify if the account can execute Storlets    
-            storlets_enabled = account_meta.get('x-account-meta-storlet-enabled','False')
-            
-            if storlets_enabled == 'False':
-                self.logger.info('Vertigo - Account disabled for storlets')
-                return HTTPBadRequest('Vertigo - Account disabled for storlets')
-
-            for index in range(int(orig_resp.headers["Total-Storlets-To-Execute-On-Proxy"])):
-                self.logger.info('************************ VISUAL STORLET EXECUTION DIVISOR ***************************')
-                storlet = orig_resp.headers["Storlet-Execute-On-Proxy-"+str(index)]
-                parameters = orig_resp.headers["Storlet-Execute-On-Proxy-Parameters-"+str(index)]
-                
-                self.logger.info('Vertigo - Go to execute '+storlet+' storlet with parameters "'+parameters+'"')
-                
-                if not storlet_gateway.authorize_storlet_execution(storlet):
-                    return HTTPUnauthorized('Vertigo - Storlet: No permission')
-
-                old_env = req.environ.copy()
-                orig_req = Request.blank(old_env['PATH_INFO'], old_env)
-                out_fd, app_iter = storlet_gateway.execute_storlet_on_proxy(orig_resp, parameters, out_fd)
-                
-                
-             
-            old_env = req.environ.copy()
-            orig_req = Request.blank(old_env['PATH_INFO'], old_env)
-            resp_headers = orig_resp.headers
-
-            resp_headers['Content-Length'] = None
-            
-            return Response(app_iter=app_iter,
-                            headers=resp_headers,
-                            request=orig_req,
-                            conditional_response=True)
-            
-        
-        # NO STORTLETS TO EXECUTE ON PROXY 
-        elif self.execution_server == 'proxy' and req.method == "GET" and \
-            (orig_resp.headers["Storlet-Executed"] or "X-Object-Meta-Run-Micro-Controller" in orig_resp.headers):
-            
-            self.logger.info('Vertigo - There are NO Storlets to execute from object server micro-controller')           
-                        
-                        
-            # We must execute the micro-controller here in the proxy
-            if "X-Object-Meta-Run-Micro-Controller" in orig_resp.headers: 
-
-                micro_controller = orig_resp.headers["X-Object-Meta-Run-Micro-Controller"]
-                orig_resp.headers["X-Object-Meta-Path"] = "http://"+req.host+req.path_info
-                
-                docker_gateway = vdg.VertigoGatewayDocker(req, orig_resp, self.hconf, self.logger, self.app, 
-                                                             None, None, account, container, obj)
-                
-                #RUN MICROCONTROLLER HERE
-                docker_gateway.set_microcontroller_list(micro_controller)
-                
-                self.logger.info('Vertigo - There are micro-controllers to execute')
-                
-                # We need to start Internal CLient
-                vc.start_internal_client_daemon()
-                # We need to start container if it is stopped
-                docker_gateway.startContainer()
-                
-                # Go to run the micro-controller         
-                storlet_list = docker_gateway.execute_microcontrollers("proxy")
-            
-                orig_resp.headers.pop("X-Object-Meta-Run-Micro-Controller")
-                orig_resp.headers.pop("X-Object-Meta-Micro-Controller-Data")
-                orig_resp.headers.pop("X-Object-Meta-Path")
-                
-            
-            
-            if 'Transfer-Encoding' in orig_resp.headers:
-                orig_resp.headers.pop('Transfer-Encoding')
-
-            if is_success(orig_resp.status_int):
-                old_env = req.environ.copy()
-                orig_req = Request.blank(old_env['PATH_INFO'],old_env)
-                resp_headers = orig_resp.headers
-
-                resp_headers['Content-Length'] = None
-                
-                return Response(app_iter=orig_resp.app_iter,
-                                headers=resp_headers,
-                                request=orig_req,
-                                conditional_response=True)
-  
-        return orig_resp
-
-    def valid_request(self, req, container):
-        if req.method == 'GET' and container not in self.containers:
-            #Also we need to discard the copy calls.    
-            if not "HTTP_X_COPY_FROM" in req.environ.keys():
-                self.logger.info('Vertigo - Valid req: OK!')        
-                return True
-            
-        self.logger.info('Vertigo - Valid req: NO!')        
-        return False
+        except HTTPException:
+            self.logger.exception('Vertigo execution failed')
+            raise
+        except Exception:
+            self.logger.exception('Vertigo execution failed')
+            raise HTTPInternalServerError(body='Vertigo execution failed')
 
 
 def filter_factory(global_conf, **local_conf):
@@ -341,20 +442,24 @@ def filter_factory(global_conf, **local_conf):
     conf = global_conf.copy()
     conf.update(local_conf)
     
-    mc_conf = dict()
-    mc_conf['execution_server'] = conf.get('execution_server','object')
-    mc_conf['mc_timeout'] = conf.get('mc_timeout', 20)
-    mc_conf['mc_pipe'] = conf.get('mc_pipe','vertigo_pipe')
-    mc_conf['mc_dir'] = conf.get('mc_dir','/home/lxc_device/vertigo/scopes')
-    mc_conf['mc_container'] = conf.get('mc_container','micro_controller')
-    mc_conf['mc_dependency'] = conf.get('mc_dependency','dependency')
+    vertigo_conf = dict()
+    vertigo_conf['execution_server'] = conf.get('execution_server','object')
+    vertigo_conf['mc_timeout'] = conf.get('mc_timeout', 20)
+    vertigo_conf['mc_pipe'] = conf.get('mc_pipe','vertigo_pipe')
+    vertigo_conf['mc_dir'] = conf.get('mc_dir',
+                                      '/home/lxc_device/vertigo/scopes')
+    vertigo_conf['mc_container'] = conf.get('mc_container',
+                                            'micro_controller')
+    vertigo_conf['mc_dependency'] = conf.get('mc_dependency','dependency')
     
-    mc_conf['storlet_timeout'] = conf.get('storlet_timeout',40) 
-    mc_conf['storlet_container'] = conf.get('storlet_container','storlet')
-    mc_conf['storlet_dependency'] = conf.get('storlet_dependency', 
+    vertigo_conf['storlet_timeout'] = conf.get('storlet_timeout',40) 
+    vertigo_conf['storlet_container'] = conf.get('storlet_container',
+                                                 'storlet')
+    vertigo_conf['storlet_dependency'] = conf.get('storlet_dependency', 
                                              'dependency')
+    vertigo_conf['reseller_prefix'] = conf.get('reseller_prefix', 'AUTH')
     
-    mc_conf['docker_repo'] = conf.get('docker_repo','192.168.2.1:5001')
+    vertigo_conf['docker_repo'] = conf.get('docker_repo','192.168.2.1:5001')
        
     configParser = ConfigParser.RawConfigParser()
     configParser.read(conf.get('storlet_gateway_conf', 
@@ -362,10 +467,9 @@ def filter_factory(global_conf, **local_conf):
     
     additional_items = configParser.items("DEFAULT")
     for key, val in additional_items:
-        mc_conf[key] = val
+        vertigo_conf[key] = val
 
-    def swift_microcontroller(app):
-        return SwiftMicroControllerMiddleware(app, mc_conf)
+    def swift_vertigo(app):
+        return VertigoHandlerMiddleware(app, conf, vertigo_conf)
 
-    return swift_microcontroller
-
+    return swift_vertigo

@@ -28,32 +28,60 @@ DEFAULT_MD_STRING = {'onget': 'None',
 
 class VertigoGatewayDocker():
 
-    def __init__(self, req, orig_resp, hconf, logger, app, device, 
-                 partition, account, container, obj):
+    def __init__(self, req, orig_resp, conf, logger, app, version, 
+                 account, container, obj):
         self.req = req
         self.orig_resp = orig_resp
-        self.hconf = hconf
+        self.conf = conf
         self.logger = logger
         self.app = app
-        self.version = 0
-        self.device = device
-        self.partition = partition      
+        self.version = version
         self.account = account
         self.container = container
         self.obj = obj
         self.scope = account[5:18]
         self.file_path = None
-        self.current_server = self.hconf["execution_server"]
-        self.mc_timeout = hconf["mc_timeout"]
-        self.mc_container = self.hconf["mc_container"]
-        self.mc_dependency = self.hconf["mc_dependency"]
+        self.current_server = self.conf["execution_server"]
+        self.mc_timeout = self.conf["mc_timeout"]
+        self.mc_container = self.conf["mc_container"]
+        self.mc_dependency = self.conf["mc_dependency"]
         self.mc_list = None
         self.mc_metadata = dict()
         
         #CONTAINER
         self.docker_img_prefix = "vertigo"
-        self.docker_repo = hconf['docker_repo']
- 
+        self.docker_repo = conf['docker_repo']
+                
+    def start_internal_client_daemon(self):
+        self.logger.info('Vertigo - Starting Internal Client ...')
+    
+        pid = os.popen( "ps -aef | grep -i 'internal_client_daemon.py' | grep" + \
+                        " -v 'grep' | awk '{ print $2 }'" ).read()
+    
+        if pid != "":
+            self.logger.info('Vertigo - Internal Client is already' + \
+                             ' started')
+        else:
+            #TODO: Change IC path
+            cmd='/usr/bin/python /opt/urv/internal_client_daemon.py ' \
+                '/home/lxc_device/pipes/scopes/bd34c4073b654/internal_client_pipe DEBUG &'
+                  
+            self.logger.info(cmd)
+            
+            # TODO: Call external script
+            p = subprocess.call(cmd,shell=True)
+                        
+            print p
+            
+            if p == 0:
+                self.logger.info('Vertigo - Internal Client daemon' + \
+                                 ' started')   
+            else:
+                self.logger.info('Vertigo - Error starting Internal' + \
+                                 ' Client daemon')
+            
+            time.sleep(1)
+        
     def start_container(self):
 
         # Extract the account's ID from the account
@@ -65,13 +93,13 @@ class VertigoGatewayDocker():
         docker_container_name = '%s_%s' % (self.docker_img_prefix,account_id)
         docker_image_name = '%s/%s' % (self.docker_repo, account_id)
              
-        host_pipe_prefix =  self.hconf["pipes_dir"]+"/"+self.scope
+        host_pipe_prefix =  self.conf["pipes_dir"]+"/"+self.scope
         sandbox_pipe_prefix = "/mnt/channels"
         
         pipe_mount = '%s:%s' % (host_pipe_prefix, sandbox_pipe_prefix)
         
         
-        host_storlet_prefix = self.hconf["mc_dir"]+"/"+self.scope
+        host_storlet_prefix = self.conf["mc_dir"]+"/"+self.scope
         sandbox_storlet_dir_prefix = "/home/swift"
         
         mc_mount = '%s:%s' % (host_storlet_prefix, 
@@ -81,10 +109,10 @@ class VertigoGatewayDocker():
               " -d -v /dev/log:/dev/log -v "+pipe_mount+" -v "+mc_mount + \
               " -i -t "+docker_image_name+" debug /home/swift/start_daemon.sh"
 
-        self.logger.info(cmd)
+        #self.logger.info(cmd)
         
         self.logger.info('Vertigo - Starting container ' \
-                         +docker_container_name+'...')
+                         +docker_container_name+' ...')
                
         p = subprocess.call(cmd,shell=True)
         
@@ -96,9 +124,16 @@ class VertigoGatewayDocker():
             self.logger.info('Vertigo - Container ' + \
                              docker_container_name+' is already started')
 
-    def set_microcontroller(self,trigger,mc):     
+    def set_microcontroller(self, trigger, mc):     
         trigger = trigger.rsplit('-', 1)[1].lower()
-        fd = self.orig_resp.app_iter._fp
+        
+        # We need a GET to know where is the object
+        get_req = self.req.copy_get()
+        get_resp = get_req.get_response(self.app)
+        
+        fd = get_resp.app_iter._fp
+        
+        
         object_mc_md = cc.read_metadata(fd)
         if not object_mc_md:
             object_mc_md = DEFAULT_MD_STRING
@@ -106,7 +141,7 @@ class VertigoGatewayDocker():
         cc.write_metadata(fd,object_mc_md)
         
         # Write micro-controller metadata file
-        file_path = self.orig_resp.app_iter._data_file.rsplit('/', 1)[0]
+        file_path = get_resp.app_iter._data_file.rsplit('/', 1)[0]
         self.logger.info('Vertigo - File path: '+file_path)
         metadata_target_path = os.path.join(file_path, 
                                             mc.rsplit('.', 1)[0]+".md")
@@ -136,6 +171,12 @@ class VertigoGatewayDocker():
             return False
          
     def execute_microcontrollers(self, server = None):
+        
+        # We need to start Internal CLient
+        self.start_internal_client_daemon() # each tenat their own IC
+        # We need to start container if it is stopped
+        self.start_container()  # TODO: NO SEMPRE
+        
         """
         if server == "proxy":
             self.file_path = "/tmp/"
@@ -167,9 +208,9 @@ class VertigoGatewayDocker():
                    
         
         
-        mc_logger_path = self.hconf["log_dir"]+"/"+self.scope+"/"
-        mc_pipe_path = self.hconf["pipes_dir"]+"/"+self.scope+"/" + \
-                       self.hconf["mc_pipe"]
+        mc_logger_path = self.conf["log_dir"]+"/"+self.scope+"/"
+        mc_pipe_path = self.conf["pipes_dir"]+"/"+self.scope+"/" + \
+                       self.conf["mc_pipe"]
 
         self.logger.info('Vertigo - Object path: '+self.file_path)
         
@@ -200,7 +241,7 @@ class VertigoGatewayDocker():
     def update_mc_cache(self, container, mc_name, obj):   
         resp = cc.make_swift_request("GET", self.account, container, obj)
 
-        docker_mc_path = self.hconf["mc_dir"] + "/" + self.scope + \
+        docker_mc_path = self.conf["mc_dir"] + "/" + self.scope + \
                          "/" + self.mc_metadata[mc_name][MC_MAIN_HEADER]
         
         docker_target_path = os.path.join(docker_mc_path, obj)
@@ -321,8 +362,12 @@ class MicroControllerInvocationProtocol(object):
     def _read_response(self):
         self._wait_for_read_with_timeout(self.response_read_fd)
         flat_json = os.read(self.response_read_fd, 1024)
-        if flat_json is not None:
-            out_data = json.loads(flat_json)
+        
+        if flat_json == "{}":
+            out_data = None
+        else:
+            out_data = flat_json
+        
         return out_data
 
     def communicate(self):
