@@ -34,12 +34,11 @@ public class HandlerOutput {
 	 * Storlets
 	 */
 	@SuppressWarnings("unchecked") 
-	public void setStorlet(int i, String name, String parameters, String node){
+	public void setStorlet(int i, String storlet, String parameters, String server){
 		JSONObject storletPack = new JSONObject();
-		JSONObject execStorlet = new JSONObject();
-		execStorlet.put(name,parameters);
-		storletPack.put("storlet",execStorlet);
-		storletPack.put("node",node);		
+		storletPack.put("storlet",storlet);
+		storletPack.put("params",parameters);
+		storletPack.put("server",server);		
 		outMetadata.put(i,storletPack);
 	}
 	
