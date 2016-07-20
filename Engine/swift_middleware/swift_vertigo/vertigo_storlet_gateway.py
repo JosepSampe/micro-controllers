@@ -62,7 +62,7 @@ class VertigoGatewayStorlet():
         req = Request.blank(new_env['PATH_INFO'], new_env)
         req.headers['X-Run-Storlet'] = self.storlet_name
         self.gateway.augmentStorletRequest(req)
-        req.environ['QUERY_STRING'] = params
+        req.environ['QUERY_STRING'] = params.replace(',','&')
 
         return req
 

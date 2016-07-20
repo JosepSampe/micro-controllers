@@ -155,6 +155,7 @@ class VertigoGatewayDocker():
     def get_microcontrollers(self):
 
         req = self.orig_resp.environ["REQUEST_METHOD"]
+        
         fd = self.orig_resp.app_iter._fp
 
         controller_md = cc.read_metadata(fd)
@@ -170,9 +171,9 @@ class VertigoGatewayDocker():
     def execute_microcontrollers(self, server=None):
 
         # We need to start Internal CLient
-        self.start_internal_client_daemon()  # each tenat their own IC
+        #self.start_internal_client_daemon()  # each tenat their own IC
         # We need to start container if it is stopped
-        self.start_container()  # TODO: NO SEMPRE
+        #self.start_container()  # TODO: NO SEMPRE
 
         """
         if server == "proxy":
@@ -186,9 +187,10 @@ class VertigoGatewayDocker():
         # TODO: Update cache only if node doesn't have the MCF
         for mc_name in self.mc_list:
             mc_verified = self.verify_access(self.mc_container, mc_name)
-
+            """
             if mc_verified:
                 self.update_mc_cache(self.mc_container, mc_name, mc_name)
+                
                 dep_list = self.mc_metadata[mc_name][MC_DEP_HEADER].split(",")
                 for dep in dep_list:
                     dep_verified = self.verify_access(self.mc_dependency, dep)
@@ -199,9 +201,11 @@ class VertigoGatewayDocker():
                                           dep + " not found in Swift")
                         raise NameError("MicroController - Dependency " +
                                         dep + " not found in Swift")
+                
             else:
                 raise NameError("MicroController - Micro-controller " +
                                 mc_name + " not found in Swift")
+            """
 
         mc_logger_path = self.conf["log_dir"] + "/" + self.scope + "/"
         mc_pipe_path = self.conf["pipes_dir"] + "/" + self.scope + "/" + \
@@ -224,13 +228,23 @@ class VertigoGatewayDocker():
         return protocol.communicate()
 
     def verify_access(self, container, mc_name):
+        
+        self.logger.debug('Verify access to {0}/{1}/{2}'.format(self.account,
+                                                                container,
+                                                                mc_name)) 
+        """
         resp = cc.make_swift_request("HEAD", self.account, container, mc_name)
-
+        
+        print resp.headers
         if resp.status_int < 300 and resp.status_int >= 200:
             if container == self.mc_container:
                 self.mc_metadata[mc_name] = resp.headers
             return True
-
+        """
+        
+        self.mc_metadata[mc_name] = {'X-Object-Meta-Handler-Handler-Dependency': 'no', 'Content-Length': '2351', 'X-Backend-Timestamp': '1456265335.74233', 'X-Object-Meta-Handler-Interface-Version': '1.0', 'Accept-Ranges': 'bytes', 'X-Object-Meta-Handler-Language': 'Java', 'Last-Modified': 'Tue, 23 Feb 2016 22:08:56 GMT', 'Etag': '3b12f11e56a2088ee15ed3ff45e7fa14', 'X-Timestamp': '1456265335.74233', 'X-Object-Meta-Handler-Main': 'com.urv.vertigo.mc.counter.CounterHandler', 'Content-Type': 'application/octet-stream', 'X-Object-Meta-Handler-Library-Dependency': 'json-simple-1.1.1.jar'}
+        return True
+        
         return False
 
     def update_mc_cache(self, container, mc_name, obj):

@@ -16,6 +16,7 @@ import vertigo_storlet_gateway as vsg
 import vertigo_docker_gateway as vdg
 import vertigo_common as vc
 import ConfigParser
+import time
 import pickle
 import json
 
@@ -259,6 +260,7 @@ class VertigoProxyHandler(BaseVertigoHandler):
         """
         GET handler on Proxy
         """
+        
         if self.is_object_in_cache():
             value = pickle.loads(self.cached_object)
 
@@ -273,22 +275,22 @@ class VertigoProxyHandler(BaseVertigoHandler):
         else:
             original_resp = self.request.get_response(self.app)
 
-            if 'Vertigo' in original_resp.headers and \
-                    self.is_account_storlet_enabled():
+        if 'Vertigo' in original_resp.headers and \
+                self.is_account_storlet_enabled():
 
-                self.logger.info('Vertigo - There are Storlets to execute')
+            self.logger.info('Vertigo - There are Storlets to execute')
 
-                self._setup_storlet_gateway()
-                storlet_list = json.loads(original_resp.headers['Vertigo'])
-                return self.apply_storlet_on_get(original_resp, storlet_list)
+            self._setup_storlet_gateway()
+            storlet_list = json.loads(original_resp.headers['Vertigo'])
+            return self.apply_storlet_on_get(original_resp, storlet_list)
 
-            # NO STORTLETS TO EXECUTE ON PROXY
-            elif 'Storlet-Executed' in original_resp.headers:
-                if 'Transfer-Encoding' in original_resp.headers:
-                    original_resp.headers.pop('Transfer-Encoding')
-                original_resp.headers['Content-Length'] = None
+        # NO STORTLETS TO EXECUTE ON PROXY
+        elif 'Storlet-Executed' in original_resp.headers:
+            if 'Transfer-Encoding' in original_resp.headers:
+                original_resp.headers.pop('Transfer-Encoding')
+            original_resp.headers['Content-Length'] = None
 
-            return original_resp
+        return original_resp
 
     def PUT(self):
         """
@@ -328,7 +330,7 @@ class VertigoObjectHandler(BaseVertigoHandler):
     def _parse_vaco(self):
         _, _, acc, cont, obj = self.request.split_path(
             5, 5, rest_with_last=True)
-        return ('0', acc, cont, obj)
+        return ('v1', acc, cont, obj)
 
     @property
     def is_slo_get_request(self):
@@ -362,26 +364,35 @@ class VertigoObjectHandler(BaseVertigoHandler):
         """
         GET handler on Object
         """
+        start = time.clock()
         original_resp = self.request.get_response(self.app)
-        self._setup_docker_gateway(original_resp)
 
+        self._setup_docker_gateway(original_resp)
+        
         if self.docker_gateway.get_microcontrollers():
             self.logger.info('Vertigo - There are micro-controllers' +
                              ' to execute')
             # Go to run the micro-controller(s)
             storlet_list = self.docker_gateway.execute_microcontrollers()
 
+            self.logger.info('Vertigo - Micro-Controller executed correctly')
             # Go to run the Storlet(s) whether the microcontroller
             # sends back any.
 
-            if storlet_list and self.is_account_storlet_enabled():
+            if storlet_list:
+                self.logger.info('Vertigo - Go to execute Storlets')
                 self._setup_storlet_gateway()
                 return self.apply_storlet_on_get(original_resp, storlet_list)
             else:
-                self.logger.info('Vertigo - No Storlets to execute or ' +
-                                 'Account disabled for Storlets')
+                self.logger.info('Vertigo - No Storlets to execute')
         else:
             self.logger.info('Vertigo - No Micro-Controllers to execute')
+            
+        end = time.clock() - start
+        
+        f = open('/home/lab144/josep/middleware_get_tstamp.log','a')
+        f.write(str(end)+'\n') # python will convert \n to os.linesep
+        f.close()
 
         return original_resp
 

@@ -8,7 +8,7 @@ disclosure restricted by GSA ADP Schedule Contract with
 IBM Corp.
 */
 
-package com.urv.storlet.nothing;
+package com.urv.storlet.noop;
 
 import java.io.*;
 
@@ -43,7 +43,7 @@ public class TesterDriver {
 	        outStreams.add(outStream);
 	        
 			FileOutputStream loggerFile = new FileOutputStream(LOGGER_FILE_NAME);	
-			NothingStorlet storlet = new NothingStorlet();	
+			NoopStorlet storlet = new NoopStorlet();	
 			StorletLogger logger = new StorletLogger(loggerFile.getFD());				
 			Map<String, String> parameters = new HashMap<String, String>();	
 
