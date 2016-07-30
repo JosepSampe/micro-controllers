@@ -1,10 +1,9 @@
-'''===========================================================================
-15-Oct-2015    josep.sampe    Initial implementation.
-==========================================================================='''
-from SBusPythonFacade.SBus import SBus
-from SBusPythonFacade.SBusDatagram import SBusDatagram
+#from SBusPythonFacade.SBus import SBus
+#from SBusPythonFacade.SBusDatagram import SBusDatagram
+
 from eventlet.timeout import Timeout
-import vertigo_common as cc
+from vertigo_common import make_swift_request, get_data_dir, set_swift_metadata, get_swift_metadata
+from shutil import copy2
 import os
 import select
 import json
@@ -20,38 +19,29 @@ SBUS_CMD_EXECUTE = 1
 
 MC_MAIN_HEADER = "X-Object-Meta-Handler-Main"
 MC_DEP_HEADER = "X-Object-Meta-Handler-Library-Dependency"
-DEFAULT_MD_STRING = {'onget': 'None',
-                     'onput': 'None',
-                     'ondelete': 'None',
-                     'ontimer': 'None'}
 
 
 class VertigoGatewayDocker():
 
-    def __init__(self, req, orig_resp, conf, logger, app, version,
-                 account, container, obj):
-        self.req = req
-        self.orig_resp = orig_resp
+    def __init__(self, request, response, conf, logger, app, account):
+        self.request = request
+        self.response = response
         self.conf = conf
         self.logger = logger
         self.app = app
-        self.version = version
         self.account = account
-        self.container = container
-        self.obj = obj
+        self.method = self.request.method.lower()
         self.scope = account[5:18]
-        self.file_path = None
-        self.current_server = self.conf["execution_server"]
+        self.execution_server = self.conf["execution_server"]
         self.mc_timeout = self.conf["mc_timeout"]
         self.mc_container = self.conf["mc_container"]
-        self.mc_dependency = self.conf["mc_dependency"]
-        self.mc_list = None
-        self.mc_metadata = dict()
+        self.dep_container = self.conf["mc_dependency"]
 
         # CONTAINER
         self.docker_img_prefix = "vertigo"
         self.docker_repo = conf['docker_repo']
 
+    
     def start_internal_client_daemon(self):
         self.logger.info('Vertigo - Starting Internal Client ...')
 
@@ -122,53 +112,104 @@ class VertigoGatewayDocker():
         else:
             self.logger.info('Vertigo - Container ' +
                              docker_container_name + ' is already started')
-
-    def set_microcontroller(self, trigger, mc):
-        trigger = trigger.rsplit('-', 1)[1].lower()
-
-        # We need a GET to know where is the object
-        get_req = self.req.copy_get()
-        get_resp = get_req.get_response(self.app)
-
-        fd = get_resp.app_iter._fp
-
-        object_mc_md = cc.read_metadata(fd)
-        if not object_mc_md:
-            object_mc_md = DEFAULT_MD_STRING
-        object_mc_md[trigger] = mc
-        cc.write_metadata(fd, object_mc_md)
-
-        # Write micro-controller metadata file
-        file_path = get_resp.app_iter._data_file.rsplit('/', 1)[0]
-        self.logger.info('Vertigo - File path: ' + file_path)
-        metadata_target_path = os.path.join(file_path,
-                                            mc.rsplit('.', 1)[0] + ".md")
-        fn = open(metadata_target_path, 'w')
-        fn.write(self.req.body)
-        fn.close()
-
-        self.logger.info('Vertigo - File path: ' + file_path)
-
-    def set_microcontroller_list(self, mc_list):
-        self.mc_list = mc_list.split(",")
-
-    def get_microcontrollers(self):
-
-        req = self.orig_resp.environ["REQUEST_METHOD"]
+            
+            
+    def _update_cache(self, swift_container, object_name):
+        """
+        Updates the local cache of microcontrollers and dependencies
         
-        fd = self.orig_resp.app_iter._fp
+        :params container: container name
+        :params object_name: Name of the microcontroller or dependency
+        """
+        cache_target_path = os.path.join(self.conf["cache_dir"], self.scope, 'vertigo', swift_container)
+        cache_target_obj = os.path.join(cache_target_path, object_name)
+        
+        if not os.path.exists(cache_target_path):
+            os.makedirs(cache_target_path, 0o777)         
+        
+        resp = make_swift_request("GET", self.account, swift_container, object_name)
 
-        controller_md = cc.read_metadata(fd)
+        with open(cache_target_obj, 'w') as fn:
+                fn.write(resp.body)
+                
+        set_swift_metadata(cache_target_obj, resp.headers)
 
-        if controller_md:
-            self.mc_list = controller_md["on" + req.lower()].split(",")
-            if self.mc_list == 'None':
-                return False
-            return True
+    def _is_avialable_in_cache(self, swift_container, object_name):
+        """
+        checks whether the microcontroler or the dependency is in cache.
+        
+        :params swift_container: container name (microcontroller or dependency)
+        :params object_name: Name of the microcontroller or dependency
+        """        
+        cached_target_obj = os.path.join(self.conf["cache_dir"], self.scope, 'vertigo', swift_container, object_name)
+        self.logger.info('Vertigo - Checking in cache: ' + swift_container+'/'+object_name)       
+        
+        if not os.path.isfile(cached_target_obj):
+            # If the objects is not in cache, brings it from Swift.
+            # TODO(josep): In normal usage, if the object is not in cache, the
+            # request fails. The idea is that the cache will be automatically  
+            # updated by another service.
+            # raise NameError('Vertigo - ' + swift_container+'/'+object_name +' not found in cache.')
+            self.logger.info('Vertigo - ' + swift_container+'/'+object_name +' not found in cache.')
+            self._update_cache(swift_container, object_name)
+
+        self.logger.info('Vertigo - ' + swift_container+'/'+object_name +' in cache.')
+        
+        return True
+        
+    def _update_from_cache(self, mc_main, swift_container, object_name): 
+        # if enter to this method means that the objects exist in cache
+        cached_target_obj = os.path.join(self.conf["cache_dir"], self.scope, 'vertigo', swift_container, object_name)        
+        docker_target_dir = os.path.join(self.conf["mc_dir"], self.scope, mc_main)
+        docker_target_obj = os.path.join(docker_target_dir, object_name)
+        update_from_cache = False
+        
+        if not os.path.exists(docker_target_dir):
+            os.makedirs(docker_target_dir, 0o777)
+            update_from_cache = True
+        elif not os.path.isfile(docker_target_obj):
+            update_from_cache = True
         else:
-            return False
-
-    def execute_microcontrollers(self, server=None):
+            cached_obj_metadata = get_swift_metadata(cached_target_obj)
+            docker_obj_metadata = get_swift_metadata(docker_target_obj)
+            
+            cached_obj_tstamp = float(cached_obj_metadata['X-Timestamp'])
+            docker_obj_tstamp = float(docker_obj_metadata['X-Timestamp'])
+            
+            if cached_obj_tstamp > docker_obj_tstamp:
+                update_from_cache = True
+        
+        if update_from_cache:
+            self.logger.info('Vertigo - Going to update from cache: ' + swift_container+'/'+object_name )       
+            copy2(cached_target_obj, docker_target_obj)
+            metadata = get_swift_metadata(cached_target_obj)
+            set_swift_metadata(docker_target_obj, metadata)          
+        
+    def _get_swift_metadata(self, swift_container, object_name):
+        cached_target_obj = os.path.join(self.conf["cache_dir"], self.scope, 
+                                         'vertigo', swift_container, object_name)
+        metadata = get_swift_metadata(cached_target_obj)
+        
+        return metadata
+        
+    def _get_microcontroller_metadata(self, mc_list):
+        
+        mc_metadata = dict()
+                
+        for mc_name in mc_list:
+            if self._is_avialable_in_cache(self.mc_container, mc_name):
+                mc_metadata[mc_name] = self._get_swift_metadata(self.mc_container, mc_name)
+                mc_main = mc_metadata[mc_name][MC_MAIN_HEADER]
+                self._update_from_cache(mc_main, self.mc_container, mc_name)
+                
+                dep_list = mc_metadata[mc_name][MC_DEP_HEADER].split(",")
+                for dep_name in dep_list: 
+                    if self._is_avialable_in_cache(self.dep_container, dep_name): 
+                        self._update_from_cache(mc_main, self.dep_container, dep_name)
+        
+        return mc_metadata
+  
+    def execute_microcontrollers(self, mc_list):
 
         # We need to start Internal CLient
         #self.start_internal_client_daemon()  # each tenat their own IC
@@ -177,92 +218,35 @@ class VertigoGatewayDocker():
 
         """
         if server == "proxy":
-            self.file_path = "/tmp/"
+            self.object_path = "/tmp/"
         else:
         """
 
-        self.file_path = self.orig_resp.app_iter._data_file.rsplit('/', 1)[0]
-
-        # Verify access to micro-controllers and dependencies, and update cache
-        # TODO: Update cache only if node doesn't have the MCF
-        for mc_name in self.mc_list:
-            mc_verified = self.verify_access(self.mc_container, mc_name)
-            """
-            if mc_verified:
-                self.update_mc_cache(self.mc_container, mc_name, mc_name)
-                
-                dep_list = self.mc_metadata[mc_name][MC_DEP_HEADER].split(",")
-                for dep in dep_list:
-                    dep_verified = self.verify_access(self.mc_dependency, dep)
-                    if dep_verified:
-                        self.update_mc_cache(self.mc_dependency, mc_name, dep)
-                    else:
-                        self.logger.error('Vertigo - Dependency ' +
-                                          dep + " not found in Swift")
-                        raise NameError("MicroController - Dependency " +
-                                        dep + " not found in Swift")
-                
-            else:
-                raise NameError("MicroController - Micro-controller " +
-                                mc_name + " not found in Swift")
-            """
+        mc_metadata = self._get_microcontroller_metadata(mc_list)
 
         mc_logger_path = self.conf["log_dir"] + "/" + self.scope + "/"
         mc_pipe_path = self.conf["pipes_dir"] + "/" + self.scope + "/" + \
             self.conf["mc_pipe"]
 
-        self.logger.info('Vertigo - Object path: ' + self.file_path)
+        data_dir = get_data_dir(self)
+        self.logger.info('Vertigo - Object path: ' + data_dir)
 
-        self.req.headers['X-Current-Server'] = self.current_server
+        self.request.headers['X-Current-Server'] = self.execution_server
 
-        protocol = MicroControllerInvocationProtocol(self.file_path,
+        protocol = VertigoInvocationProtocol(data_dir,
                                                      mc_pipe_path,
                                                      mc_logger_path,
-                                                     dict(self.req.headers),
-                                                     self.orig_resp.headers,
-                                                     self.mc_list,
-                                                     self.mc_metadata,
+                                                     dict(self.request.headers),
+                                                     self.response.headers,
+                                                     mc_list,
+                                                     mc_metadata,
                                                      self.mc_timeout,
                                                      self.logger)
 
-        return protocol.communicate()
-
-    def verify_access(self, container, mc_name):
-        
-        self.logger.debug('Verify access to {0}/{1}/{2}'.format(self.account,
-                                                                container,
-                                                                mc_name)) 
-        """
-        resp = cc.make_swift_request("HEAD", self.account, container, mc_name)
-        
-        print resp.headers
-        if resp.status_int < 300 and resp.status_int >= 200:
-            if container == self.mc_container:
-                self.mc_metadata[mc_name] = resp.headers
-            return True
-        """
-        
-        self.mc_metadata[mc_name] = {'X-Object-Meta-Handler-Handler-Dependency': 'no', 'Content-Length': '2351', 'X-Backend-Timestamp': '1456265335.74233', 'X-Object-Meta-Handler-Interface-Version': '1.0', 'Accept-Ranges': 'bytes', 'X-Object-Meta-Handler-Language': 'Java', 'Last-Modified': 'Tue, 23 Feb 2016 22:08:56 GMT', 'Etag': '3b12f11e56a2088ee15ed3ff45e7fa14', 'X-Timestamp': '1456265335.74233', 'X-Object-Meta-Handler-Main': 'com.urv.vertigo.mc.counter.CounterHandler', 'Content-Type': 'application/octet-stream', 'X-Object-Meta-Handler-Library-Dependency': 'json-simple-1.1.1.jar'}
-        return True
-        
-        return False
-
-    def update_mc_cache(self, container, mc_name, obj):
-        resp = cc.make_swift_request("GET", self.account, container, obj)
-
-        docker_mc_path = self.conf["mc_dir"] + "/" + self.scope + \
-            "/" + self.mc_metadata[mc_name][MC_MAIN_HEADER]
-
-        docker_target_path = os.path.join(docker_mc_path, obj)
-        if not os.path.exists(docker_mc_path):
-            os.makedirs(docker_mc_path, 0o755)
-
-        fn = open(docker_target_path, 'w')
-        fn.write(resp.body)
-        fn.close()
+        #return protocol.communicate()
 
 
-class MicroControllerInvocationProtocol(object):
+class VertigoInvocationProtocol(object):
 
     def __init__(self, file_path, mc_pipe_path, mc_logger_path, req_haders,
                  file_headers, mc_list, mc_metadata, timeout, logger):
@@ -274,7 +258,7 @@ class MicroControllerInvocationProtocol(object):
         self.file_md = file_headers
         self.mc_list = mc_list  # Micro-controller name list
         self.mc_md = mc_metadata  # Micro-controller metadata
-        self.file_path = file_path  # Path of requested object
+        self.object_path = file_path  # Path of requested object
         self.micro_controllers = list()  # Micro-controller object list
 
         # remote side file descriptors and their metadata lists
@@ -380,7 +364,7 @@ class MicroControllerInvocationProtocol(object):
 
     def communicate(self):
         for mc_name in self.mc_list:
-            mc = MicroController(self.file_path,
+            mc = MicroController(self.object_path,
                                  self.mc_logger_path,
                                  mc_name,
                                  self.mc_md[mc_name][MC_MAIN_HEADER],
