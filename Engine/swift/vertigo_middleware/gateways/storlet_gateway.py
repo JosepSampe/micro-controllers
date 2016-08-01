@@ -1,6 +1,6 @@
 from swift.common.swob import Request
 from swift.common.swob import HTTPUnauthorized
-from vertigo_common import make_swift_request
+from vertigo_middleware.common.utils import make_swift_request
 import json
 
 

@@ -1,5 +1,4 @@
-from pyparsing import Word, alphas, Literal, Group, Combine, opAssoc, alphanums, OneOrMore
-from pyparsing import Regex, operatorPrecedence, oneOf, ZeroOrMore, nums, Optional, delimitedList
+from pyparsing import Word, Literal, Group, Combine, alphanums, OneOrMore, oneOf, nums, Optional, delimitedList
 
 def parse(input_string):
 

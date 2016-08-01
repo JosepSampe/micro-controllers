@@ -135,7 +135,7 @@ def make_swift_request(op, account, container=None, obj=None):
 
 def verify_access(vertigo, path):
     """
-    Gets the data directory full path
+    Verifies access to the specified object in swift
     
     :param vertigo: swift_vertigo.vertigo_handler.VertigoProxyHandler instance
     :param path: swift path of the object to check
@@ -259,7 +259,7 @@ def set_microcontroller(vertigo, trigger, mc):
 
 def set_microcontroller_dict(vertigo, microcontroller_dict):
     """
-    Sets the dict of microcontrollers to the requested object.
+    Sets the microcontroller dictionary to the requested object.
     
     :param vertigo: swift_vertigo.vertigo_handler.VertigoObjectHandler instance
     :param microcontroller_list: microcontroller list

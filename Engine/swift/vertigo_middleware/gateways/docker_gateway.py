@@ -2,7 +2,7 @@
 #from SBusPythonFacade.SBusDatagram import SBusDatagram
 
 from eventlet.timeout import Timeout
-from vertigo_common import make_swift_request, get_data_dir, set_swift_metadata, get_swift_metadata
+from vertigo_middleware.common.utils import make_swift_request, get_data_dir, set_swift_metadata, get_swift_metadata
 from shutil import copy2
 import os
 import select
@@ -23,20 +23,22 @@ MC_DEP_HEADER = "X-Object-Meta-Handler-Library-Dependency"
 
 class VertigoGatewayDocker():
 
-    def __init__(self, request, response, conf, logger, app, account):
+    def __init__(self, request, response, conf, logger, account):
         self.request = request
         self.response = response
         self.conf = conf
         self.logger = logger
-        self.app = app
         self.account = account
         self.method = self.request.method.lower()
         self.scope = account[5:18]
-        self.execution_server = self.conf["execution_server"]
-        self.mc_timeout = self.conf["mc_timeout"]
-        self.mc_container = self.conf["mc_container"]
-        self.dep_container = self.conf["mc_dependency"]
+        self.mc_timeout = conf["mc_timeout"]
+        self.mc_container = conf["mc_container"]
+        self.dep_container = conf["mc_dependency"]
 
+        # Paths
+        self.mc_logger_path = os.path.join(conf["log_dir"], self.scope)
+        self.mc_pipe_path = os.path.join(conf["pipes_dir"], self.scope, conf["mc_pipe"])
+        
         # CONTAINER
         self.docker_img_prefix = "vertigo"
         self.docker_repo = conf['docker_repo']
@@ -216,39 +218,28 @@ class VertigoGatewayDocker():
         # We need to start container if it is stopped
         #self.start_container()  # TODO: NO SEMPRE
 
-        """
-        if server == "proxy":
-            self.object_path = "/tmp/"
-        else:
-        """
+        # TODO: Execute microcontroller on proxy side
 
         mc_metadata = self._get_microcontroller_metadata(mc_list)
-
-        mc_logger_path = self.conf["log_dir"] + "/" + self.scope + "/"
-        mc_pipe_path = self.conf["pipes_dir"] + "/" + self.scope + "/" + \
-            self.conf["mc_pipe"]
-
         data_dir = get_data_dir(self)
         self.logger.info('Vertigo - Object path: ' + data_dir)
 
-        self.request.headers['X-Current-Server'] = self.execution_server
-
         protocol = VertigoInvocationProtocol(data_dir,
-                                                     mc_pipe_path,
-                                                     mc_logger_path,
-                                                     dict(self.request.headers),
-                                                     self.response.headers,
-                                                     mc_list,
-                                                     mc_metadata,
-                                                     self.mc_timeout,
-                                                     self.logger)
+                                             self.mc_pipe_path,
+                                             self.mc_logger_path,
+                                             dict(self.request.headers),
+                                             self.response.headers,
+                                             mc_list,
+                                             mc_metadata,
+                                             self.mc_timeout,
+                                             self.logger)
 
         #return protocol.communicate()
 
 
 class VertigoInvocationProtocol(object):
 
-    def __init__(self, file_path, mc_pipe_path, mc_logger_path, req_haders,
+    def __init__(self, object_path, mc_pipe_path, mc_logger_path, req_haders,
                  file_headers, mc_list, mc_metadata, timeout, logger):
         self.logger = logger
         self.mc_pipe_path = mc_pipe_path
@@ -258,7 +249,7 @@ class VertigoInvocationProtocol(object):
         self.file_md = file_headers
         self.mc_list = mc_list  # Micro-controller name list
         self.mc_md = mc_metadata  # Micro-controller metadata
-        self.object_path = file_path  # Path of requested object
+        self.object_path = object_path  # Path of requested object
         self.micro_controllers = list()  # Micro-controller object list
 
         # remote side file descriptors and their metadata lists
@@ -393,9 +384,9 @@ class VertigoInvocationProtocol(object):
 
 class MicroController(object):
 
-    def __init__(self, file_path, logger_path, name, main, dependencies):
+    def __init__(self, object_path, logger_path, name, main, dependencies):
 
-        self.full_md_path = os.path.join(file_path, '%s.md' %
+        self.full_md_path = os.path.join(object_path, '%s.md' %
                                          name.rsplit('.', 1)[0])
         self.full_log_path = os.path.join(logger_path, '%s/%s.log' %
                                           (main,  name.rsplit('.', 1)[0]))

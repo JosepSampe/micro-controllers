@@ -1,10 +1,10 @@
 from setuptools import setup, find_packages
 
 paste_factory = ['vertigo_handler = '
-                 'swift_vertigo.vertigo_handler:filter_factory']
+                 'vertigo_middleware.vertigo_handler:filter_factory']
 
 setup(name='swift_vertigo',
-      version='0.0.3',
+      version='0.0.4',
       description='Crystal filter middleware for OpenStack Swift',
       author='Josep Sampe',
       url='http://iostack.eu',
