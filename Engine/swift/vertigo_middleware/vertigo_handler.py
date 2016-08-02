@@ -68,6 +68,7 @@ def filter_factory(global_conf, **local_conf):
     vertigo_conf['execution_server'] = conf.get('execution_server')
     vertigo_conf['mc_timeout'] = conf.get('mc_timeout', 20)
     vertigo_conf['mc_pipe'] = conf.get('mc_pipe', 'vertigo_pipe')
+    vertigo_conf['ic_pipe'] = conf.get('mc_pipe', 'internal_client_pipe')
     vertigo_conf['mc_dir'] = conf.get('mc_dir', '/home/docker_device/vertigo/scopes')
     vertigo_conf['cache_dir'] = conf.get('cache_dir', '/home/docker_device/cache/scopes')
     vertigo_conf['mc_container'] = conf.get('mc_container',

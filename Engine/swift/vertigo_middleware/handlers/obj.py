@@ -55,9 +55,9 @@ class VertigoObjectHandler(VertigoBaseHandler):
         """
         GET handler on Object
         """
-        start = time.clock()
- 
         response = self.request.get_response(self.app)
+        
+        start = time.clock()
         mc_list = get_microcontroller_list(self)
         
         if mc_list:

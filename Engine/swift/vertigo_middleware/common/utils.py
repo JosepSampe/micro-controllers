@@ -10,6 +10,7 @@ import logging
 import pickle
 import errno
 import os
+import subprocess
 
 
 PICKLE_PROTOCOL = 2
@@ -312,3 +313,34 @@ def get_microcontroller_list(vertigo):
         mc_list = microcontroller_dict["on" + vertigo.method].split(",")
      
     return mc_list
+
+
+def start_internal_client(logger, pipe_path):
+    """
+    Starts the internal client daemon. This method starts one IC for
+    each tenant. If the internal client is already started, it does nothing.
+    
+    :param logger: swift.common.utils.LogAdapter instance
+    :param pipe_path: path where the pipe is located for the current tenant
+    """
+    logger.info('Vertigo - Starting Internal Client...')
+    
+    pid = os.popen("ps -aef | grep -i 'internal_client_daemon.py' | grep " +
+                   "-v 'grep' | grep '"+pipe_path+"'| awk '{ print $2 }'").read()
+                   
+    if pid != "":
+        logger.info('Vertigo - Internal Client is already started')
+    else:
+        cmd = '/usr/bin/python /opt/vertigo/internal_client_daemon.py ' \
+              + pipe_path +' DEBUG &'
+
+        logger.info(cmd)
+
+        # TODO: Call external script
+        p = subprocess.call(cmd, shell=True)
+
+        if p == 0:
+            logger.info('Vertigo - Internal Client daemon started')
+        else:
+            logger.info('Vertigo - Error starting Internal Client daemon')
+        
