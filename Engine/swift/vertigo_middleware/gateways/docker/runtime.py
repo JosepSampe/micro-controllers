@@ -22,7 +22,7 @@ class RunTimeSandbox(object):
     """
     The RunTimeSandbox represents a re-usable per scope sandbox.
     """
-    def __init__(self, conf, logger, account):
+    def __init__(self, logger, conf, account):
         self.account = account[5:]
         self.scope = account[5:18]
         self.conf = conf
@@ -30,44 +30,53 @@ class RunTimeSandbox(object):
         self.docker_img_prefix = 'vertigo'
         self.docker_repo = conf['docker_repo']
 
+    def _is_started(self, docker_container_name):
+        """
+        Auxiliary function that checks whether the container is started.
+        
+        :param docker_container_name : name of the container
+        :returns: whether exists
+        """
+        cmd = ("docker ps | grep -v 'grep' | grep '"+docker_container_name+"' | awk '{print $1}'")
+        docker_id = os.popen(cmd).read()
+
+        if not docker_id:
+            return False
+
+        return True
+        
     def start(self):
         """
         Starts the docker container.
         """
         docker_container_name = '%s_%s' % (self.docker_img_prefix, self.scope)
+        if not self._is_started(docker_container_name):
+            docker_image_name = '%s/%s' % (self.docker_repo, self.account)
         
+            host_pipe_prefix = self.conf["pipes_dir"] + "/" + self.scope
+            sandbox_pipe_prefix = "/mnt/channels"
         
-        cmd = "docker ps | grep -v 'grep' | grep '"+docker_container_name+"' | awk '{print $1}'"
-        print cmd
-        docker_id = os.popen(cmd).read()
+            pipe_mount = '%s:%s' % (host_pipe_prefix, sandbox_pipe_prefix)
         
-        print "+++++++++++++", docker_id, "+++++++++++++"
+            host_storlet_prefix = self.conf["mc_dir"] + "/" + self.scope
+            sandbox_storlet_dir_prefix = "/home/swift"
         
-        docker_image_name = '%s/%s' % (self.docker_repo, self.account)
-    
-        host_pipe_prefix = self.conf["pipes_dir"] + "/" + self.scope
-        sandbox_pipe_prefix = "/mnt/channels"
-    
-        pipe_mount = '%s:%s' % (host_pipe_prefix, sandbox_pipe_prefix)
-    
-        host_storlet_prefix = self.conf["mc_dir"] + "/" + self.scope
-        sandbox_storlet_dir_prefix = "/home/swift"
-    
-        mc_mount = '%s:%s' % (host_storlet_prefix, sandbox_storlet_dir_prefix)
-    
-        cmd = "sudo docker run --net=none --name " + docker_container_name + \
-              " -d -v /dev/log:/dev/log -v " + pipe_mount + " -v " + mc_mount + \
-              " -i -t " + docker_image_name + " debug /home/swift/start_daemon.sh"
-    
-        self.logger.info(cmd)
-    
-        self.logger.info('Vertigo - Starting container ' + docker_container_name + ' ...')
-    
-        p = subprocess.call(cmd, shell=True)
+            mc_mount = '%s:%s' % (host_storlet_prefix, sandbox_storlet_dir_prefix)
+        
+            cmd = "docker run --net=none --name " + docker_container_name + \
+                  " -d -v /dev/log:/dev/log -v " + pipe_mount + " -v " + mc_mount + \
+                  " -i -t " + docker_image_name + " debug /home/swift/start_daemon.sh"
+        
+            self.logger.info(cmd)
+        
+            self.logger.info('Vertigo - Starting container ' + docker_container_name + ' ...')
+        
+            p = subprocess.call(cmd, shell=True)
 
-        if p == 0:
-            time.sleep(1)
-            self.logger.info('Vertigo - Container "' + docker_container_name + '" started')
+            if p == 0:
+                time.sleep(1)
+                self.logger.info('Vertigo - Container "' + docker_container_name + '" started')
+                
         else:
             self.logger.info('Vertigo - Container "' + docker_container_name + '" is already started')
 

@@ -1,7 +1,9 @@
-from vertigo_middleware.common.utils import make_swift_request, get_data_dir, set_swift_metadata, get_swift_metadata, start_internal_client
+from vertigo_middleware.common.utils import make_swift_request, get_data_dir, set_swift_metadata, get_swift_metadata
+from vertigo_middleware.common.api import Api
 from vertigo_middleware.gateways.docker.runtime import RunTimeSandbox, VertigoInvocationProtocol
 from shutil import copy2
 import os
+
 
 MC_MAIN_HEADER = "X-Object-Meta-Handler-Main"
 MC_DEP_HEADER = "X-Object-Meta-Handler-Library-Dependency"
@@ -25,25 +27,21 @@ class VertigoGatewayDocker():
         self.logger_path = os.path.join(conf["log_dir"], self.scope)
         self.pipe_path = os.path.join(conf["pipes_dir"], self.scope)
         self.mc_pipe_path = os.path.join(self.pipe_path, conf["mc_pipe"])
-        self.ic_pipe_path = os.path.join(self.pipe_path, conf["ic_pipe"])
-
 
     def execute_microcontrollers(self, mc_list):
         """
         Exeutes the microcontroller list.
-         1. Starts the Internal client.
-         2. Starts the docker container (sandbox).
-         3. Gets the microcontrollers metadata
-         4. Executes the microcontroller list
+         1. Starts the docker container (sandbox).
+         2. Starts the API.
+         3. Gets the microcontrollers metadata.
+         4. Executes the microcontroller list.
         
         :param mc_list: microcontroller list
         :returns: response from the microcontrollers
         """
-        start_internal_client(self.logger, self.ic_pipe_path)
+        RunTimeSandbox(self.logger, self.conf, self.account).start()
+        Api(self.logger, self.conf, self.scope).start()
         
-        run_time_sbox = RunTimeSandbox(self.conf, self.logger, self.account)
-        run_time_sbox.start()
-
         # TODO: Execute microcontroller on proxy side
         mc_metadata = self._get_microcontroller_metadata(mc_list)
         data_dir = get_data_dir(self)
@@ -77,7 +75,7 @@ class VertigoGatewayDocker():
         resp = make_swift_request("GET", self.account, swift_container, object_name)
 
         with open(cache_target_obj, 'w') as fn:
-                fn.write(resp.body)
+            fn.write(resp.body)
                 
         set_swift_metadata(cache_target_obj, resp.headers)
 
@@ -88,7 +86,7 @@ class VertigoGatewayDocker():
         :param swift_container: container name (microcontroller or dependency)
         :param object_name: Name of the microcontroller or dependency
         :returns : whether the object is available in cache
-        """        
+        """          
         cached_target_obj = os.path.join(self.conf["cache_dir"], self.scope, 'vertigo', swift_container, object_name)
         self.logger.info('Vertigo - Checking in cache: ' + swift_container+'/'+object_name)       
         
@@ -112,7 +110,7 @@ class VertigoGatewayDocker():
         :param mc_main: main class of the microcontroller
         :param swift_container: container name (microcontroller or dependency)
         :param object_name: Name of the microcontroller or dependency
-        """   
+        """     
         # if enter to this method means that the objects exist in cache
         cached_target_obj = os.path.join(self.conf["cache_dir"], self.scope, 'vertigo', swift_container, object_name)        
         docker_target_dir = os.path.join(self.conf["mc_dir"], self.scope, mc_main)

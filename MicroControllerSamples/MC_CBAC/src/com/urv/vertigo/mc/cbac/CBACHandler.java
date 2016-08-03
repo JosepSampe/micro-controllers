@@ -40,7 +40,7 @@ public class CBACHandler implements IHandler {
 
 
         // STORLET EXECUTION
-		out.setStorlet(0,"adult-1.0.jar","select="+allowed_cols,"object-server");
+		out.setStorlet(0,"adult-1.0.jar","select="+allowed_cols,"object");
 		out.execStorlets();
 		logger.emitLog("To execute:" + out.getStorletList());
 		

@@ -39,16 +39,12 @@ class VertigoObjectHandler(VertigoBaseHandler):
             # return HTTPMethodNotAllowed(request=self.request)
 
     def _call_storlet_gateway_on_put(self, req, storlet_list):
-        req, app_iter = self.storlet_gateway.execute_storlet(req, storlet_list)
-        req.environ['wsgi.input'] = app_iter
+        req = self.storlet_gateway.execute_storlets(req, storlet_list)
         req.headers.pop('Storlet-Executed')
         return req
 
     def _call_storlet_gateway_on_get(self, resp, storlet_list):
-        resp, app_iter = self.storlet_gateway.execute_storlet(
-            resp, storlet_list)
-        resp.app_iter = app_iter
-        return resp
+        return self.storlet_gateway.execute_storlets(resp, storlet_list)
 
     @public
     def GET(self):
@@ -57,33 +53,34 @@ class VertigoObjectHandler(VertigoBaseHandler):
         """
         response = self.request.get_response(self.app)
         
-        start = time.clock()
+        start = time.time()
         mc_list = get_microcontroller_list(self)
         
         if mc_list:
-            self.logger.info('Vertigo - There are micro-controllers' +
+            self.logger.info('Vertigo - There are microcontrollers' +
                              ' to execute: ' + str(mc_list))
             self.request.headers['X-Current-Server'] = self.execution_server
             self._setup_docker_gateway(response)
             # Go to run the micro-controller(s)
             storlet_list = self.mc_docker_gateway.execute_microcontrollers(mc_list)
 
-            self.logger.info('Vertigo - Micro-Controller executed correctly')
+            self.logger.info('Vertigo - Microcontroller executed correctly')
             # Go to run the Storlet(s) whether the microcontroller
             # sends back any.
 
             if storlet_list:
                 self.logger.info('Vertigo - Go to execute Storlets: '+str(storlet_list))
                 self._setup_storlet_gateway()
-                return self.apply_storlet_on_get(response, storlet_list)
+                response = self.apply_storlet_on_get(response, storlet_list)
             else:
                 self.logger.info('Vertigo - No Storlets to execute')
         else:
-            self.logger.info('Vertigo - No Micro-Controllers to execute')
+            self.logger.info('Vertigo - No Microcontrollers to execute')
             
-        end = time.clock() - start
-        print end
-        
+        end = time.time() - start
+        self.logger.info('---')
+        self.logger.info('Total execution time: ' + str(int(round(end * 1000))) + 'ms')
+        self.logger.info('---')
         # f = open('/home/lab144/josep/middleware_get_tstamp.log','a')
         # f.write(str(end)+'\n') # python will convert \n to os.linesep
         # f.close()

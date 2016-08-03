@@ -50,12 +50,12 @@ class VertigoProxyHandler(VertigoBaseHandler):
             # return HTTPMethodNotAllowed(request=self.request)
         
     def _call_storlet_gateway_on_put(self, req, storlet_list):
-        req, app_iter = self.storlet_gateway.execute_storlet(req, storlet_list)
+        req, app_iter = self.storlet_gateway.execute_storlets(req, storlet_list)
         req.environ['wsgi.input'] = app_iter
         return req
 
     def _call_storlet_gateway_on_get(self, resp, storlet_list):
-        resp, app_iter = self.storlet_gateway.execute_storlet(
+        resp, app_iter = self.storlet_gateway.execute_storlets(
             resp, storlet_list)
         resp.app_iter = app_iter
         resp.headers.pop('Vertigo')
@@ -123,3 +123,15 @@ class VertigoProxyHandler(VertigoBaseHandler):
                                         ' doesn\'t exists in Swift.\n')
 
         return self.request.get_response(self.app)
+    
+    @public
+    def POST(self):
+        """
+        PUT handler on Proxy
+        """
+        if self.is_trigger_assignation:
+            print "------ POSTING ------"
+            print self.request.body
+        return self.request.get_response(self.app)
+        
+    
