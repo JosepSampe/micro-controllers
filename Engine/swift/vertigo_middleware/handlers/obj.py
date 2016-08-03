@@ -3,7 +3,7 @@ from swift.common.utils import public
 import time
 
 from vertigo_middleware.handlers import VertigoBaseHandler
-from vertigo_middleware.common.utils import get_microcontroller_list, set_microcontroller, get_microcontroller_dict
+from vertigo_middleware.common.utils import get_microcontroller_list, set_microcontroller, delete_microcontroller, get_microcontroller_dict
 
 
 class VertigoObjectHandler(VertigoBaseHandler):
@@ -35,8 +35,7 @@ class VertigoObjectHandler(VertigoBaseHandler):
             return handler()
         else:
             return self.request.get_response(self.app)
-            # un-defined method should be NOT ALLOWED
-            # return HTTPMethodNotAllowed(request=self.request)
+            #return HTTPMethodNotAllowed(request=self.request)
 
     def _call_storlet_gateway_on_put(self, req, storlet_list):
         req = self.storlet_gateway.execute_storlets(req, storlet_list)
@@ -94,14 +93,31 @@ class VertigoObjectHandler(VertigoBaseHandler):
         """
         if self.is_trigger_assignation:
             # Only enters here when a user assign a micro-controller to an object
-            trigger, micro_controller = self.get_vertigo_mc_data()
-            set_microcontroller(self, trigger, micro_controller)
+            trigger, micro_controller = self.get_mc_assignation_data()
             
-            return Response(body='Vertigo micro-controller "'+micro_controller+
-                                 '" assigned correctly to an "'+ trigger +
-                                 '" trigger.\n',
-                            headers={'etag':''},
-                            request=self.request)
+            try:
+                set_microcontroller(self, trigger, micro_controller)
+                msg = 'Vertigo - Microcontroller "' + micro_controller + \
+                    '" correctly assigned to the "'+ trigger + '" trigger.\n'
+            except ValueError as e:
+                msg = e.args[0]
+
+            self.logger.info(msg)
+            return Response(body = msg, headers = {'etag':''},
+                            request = self.request)
+            
+        if self.is_trigger_deletion:
+            trigger, micro_controller = self.get_mc_deletion_data()
+            
+            try:
+                delete_microcontroller(self, trigger, micro_controller)
+                msg = 'Vertigo - Microcontroller "' + micro_controller +\
+                    '" correctly removed from the "'+ trigger + '" trigger.\n'
+            except ValueError as e:
+                msg = e.args[0]
+
+            return Response(body = msg, headers = {'etag':''},
+                            request = self.request)   
         else:
             return self.request.get_response(self.app)
       
@@ -112,10 +128,11 @@ class VertigoObjectHandler(VertigoBaseHandler):
         """
         original_resp = self.request.get_response(self.app)
         mc_dict = get_microcontroller_dict(self)
-        for trigger in mc_dict.keys():
-            if not mc_dict[trigger]:
-                del mc_dict[trigger]
-        original_resp.headers['Vertigo-Microcontroller'] = mc_dict
+        if mc_dict:
+            for trigger in mc_dict.keys():
+                if not mc_dict[trigger]:
+                    del mc_dict[trigger]
+            original_resp.headers['Vertigo-Microcontroller'] = mc_dict
 
         return original_resp
     

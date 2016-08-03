@@ -1,6 +1,6 @@
 from swift.common.internal_client import InternalClient
 from swift.common.exceptions import DiskFileXattrNotSupported, DiskFileNoSpace, DiskFileNotExist
-from swift.common.swob import HTTPUnauthorized, HTTPInternalServerError
+from swift.common.swob import HTTPInternalServerError
 from swift.obj.diskfile import get_data_dir as df_data_dir, get_ondisk_files, _get_filename
 from swift.common.request_helpers import get_name_and_placement
 from swift.common.utils import storage_directory, hash_path
@@ -161,8 +161,7 @@ def verify_access(vertigo, path):
     resp = sub_req.get_response(vertigo.app)
     
     if not resp.is_success:
-        raise HTTPUnauthorized('Failed to verify access to the object',
-                               request=vertigo.request)
+        return False
 
     return resp.headers
 
@@ -223,37 +222,112 @@ def set_microcontroller(vertigo, trigger, mc):
     and stores the metadata file
     
     :param vertigo: swift_vertigo.vertigo_handler.VertigoObjectHandler instance
-    :param trigger: storlet name
-    :param mc: micro-controller name
+    :param trigger: trigger name
+    :param mc: microcontroller name
     :raises HTTPInternalServerError: If it fails
     """        
-    vertigo.logger.debug('Vertigo - Go to assign "' + mc +
-                         '" microcontroller to an "' + trigger + '" trigger')
-        
     try:
-        # Get and Set micro-controller trigger metadata
         microcontroller_dict = get_microcontroller_dict(vertigo)
-        #if not microcontroller_dict:
-        microcontroller_dict = DEFAULT_MD_STRING
-        microcontroller_dict[trigger] = mc
-        set_microcontroller_dict(vertigo, microcontroller_dict)
     except:
-        vertigo.logger.exception('ERROR getting/setting trigger metadata to object')
-        raise HTTPInternalServerError('ERROR getting/setting trigger metadata to object.\n')
+        raise ValueError('Vertigo - ERROR: There was an error getting trigger' 
+                         ' dictionary from the object.\n')
+    
+    if not microcontroller_dict:
+        microcontroller_dict = DEFAULT_MD_STRING
+    if not microcontroller_dict[trigger]:
+        microcontroller_dict[trigger] = list() 
+    if mc in microcontroller_dict[trigger]:
+        raise ValueError('Vertigo - ERROR: Microcontroller "'+mc+'" already assigned to the "'+trigger+'" trigger.\n')
+    microcontroller_dict[trigger].append(mc)
+    set_microcontroller_dict(vertigo, microcontroller_dict)
+    
     
     try:
         # Write micro-controller metadata file
-        data_dir = get_data_dir(vertigo)
-        metadata_target_path = os.path.join(data_dir,
-                                            mc.rsplit('.', 1)[0] + ".md")
-        fn = open(metadata_target_path, 'w')
-        fn.write(vertigo.request.body)
-        fn.close()
+        if int(vertigo.request.headers['Content-Length']) > 0:   
+            data_dir = get_data_dir(vertigo)
+            vertigo.logger.debug('Vertigo - Object path: ' + data_dir)
+            metadata_target_path = os.path.join(data_dir,
+                                                mc.rsplit('.', 1)[0] + ".md")
+            fn = open(metadata_target_path, 'w')
+            fn.write(vertigo.request.body)
+            fn.close()    
     except:
-        vertigo.logger.exception('ERROR writing micro-controller metadata file')
-        raise HTTPInternalServerError('ERROR writing micro-controller metadata file.\n')
+        raise ValueError('Vertigo - ERROR: There was an error writing microcontroller metadata file.\n')
 
-    vertigo.logger.info('Vertigo - Micro-controller "' + mc + '" assigned correctly')
+
+def clean_microcontroller_dict(microcontroller_dict):
+    """
+    Auxiliary function that cleans the microcontroller dictionary, deleting
+    empty lists for each trigger, and deleting all dictionary whether all
+    values are None.
+    
+    :param microcontroller_dict: microcontroller dictionary
+    :returns microcontroller_dict: microcontroller dictionary
+    """   
+    for trigger in microcontroller_dict.keys():
+        if not microcontroller_dict[trigger]:
+            microcontroller_dict[trigger] = None
+            
+    if all(value == None for value in microcontroller_dict.values()):
+        microcontroller_dict = None
+    
+    return  microcontroller_dict            
+    
+def delete_microcontroller(vertigo, trigger, mc):
+    """
+    Deletes a microcontroller to the specified object in the main request
+    
+    :param vertigo: swift_vertigo.vertigo_handler.VertigoObjectHandler instance
+    :param trigger: trigger name
+    :param mc: microcontroller name
+    :raises HTTPInternalServerError: If it fails
+    """        
+    vertigo.logger.debug('Vertigo - Go to delete "' + mc +
+                         '" microcontroller from "' + trigger + '" trigger')
+            
+    try:
+        microcontroller_dict = get_microcontroller_dict(vertigo)
+    except:
+        raise ValueError('Vertigo - ERROR: There was an error getting trigger' 
+                         ' dictionary from the object.\n')
+    
+    try:
+        data_dir = get_data_dir(vertigo)
+        if trigger == "vertigo" and mc == "all":
+            for obj in os.listdir(data_dir):
+                if obj.endswith('.md'):
+                    metadata_target_path = os.path.join(data_dir, obj)
+                    os.remove(metadata_target_path)
+        elif mc == "all":
+            for obj in os.listdir(data_dir):
+                if obj.replace('.md','.jar') in microcontroller_dict[trigger]:
+                    metadata_target_path = os.path.join(data_dir, obj)
+                    os.remove(metadata_target_path)
+        else:
+            mc_md_name = mc.rsplit('.', 1)[0] + ".md"
+            metadata_target_path = os.path.join(data_dir, mc_md_name)
+            os.remove(metadata_target_path)         
+    except:
+        raise ValueError('Vertigo - ERROR: There was an error deleting'
+                         ' microcontroller metadata file.\n')
+    
+    try:
+        if trigger == "vertigo" and mc == "all":
+            set_microcontroller_dict(vertigo, DEFAULT_MD_STRING)
+        else:
+            if microcontroller_dict:
+                if mc == 'all':
+                    microcontroller_dict[trigger] = None
+                else:
+                    microcontroller_dict[trigger].remove(mc)
+            mc_dict = clean_microcontroller_dict(microcontroller_dict) 
+            set_microcontroller_dict(vertigo, mc_dict)         
+    except:
+
+        raise ValueError('Vertigo - ERROR: There was an error setting'
+                         ' trigger metadata to the object.\n')
+ 
     vertigo.logger.debug('Vertigo - Object path: ' + data_dir)
 
 

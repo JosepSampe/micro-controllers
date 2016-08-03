@@ -47,10 +47,16 @@ class VertigoBaseHandler(object):
                                    conf.get('mc_dependency'),
                                    conf.get('storlet_container'),
                                    conf.get('storlet_dependency')]
-        self.available_triggers = ['X-Vertigo-Onget',
-                                   'X-Vertigo-Ondelete',
-                                   'X-Vertigo-Onput',
-                                   'X-Vertigo-Ontimer']
+        self.available_assignation_headers = ['X-Vertigo-Onget',
+                                              'X-Vertigo-Ondelete',
+                                              'X-Vertigo-Onput',
+                                              'X-Vertigo-Ontimer']   
+        self.available_deletion_headers = ['X-Vertigo-Onget-Delete',
+                                           'X-Vertigo-Ondelete-Delete',
+                                           'X-Vertigo-Onput-Delete',
+                                           'X-Vertigo-Ontimer-Delete',
+                                           'X-Vertigo-Delete']
+        
         self.app = app
         self.logger = logger
         self.conf = conf
@@ -77,15 +83,25 @@ class VertigoBaseHandler(object):
         self._api_version, self._account, self._container, self._obj = \
             self._parse_vaco()
 
-    def get_vertigo_mc_data(self):
-        header = [i for i in self.available_triggers
+    def get_mc_assignation_data(self):
+        header = [i for i in self.available_assignation_headers
                   if i in self.request.headers.keys()]
         if len(header) > 1:
-            raise HTTPUnauthorized('The system can only set 1 controller' +
-                                   ' each time.\n')
+            raise HTTPUnauthorized('Vertigo - The system can only set 1'\
+                                   ' microcontroller each time.\n')
+        mc = self.request.headers[header[0]]
+        
+        return header[0].rsplit('-', 1)[1].lower(), mc
+    
+    def get_mc_deletion_data(self):
+        header = [i for i in self.available_deletion_headers
+                  if i in self.request.headers.keys()]
+        if len(header) > 1:
+            raise HTTPUnauthorized('Vertigo - The system can only delete 1'\
+                                   ' microcontroller each time.\n')
         mc = self.request.headers[header[0]]
 
-        return header[0].rsplit('-', 1)[1].lower(), mc
+        return header[0].rsplit('-', 2)[1].lower(), mc   
 
     @property
     def api_version(self):
@@ -155,10 +171,14 @@ class VertigoBaseHandler(object):
 
     @property
     def is_trigger_assignation(self):
-        return any((True for x in self.available_triggers
+        return any((True for x in self.available_assignation_headers
                     if x in self.request.headers.keys()))
 
-
+    @property
+    def is_trigger_deletion(self):
+        return any((True for x in self.available_deletion_headers
+                    if x in self.request.headers.keys()))
+        
     def is_slo_response(self, resp):
         self.logger.debug(
             'Verify if {0}/{1}/{2} is an SLO assembly object'.format(

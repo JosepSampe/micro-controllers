@@ -1,10 +1,9 @@
+from vertigo_middleware.handlers import VertigoBaseHandler
+from vertigo_middleware.common.utils import verify_access
 from swift.common.swob import HTTPMethodNotAllowed, HTTPUnauthorized, Response
 from swift.common.utils import public, cache_from_env
 import pickle
 import json
-
-from vertigo_middleware.handlers import VertigoBaseHandler
-from vertigo_middleware.common.utils import verify_access
 
 
 class VertigoProxyHandler(VertigoBaseHandler):
@@ -46,9 +45,30 @@ class VertigoProxyHandler(VertigoBaseHandler):
             return handler()
         else:
             return self.request.get_response(self.app)
-            # un-defined method should be NOT ALLOWED
-            # return HTTPMethodNotAllowed(request=self.request)
-        
+            #return HTTPMethodNotAllowed(request=self.request)
+         
+    def _augment_empty_request(self):
+        """
+        Auxiliary function that sets the content-length header and the body
+        of the request in such cases that the user doesn't send the metadata
+        file when he assign a microcontroller to an object.
+        """
+        if not 'Content-Length' in self.request.headers:
+            self.request.headers['Content-Length'] = 0
+            self.request.body = ''
+  
+    def _verify_access(self, container, obj):
+        """
+        Verifies acces to the specified object in swift
+        :param container: swift container name
+        :param obj: swift object name
+        :raise HTTPUnauthorized: if the object doesn't exists in swift 
+        """
+        path = '/'.join(['', self.api_version, self.account, container, obj])
+        if not verify_access(self, path):
+            raise HTTPUnauthorized('Vertigo - Object error: Perhaps "'
+                                    + obj + '" doesn\'t exists in Swift.\n')
+    
     def _call_storlet_gateway_on_put(self, req, storlet_list):
         req, app_iter = self.storlet_gateway.execute_storlets(req, storlet_list)
         req.environ['wsgi.input'] = app_iter
@@ -106,32 +126,37 @@ class VertigoProxyHandler(VertigoBaseHandler):
         """
         if self.is_trigger_assignation:
             # Only enters here when a user assign a micro-controller to an object
-            _, micro_controller = self.get_vertigo_mc_data()
-            # Verify if the object is in Swift
-            objpath = '/'.join(['', self.api_version, self.account,
-                              self.container, self.obj])
-            if not verify_access(self, objpath):
-                return HTTPUnauthorized('Vertigo - Object error: Perhaps '
-                                        +self.obj+' doesn\'t exists in Swift.\n')
-
-            # Verify if the micro-controller is in Swift
-            mcpath = '/'.join(['', self.api_version, self.account,
-                              self.mc_container, micro_controller])
-            if not verify_access(self, mcpath):
-                return HTTPUnauthorized('Vertigo -  MicroController error: '+
-                                        'Perhaps ' + micro_controller + 
-                                        ' doesn\'t exists in Swift.\n')
-
+            _, micro_controller = self.get_mc_assignation_data()
+            self._verify_access(self.container, self.obj)
+            self._verify_access(self.mc_container, micro_controller)
+            self._augment_empty_request()
+        
+        if self.is_trigger_deletion:
+            self._verify_access(self.container, self.obj)
+            self._augment_empty_request()
+            
         return self.request.get_response(self.app)
     
     @public
     def POST(self):
         """
-        PUT handler on Proxy
+        POST handler on Proxy
         """
         if self.is_trigger_assignation:
-            print "------ POSTING ------"
-            print self.request.body
-        return self.request.get_response(self.app)
-        
+            _, micro_controller = self.get_mc_assignation_data()
+            self._verify_access(self.container, self.obj)
+            self._verify_access(self.mc_container, micro_controller)
+            # Converts the POST request to a PUT request to properly forward
+            # it to the object server.
+            self.request.method = 'PUT'
+            self._augment_empty_request()
+           
+        if self.is_trigger_deletion:
+            self._verify_access(self.container, self.obj)
+            # Converts the POST request to a PUT request to properly forward
+            # it to the object server.
+            self.request.method = 'PUT'
+            self._augment_empty_request()                     
+            
+        return self.request.get_response(self.app)       
     
