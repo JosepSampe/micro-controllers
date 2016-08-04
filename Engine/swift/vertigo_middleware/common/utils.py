@@ -147,10 +147,12 @@ def verify_access(vertigo, path):
     if 'HTTP_TRANSFER_ENCODING' in new_env.keys():
         del new_env['HTTP_TRANSFER_ENCODING']
     
+    
     for key in DEFAULT_MD_STRING.keys():
         env_key = 'HTTP_X_VERTIGO_' + key.upper()
         if env_key in new_env.keys():
             del new_env[env_key]
+    
     
     auth_token = vertigo.request.headers.get('X-Auth-Token')
     sub_req = make_subrequest(
@@ -174,10 +176,12 @@ def get_data_dir(vertigo):
     :returns: the data directory path
     """ 
     devices = vertigo.conf.get('devices')
-    device, partition, account, container, obj, policy = get_name_and_placement(vertigo.request, 5, 5, True)
+    device, partition, account, container, obj, policy = \
+        get_name_and_placement(vertigo.request, 5, 5, True)
     name_hash = hash_path(account, container, obj)
-    device_path = os.path.join(devices, device)       
-    data_dir = os.path.join(device_path, storage_directory(df_data_dir(policy), partition, name_hash))
+    device_path = os.path.join(devices, device)
+    storage_dir = storage_directory(df_data_dir(policy),partition, name_hash)
+    data_dir = os.path.join(device_path, storage_dir)
     
     return data_dir
 
@@ -229,15 +233,16 @@ def set_microcontroller(vertigo, trigger, mc):
     try:
         microcontroller_dict = get_microcontroller_dict(vertigo)
     except:
-        raise ValueError('Vertigo - ERROR: There was an error getting trigger' 
+        raise ValueError('Vertigo - ERROR: There was an error getting trigger'
                          ' dictionary from the object.\n')
     
     if not microcontroller_dict:
         microcontroller_dict = DEFAULT_MD_STRING
     if not microcontroller_dict[trigger]:
-        microcontroller_dict[trigger] = list() 
+        microcontroller_dict[trigger] = list()
     if mc in microcontroller_dict[trigger]:
-        raise ValueError('Vertigo - ERROR: Microcontroller "'+mc+'" already assigned to the "'+trigger+'" trigger.\n')
+        raise ValueError('Vertigo - ERROR: Microcontroller "'+ mc +'" already'
+                         ' assigned to the "' + trigger + '" trigger.\n')
     microcontroller_dict[trigger].append(mc)
     set_microcontroller_dict(vertigo, microcontroller_dict)
     
@@ -246,14 +251,15 @@ def set_microcontroller(vertigo, trigger, mc):
         # Write micro-controller metadata file
         if int(vertigo.request.headers['Content-Length']) > 0:   
             data_dir = get_data_dir(vertigo)
-            vertigo.logger.debug('Vertigo - Object path: ' + data_dir)
+            vertigo.logger.debug('Vertigo - Objecto path: ' + data_dir)
             metadata_target_path = os.path.join(data_dir,
                                                 mc.rsplit('.', 1)[0] + ".md")
             fn = open(metadata_target_path, 'w')
             fn.write(vertigo.request.body)
             fn.close()    
     except:
-        raise ValueError('Vertigo - ERROR: There was an error writing microcontroller metadata file.\n')
+        raise ValueError('Vertigo - ERROR: There was an error writing'
+                         ' microcontroller metadata file.\n')
 
 
 def clean_microcontroller_dict(microcontroller_dict):
@@ -314,7 +320,7 @@ def delete_microcontroller(vertigo, trigger, mc):
     
     try:
         if trigger == "vertigo" and mc == "all":
-            set_microcontroller_dict(vertigo, DEFAULT_MD_STRING)
+            set_microcontroller_dict(vertigo, None)
         else:
             if microcontroller_dict:
                 if mc == 'all':
@@ -345,14 +351,15 @@ def set_microcontroller_dict(vertigo, microcontroller_dict):
         return write_metadata(fd, microcontroller_dict)
         close_data_file(fd)
     except Exception as e:
-        raise HTTPInternalServerError('ERROR unable to set the dict of microcontrollers: '+str(e))
+        raise HTTPInternalServerError('ERROR unable to set the dict of'
+                                      ' microcontrollers: '+str(e))
 
    
 def get_microcontroller_dict(vertigo):
     """
     Gets the list of associated microcontrollers to the requested object.
-    This method retrieves a dictionary with all triggers and all microcontrollers
-    associated to each trigger.
+    This method retrieves a dictionary with all triggers and all 
+    microcontrollers associated to each trigger.
     
     :param vertigo: swift_vertigo.vertigo_handler.VertigoObjectHandler instance
     :returns: microcontroller dictionary
@@ -363,7 +370,8 @@ def get_microcontroller_dict(vertigo):
         mc_dict = read_metadata(fd)
         close_data_file(fd)
     except Exception as e:
-        raise HTTPInternalServerError('ERROR unable to get the microcontroller dict: '+str(e))
+        raise HTTPInternalServerError('ERROR unable to get the microcontroller'
+                                      ' dict: '+str(e))
 
     return mc_dict
 
@@ -383,7 +391,7 @@ def get_microcontroller_list(vertigo):
     
     mc_list = list()
     if microcontroller_dict:
-        mc_list = microcontroller_dict["on" + vertigo.method].split(",")
+        mc_list = microcontroller_dict["on" + vertigo.method]
      
     return mc_list
         

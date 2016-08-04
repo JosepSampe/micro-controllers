@@ -98,6 +98,7 @@ public class AdultStorlet implements IStorlet {
 		storletObjectOutputStream.setMetadata(metadata);
 		OutputStream outputStream = storletObjectOutputStream.getStream();
 
+		logger.emitLog(select_string);	
 				
         try {
 

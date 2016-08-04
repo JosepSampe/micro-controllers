@@ -85,21 +85,21 @@ class VertigoGatewayStorlet():
         
         """ Simulate Storlet request """
         new_env = dict(req_resp.environ)
-        req = Request.blank(new_env['PATH_INFO'], new_env)
+        sreq = Request.blank(new_env['PATH_INFO'], new_env)
 
-        req.headers['X-Run-Storlet'] = self.storlet_name
-        self._augment_storlet_request(req)
-        req.environ['QUERY_STRING'] = params.replace(',', '&')
+        sreq.headers['X-Run-Storlet'] = self.storlet_name
+        self._augment_storlet_request(sreq)
+        sreq.environ['QUERY_STRING'] = params
 
-        return req
+        return sreq
 
     def _run_storlet(self, req_resp, params, vertigo_iter):
-        req = self._set_storlet_request(req_resp, params)
+        sreq = self._set_storlet_request(req_resp, params)
 
         if self.method == 'PUT':
-            sresp = self.gateway_method(req, vertigo_iter)
+            sresp = self.gateway_method(sreq, vertigo_iter)
         elif self.method == 'GET':
-            sresp = self.gateway_method(req, req_resp, vertigo_iter)
+            sresp = self.gateway_method(sreq, req_resp, vertigo_iter)
                 
         return sresp.data_iter
 

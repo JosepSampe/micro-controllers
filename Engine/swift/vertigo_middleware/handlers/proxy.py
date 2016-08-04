@@ -86,7 +86,7 @@ class VertigoProxyHandler(VertigoBaseHandler):
     def GET(self):
         """
         GET handler on Proxy
-        """
+        """        
         if self.is_object_in_cache():
             value = pickle.loads(self.cached_object)
 
