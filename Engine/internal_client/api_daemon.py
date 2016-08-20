@@ -1,41 +1,35 @@
-import sys
+from logging.handlers import SysLogHandler
+from swiftclient import client as swift
+from hashlib import md5
+from bus import Bus
+import memcache
 import logging
 import time
-import pwd
-import os
 import pickle
-from logging.handlers import SysLogHandler
-from SBusPythonFacade.SBus import SBus
-from swiftclient import client as ic
-from hashlib import md5
-import memcache
+import sys
 
-PICKLE_PROTOCOL = 2
+
+STORAGE_URL = "http://192.168.2.1:8080/v1/"
 
 def md5hash(key):
     return md5(key).hexdigest()
 
-class internal_client(object):
+
+class api(object):
     
-    def __init__(self, path, logger):
-        '''@summary:             CTOR
-                              Prepare the auxiliary data structures
-        @param path:          Path to the pipe file internal SBus listens to
-        @type  path:          String
-        @param logger:        Logger to dump 0the information to
-        @type  logger:        SysLogHandler
+    def __init__(self, tenant, pipe_path, logger):
         '''
+        :param tenant: Tenant ID
+        :param pipe_path: Path to the pipe file internal Bus listens to
+        :param logger: Logger to dump 0the information to
+        '''
+        self.tenant = tenant
         self.logger = logger
-        self.pipe_path = path
-        
-        # Dictionary: map storlet name to pipe name
-        self.storlet_name_to_pipe_name = dict()
-        # Dictionary: map storlet name to daemon process PID
-        self.storlet_name_to_pid = dict()
-        # Strat route to memcahced
+        self.pipe_path = pipe_path
+
         self.mc = memcache.Client(['controller:11211'], debug=0)
-    '''--------------------------------------------------------------------'''
-       
+        self.storage_url = STORAGE_URL + self.tenant
+
     def _copy_file(self, token, source_file, dest_file, source_type):      
         self.logger.debug('Going to copy '+source_file+" to "+dest_file)
 
@@ -50,7 +44,7 @@ class internal_client(object):
         response = dict() 
         if source_type == "original":
             headers = {'X-Copy-From':'/'+container+'/'+name}
-            ic.put_object(url=url, token=token, 
+            swift.put_object(url=url, token=token, 
                           container=dest_container, 
                           name=dest_name, 
                           headers=headers, 
@@ -58,7 +52,7 @@ class internal_client(object):
       
         else: #PROCESSED BY STROELTS: EXECUTE ON PROXY
             headers = {'X-Copy-File':'True'}
-            data = ic.get_object(url=url, token=token, 
+            data = swift.get_object(url=url, token=token, 
                                  container=dest_container, 
                                  name=dest_name, 
                                  headers=headers, 
@@ -70,19 +64,8 @@ class internal_client(object):
             # Store the processed object in cache
             key = md5hash(account+"/"+container+"/"+name)
             self.mc.set(key, data[1])
-
-    def _delete_object(self, token, source_file):
-        self.logger.debug('Going to delete '+source_file)
-        response = dict()
-        url = source_file.rsplit("/",2)[0]
-        container = source_file.rsplit("/",2)[1]
-        name = source_file.rsplit("/",2)[2]
-        
-        ic.delete_object(url=url, token=token, 
-                         container=container, 
-                         name=name, 
-                         response_dict=response)
-        
+            
+            
     def _prefetch_object(self, token, original_object_path, source_files_list):
         self.logger.debug('Going to prefetch '+source_files_list)
         
@@ -95,12 +78,11 @@ class internal_client(object):
         container = original_object_path.rsplit("/",2)[1]
         file_list = source_files_list.split(",")
 
-        swift_conn = ic.Connection(preauthtoken=token, preauthurl=url)
+        swift_conn = swift.Connection(preauthtoken=token, preauthurl=url)
 
         for obj in file_list:
             key = md5hash(account+"/"+container+"/"+obj)
             self.mc.delete(key)
-            
             data = swift_conn.get_object(container=container, 
                                          obj=obj, 
                                          headers=headers, 
@@ -115,6 +97,64 @@ class internal_client(object):
 
         swift_conn.close()
         
+    def _split(self, source):
+        return source.split('?')[0].split('/',2)
+
+    def delete_object(self, source, token):
+        response = dict()
+        container, obj = self._split(source)
+        
+        swift.delete_object(url=self.storage_url, 
+                            token=token, 
+                            container=container, 
+                            name=obj, 
+                            response_dict=response)
+        
+        print response      
+            
+    def set_mc_metadata(self, source, method, mc, metadata, token):
+        response = dict() 
+        container, obj = self._split(source)
+        headers = {'X-Vertigo-on'+method:mc}
+        swift.put_object(url = self.storage_url, 
+                         token = token,
+                         contents = metadata,
+                         content_length = len(metadata),
+                         container = container, 
+                         name = obj, 
+                         headers = headers, 
+                         response_dict = response)
+        
+        print response
+        
+    def get_metadata(self, source, token):
+        container, obj = self._split(source)
+        metadata = swift.head_object(url = self.storage_url, 
+                                     token = token,
+                                     container = container, 
+                                     name = obj)
+        for key in metadata.keys():
+            if not key.startswith("x-object-meta"):
+                del metadata[key]
+        return metadata
+        
+    def set_metadata(self, source, key, value, token): 
+        container, obj = self._split(source)
+        response = dict()
+        metadata = self.get_metadata(source, token)
+        headers = {'x-object-meta-'+key.lower():value}
+        metadata.update(headers)
+
+        swift.post_object(url = self.storage_url, 
+                          token = token,
+                          container = container, 
+                          name = obj, 
+                          headers = metadata, 
+                          response_dict = response)
+        
+        print response
+        
+    
     def dispatch_command(self, dtg):
         command = -1
                 
@@ -127,71 +167,85 @@ class internal_client(object):
         else:
             self.logger.debug("Received command {0}".format(command))
 
-        prms = dtg.get_exec_params()
+        data = dtg.get_exec_params()
         
         if command == "SBUS_CMD_EXECUTE":
             self.logger.debug('Do SBUS_CMD_EXECUTE')
-            self.logger.debug('prms = %s' % str(prms))
-      
-            swift_command = prms['op']
+            self.logger.debug('Execution information = %s' % str(data))
             
-            #time.sleep(3)
+            service = data['service']
+            command = data['op']
+            token = data['token']
+            source = data['source']
             
-            if swift_command == "DELETE":
-                self._delete_object(prms['swift_token'],prms['source_file'])
+            if service == "SWIFT":
                 
+                if command == 'SET_MC_METADATA':
+                    method = data['method']
+                    mc = data['microcontroller']
+                    metadata = data['metadata']
+                    self.set_mc_metadata(source, method, mc, metadata, token)
+                
+                if command == 'SET_METADATA':
+                    key = data['key']
+                    value = data['value']
+                    self.set_metadata(source, key, value, token)
+                    
+                if command == 'COPY':
+                    dest = data['destination']
+                    self.copy_object(source, dest, token)
+                    
+                if command == 'MOVE':
+                    dest = data['destination']
+                    self.move_object(source, dest, token)
+                    
+                if command == 'DELETE':
+                    self.delete_object(source, token)
+               
+            """ 
+            self._delete_object(prms['swift_token'],prms['source_file'])
             if swift_command == "COPY":
                 self._copy_file(prms['swift_token'],prms['source_file'],prms['dest_file'],prms['source_type'])
                 
             if swift_command == "PREFETCH":
                 self._prefetch_object(prms['swift_token'],prms['object_path'],prms['source_file_list'])
-            
+            """
         
     def main_loop(self):
-        '''@summary: main_loop
-                  The 'internal' loop. Listen to SBus, receive datagram,
-                  dispatch command, report back.
         '''
-
+        The internal loop. Listen to Bus, receive datagram,
+        dispatch command, report back.
+        '''
         # Create SBus. Listen and process requests
-        sbus = SBus()
-        fd = sbus.create(self.pipe_path)
+        api_bus = Bus()
+        fd = api_bus.create(self.pipe_path)
         if fd < 0:
-            self.logger.error("Failed to create SBus. exiting.")
+            self.logger.error("Failed to create Bus. exiting.")
             return
 
-        b_iterate = True
+        while True:
+            rc = api_bus.listen(fd)
 
-        while b_iterate:
-            rc = sbus.listen(fd)
-           
             if rc < 0:
-                self.logger.error("Failed to wait on SBus. exiting.")
+                self.logger.error("Failed to wait on API Bus. exiting.")
                 return
-            self.logger.debug("Wait returned")
+            
+            self.logger.debug("API Bus wait returned")
 
-            dtg = sbus.receive(fd)
+            dtg = api_bus.receive(fd)
             if not dtg:
                 self.logger.error("Failed to receive message. exiting.")
                 return
 
             self.dispatch_command(dtg)
 
-        # We left the main loop for some reason. Terminating.
         self.logger.debug('Leaving main loop')
-
-'''------------------------------------------------------------------------'''
 
 
 def start_logger(logger_name, log_level):
-    '''@summary:           start_logger
-                        Initialize logging of this process.
-                        Set the logger format.
+    '''
     @param logger_name: The name to report with
-    @type  logger_name: String
     @param log_level:   The verbosity level
-    @type  log_level:   String
-    @rtype:             void
     '''
     logging.raiseExceptions = False
     log_level = log_level.upper()
@@ -233,50 +287,31 @@ def start_logger(logger_name, log_level):
     logger.addHandler(sysLogh)
     return logger
 
-'''------------------------------------------------------------------------'''
-
-
 
 def usage():
-    '''@summary: usage
-              Print the expected command line arguments.
-    @rtype:   void
-    '''
-    print("internal_client_daemon <path> <log level>")
-
-'''------------------------------------------------------------------------'''
+    """
+    Prints the correct usage of the API
+    """
+    print("api_daemon.py <tenant id> <api pipe path> <log level>")
 
 
 def main(argv):
-    '''@summary: main
-              The entry point.
-              - Initialize logger,
-              - impersonate to swift user,
-              - create an instance of daemon_factory,
-              - start the main loop.
-    '''
-
-    if (len(argv) != 2):
+    if (len(argv) != 3):
         usage()
         return
+    
+    tenant_id = argv[0]
+    pipe_path = argv[1]
+    log_level = argv[2]
 
-    pipe_path = argv[0]
-    log_level = argv[1]
-    # container_id = argv[2]
-    logger = start_logger("Micro-controller Framework Internal Client", log_level)
-    logger.debug("Internal client daemon started")
-    SBus.start_logger("DEBUG", container_id="InternalClient")
+    logger = start_logger("Microcontroller Framework API", log_level)
+    logger.debug("API daemon started")
+    Bus.start_logger("DEBUG", container_id="API")
+    
+    tenant_api = api(tenant_id, pipe_path, logger)
+    tenant_api.main_loop()
 
-    # Impersonate the swift user
-    pw = pwd.getpwnam('swift')
-    os.setresgid(pw.pw_gid, pw.pw_gid, pw.pw_gid)
-    os.setresuid(pw.pw_uid, pw.pw_uid, pw.pw_uid)
 
-    factory = internal_client(pipe_path, logger)
-    factory.main_loop()
-
-'''------------------------------------------------------------------------'''
 if __name__ == "__main__":
     main(sys.argv[1:])
 
-'''============================ END OF FILE ==============================='''

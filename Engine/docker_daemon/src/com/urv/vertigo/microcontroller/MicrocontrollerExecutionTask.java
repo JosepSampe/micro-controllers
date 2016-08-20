@@ -1,29 +1,30 @@
 /*============================================================================
- 21-Oct-2015    josep.sampe       Initial implementation.
+ 21-Oct-2015    josep.sampe       	Initial implementation.
+ 17-Aug-2016	josep.sampe			Refactor
  ===========================================================================*/
-package com.urv.vertigo.daemon;
-import org.slf4j.Logger;
+package com.urv.vertigo.microcontroller;
 
+import com.urv.vertigo.api.Api;
+import org.slf4j.Logger;
 import java.util.HashMap;
 import java.util.ArrayList;
-import java.util.Map;
 import java.util.concurrent.Future;
 
 
-public class HandlerExecutionTask implements Runnable {
+public class MicrocontrollerExecutionTask implements Runnable {
 	private Logger logger_ = null;
-	private ArrayList<Handler> handlerManager_ = null;
+	private ArrayList<Microcontroller> mcManager_ = null;
 	private String taskId_ = null;
 	private HashMap<String, Future> taskIdToTask_ = null;
 
 	/*------------------------------------------------------------------------
 	 * CTOR
 	 * */
-	public HandlerExecutionTask(ArrayList<Handler> handlerManager, Logger logger) {
+	public MicrocontrollerExecutionTask(ArrayList<Microcontroller> mcManager, Logger logger) {
 		this.logger_ = logger;
-		this.handlerManager_ = handlerManager;
+		this.mcManager_ = mcManager;
 		
-		logger_.trace("Handler execution task created");
+		logger_.trace("Microcontroller execution task created");
 	}
 
 
@@ -41,32 +42,24 @@ public class HandlerExecutionTask implements Runnable {
 	/*------------------------------------------------------------------------
 	 * run
 	 * 
-	 * Actual storlet invocation
+	 * Actual microcontroller invocation
 	 * */
 	@Override
 	public void run() {
 
-			logger_.trace("About to invoke handlers");
+			logger_.trace("About to invoke microcontroller");
 			
-			for (Handler handler_obj : handlerManager_) {
-				HandlerMetadata handlerMetadata = handler_obj.getMetadataFile();
-				HandlerLogger handlerLogger = handler_obj.getLogFile();
-				HandlerOutput out_md = handler_obj.getOutPipe();
-				Map<String, String> file_md = handler_obj.getFileMetadata();
-				Map<String, String> req_md = handler_obj.getReqMetadata();
-				IHandler handler = handler_obj.getHandler();
-				
-				handler.invoke(handlerLogger, handlerMetadata, file_md, req_md, out_md);
-				
-				handlerMetadata.Flush();
-				handlerLogger.Flush();
+			for (Microcontroller mc_obj : mcManager_) {
+				IMicrocontroller microcontroller = mc_obj.getMicrocontroller();
+				Api api = mc_obj.getApi();				
+				microcontroller.invoke(api);
+				api.logger.flush();
 			}
 			
-			logger_.trace("Handlers invocation done");
+			logger_.trace("Microcontroller invocation done");
 
 			synchronized (taskIdToTask_) {
 				taskIdToTask_.remove(taskId_);
 			}
 	}
 }
-/* ============================== END OF FILE =============================== */

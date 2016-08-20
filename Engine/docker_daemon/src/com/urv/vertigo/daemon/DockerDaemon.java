@@ -1,7 +1,12 @@
 /*============================================================================
- 20-Oct-2015    josep.sampe       Initial implementation.
+ 20-Oct-2015    josep.sampe       	Initial implementation.
+ 17-Aug-2016	josep.sampe			Refactor
  ===========================================================================*/
 package com.urv.vertigo.daemon;
+
+import com.urv.vertigo.microcontroller.Microcontroller;
+import com.urv.vertigo.microcontroller.MicrocontrollerExecutionTask;
+import com.urv.vertigo.api.Api;
 
 import java.io.FileDescriptor;
 import java.io.IOException;
@@ -24,12 +29,12 @@ import java.util.concurrent.*;
  * CDaemon
  *  
  * */
-public class ContainerDaemon {
+public class DockerDaemon {
 
 	private static ch.qos.logback.classic.Logger logger_;
-	private static SBus sbus_;
-	private static SBus icbus_;
-	private static String icPipePath_;
+	private static SBus bus_;
+	private static SBus apiBus_;
+	private static String apiBusPath_;
 	private static ExecutorService threadPool_;
 	private static HashMap<String, Future> taskIdToTask_;
 	private static int nDefaultTimeoutToWaitBeforeShutdown_ = 3;
@@ -41,7 +46,7 @@ public class ContainerDaemon {
 		Level newLevel = Level.toLevel(strLogLevel);
 		boolean bStatus = true;
 		try {
-			logger_ = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger("ControllerDaemon");
+			logger_ = (ch.qos.logback.classic.Logger) LoggerFactory.getLogger("DockerDaemon");
 			logger_.setLevel(newLevel);
 			logger_.info("Logger Started");
 		} catch (Exception e) {
@@ -72,8 +77,8 @@ public class ContainerDaemon {
 	 * Initialize the resources
 	 * */
 	private static void initialize(String[] args) throws Exception {
-		String strSBusPath = args[0];
-		icPipePath_ = args[1];
+		String strBusPath = args[0];
+		apiBusPath_ = args[1];
 		String strLogLevel = args[2];
 		int nPoolSize = Integer.parseInt(args[3]);
 		String strContId = args[4];
@@ -81,18 +86,16 @@ public class ContainerDaemon {
 		if (initLog(strLogLevel) == false)
 			return;
 
-		logger_.trace("Instanciating SBus");
-		sbus_ = new SBus(strContId);
-		icbus_ = new SBus(strContId);
-		// CREAR SBUS HACIA INTERNAL CLIENT
-		
-		
+		logger_.trace("Instanciating Bus");
+		bus_ = new SBus(strContId);
+		apiBus_ = new SBus(strContId);
+
 		try {
-			logger_.trace("Initialising SBus");
-			sbus_.create(strSBusPath);
-			icbus_.create(icPipePath_);
+			logger_.trace("Initialising Swift and API bus");
+			bus_.create(strBusPath);
+			apiBus_.create(apiBusPath_);
 		} catch (IOException e) {
-			logger_.error("Failed to create SBus");
+			logger_.error("Failed to create Swift and API Bus");
 			return;
 		}
 		logger_.trace("Initialising thread pool with " + nPoolSize + " threads");
@@ -110,11 +113,11 @@ public class ContainerDaemon {
 		while (doContinue) {
 			// Wait for incoming commands
 			try {
-				logger_.trace("listening on SBus");
-				sbus_.listen();
-				logger_.trace("SBus listen() returned");
+				logger_.trace("listening on Bus");
+				bus_.listen();
+				logger_.trace("Bus listen() returned");
 			} catch (IOException e) {
-				logger_.error("Failed to listen on SBus");
+				logger_.error("Failed to listen on Bus");
 				doContinue = false;
 				break;
 			}
@@ -122,17 +125,17 @@ public class ContainerDaemon {
 			logger_.trace("Calling receive");
 			SBusDatagram dtg = null;
 			try {
-				dtg = sbus_.receive();
+				dtg = bus_.receive();
 				logger_.trace("Receive returned");
 			} catch (IOException e) {
-				logger_.error("Failed to receive data on SBus");
+				logger_.error("Failed to receive data on Bus");
 				doContinue = false;
 				break;
 
 			}
 
 			// We have the request
-			doContinue = processDatagram(dtg); // --> THREAD??
+			doContinue = processDatagram(dtg);
 		}
 	}
 
@@ -147,16 +150,17 @@ public class ContainerDaemon {
 	private static boolean processDatagram(SBusDatagram dtg) throws IOException, ParseException {
 		int nFiles = dtg.getNFiles();
 
-		FileDescriptor response_fd = null; 
-		FileDescriptor metadata_file_fd = null;
-		FileDescriptor logger_file_fd  = null;
+		FileDescriptor toSwift = null;
+		FileDescriptor logFd  = null;
 		
-		Map<String, String> file_md = null;
+		Map<String, String> object_md = null;
 		Map<String, String> req_md = null;
 		
-		String handlerName,mainClass,dependencies = null;
-		HashMap<String, FileDescriptor> handlerLog = new HashMap<String,FileDescriptor>();
-		ArrayList<Handler> handlerManager = new ArrayList<Handler>();
+		String mcName, mcMainClass, mcDependencies = null;
+		Api api = null;
+		Microcontroller mc = null;
+		HashMap<String, FileDescriptor> mcLog = new HashMap<String,FileDescriptor>();
+		ArrayList<Microcontroller> mcManager = new ArrayList<Microcontroller>();
 
 		
 		HashMap<String, String>[] FilesMD = dtg.getFilesMetadata();
@@ -166,53 +170,46 @@ public class ContainerDaemon {
 			String strFDtype = FilesMD[i].get("type");
 			
 			if (strFDtype.equals("SBUS_FD_OUTPUT_OBJECT")) {
-				response_fd = dtg.getFiles()[i];			
-				logger_.trace("Got output fd");
+				toSwift = dtg.getFiles()[i];			
+				logger_.trace("Got Microcontroller output fd");
 				
 			} else if (strFDtype.equals("SBUS_FD_INPUT_OBJECT")){
 				//Isn't need to get fd
-				logger_.trace("Got file and request metadata");
 				JSONObject jsonMetadata = (JSONObject)new JSONParser().parse(FilesMD[i].get("json_md"));
-
 				//Cast to MAP
-				file_md = (Map<String, String>) jsonMetadata.get("file_md");
+				object_md = (Map<String, String>) jsonMetadata.get("object_md");
 				req_md = (Map<String, String>) jsonMetadata.get("req_md");
+				logger_.trace("Got object and request metadata");
 	
 			} else if (strFDtype.equals("SBUS_FD_LOGGER")){
-				logger_file_fd = dtg.getFiles()[i];
-				handlerName = FilesMD[i].get("handler");
-				handlerLog.put(handlerName,logger_file_fd);
-				logger_.trace("Got logger handler fd for "+handlerName);
-			
-			} else if (strFDtype.equals("SBUS_FD_OUTPUT_OBJECT_METADATA")){
-				metadata_file_fd = dtg.getFiles()[i];
-				handlerName = FilesMD[i].get("handler");
-				mainClass = FilesMD[i].get("main");
-				dependencies = FilesMD[i].get("dependencies");
+				logFd = dtg.getFiles()[i];
+				mcName = FilesMD[i].get("microcontroller");
+				mcLog.put(mcName, logFd);
+				mcMainClass = FilesMD[i].get("main");
+				mcDependencies = FilesMD[i].get("dependencies");
+				logger_.trace("Got logger microcontroller fd for "+mcName);
 				
-				logger_.trace("Got metadata handler fd for "+handlerName);
-				
-				//Note: All log fds are loaded
-				handlerManager.add(new Handler(metadata_file_fd,handlerLog.get(handlerName),response_fd, handlerName,mainClass,dependencies, file_md, req_md, icbus_, icPipePath_, logger_));
+				api = new Api(mcName, mcLog.get(mcName), toSwift, object_md, req_md, logger_);
+				mc = new Microcontroller(mcName, mcMainClass, mcDependencies, api, logger_);
+				mcManager.add(mc);
 	
+				logger_.trace("Microcontroller '"+mcName+"' created");
 			}
 		}
 		
-		//Going to execute Micro-contreoller(s) in a thread
-		
-		HandlerExecutionTask hTask = new HandlerExecutionTask(handlerManager,logger_);
-		Future futureTask = threadPool_.submit((HandlerExecutionTask) hTask);
+		//Going to execute microcontreoller(s) in a thread
+		MicrocontrollerExecutionTask mcTask = new MicrocontrollerExecutionTask(mcManager, logger_);
+		Future futureTask = threadPool_.submit((MicrocontrollerExecutionTask) mcTask);
 		String taskId = futureTask.toString().split("@")[1];
 		
-		hTask.setTaskIdToTask(taskIdToTask_);
-		hTask.setTaskId(taskId);
-		logger_.trace("Handler task ID is "+taskId);
+		mcTask.setTaskIdToTask(taskIdToTask_);
+		mcTask.setTaskId(taskId);
+		logger_.trace("Microcontroller task ID is "+taskId);
 		
 		synchronized (taskIdToTask_) {
 			taskIdToTask_.put(taskId, futureTask);
 		}
 		
-
 		return true;
 	}
 	 
@@ -233,4 +230,3 @@ public class ContainerDaemon {
 		logger_.info("threadpool down");
 	}
 }
-/* ============================== END OF FILE =============================== */

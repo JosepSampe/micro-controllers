@@ -8,11 +8,9 @@
 		<javac srcdir="src/com/urv/vertigo/mc/cbac/" destdir="bin" includeantruntime="false">
 			<classpath>
 		        <pathelement 
-		        	path="lib/CDaemon.jar"/>
-				<pathelement 
-					path="lib/commons-compress-1.6.jar"/>
-				<pathelement 
-					path="lib/json-simple-1.1.1.jar"/>
+		        	path="lib/DockerDaemon.jar"/>
+		        <pathelement 
+		        	path="lib/json_simple-1.1.jar"/>
 			</classpath>		</javac>
 
 	     <jar destfile="bin/cbac-1.0.jar" 

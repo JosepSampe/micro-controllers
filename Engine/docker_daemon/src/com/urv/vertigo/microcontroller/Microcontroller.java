@@ -1,38 +1,30 @@
 /*============================================================================
- 19-Oct-2015    josep.sampe			Initial implementation.
- 03-Feb-2016	josep.sampe			Added bus to Internal Client
+ 19-Oct-2015    josep.sampe		Initial implementation.
+ 03-Feb-2016	josep.sampe		Added bus to Internal Client
+ 17-Aug-2016	josep.sampe		Refactor
  ===========================================================================*/
-package com.urv.vertigo.daemon;
+package com.urv.vertigo.microcontroller;
 
-import java.io.FileDescriptor;
-
+import com.urv.vertigo.api.Api;
 import org.slf4j.Logger;
-
 import java.util.List;
 import java.util.Arrays;
-import java.util.Map;
 import java.io.File;
 import java.net.URL;
 import java.net.URLClassLoader;
-import com.ibm.storlet.sbus.SBus;
 
-public class Handler {
+
+public class Microcontroller {
 
 	private Logger logger_;
-
-	private HandlerMetadata metadataFile_;
-	private HandlerLogger logFile_;
-	private HandlerOutput out_md_pipe_;
-	private String strHandlerClassName_;
-	private String strHandlerName_;
+	private Api api_;
+	private String strName_;
+	private String strMainClass_;
 	private String strDependencies_;
-	private IHandler handler_;
-	private Map<String, String> file_md_;
-	private Map<String, String> req_md_;
+	private IMicrocontroller microcontroller_;
 
-
-	private IHandler loadHandler(final String strHandlerClassName) {
-		IHandler handler = null;
+	private IMicrocontroller loadMicrocontroller() {
+		IMicrocontroller microcontroller = null;
 		List<String> dependencies = Arrays.asList(strDependencies_.split(","));
 		URL[] searchPath = new URL[dependencies.size()+1];
 		Integer index = 0;	
@@ -40,65 +32,42 @@ public class Handler {
 		try {	
 			//logger_.info("/home/swift/"+strHandlerClassName_+"/"+strHandlerName_);
 			
-			searchPath[index++] = new File("/home/swift/"+strHandlerClassName_+"/"+strHandlerName_).toURI().toURL();
+			searchPath[index++] = new File("/home/swift/"+strMainClass_+"/"+strName_).toURI().toURL();
 			for (String dependency : dependencies) {
 				//logger_.info("/home/swift/"+strHandlerClassName_+"/"+dependency);
-				searchPath[index++] = new File("/home/swift/"+strHandlerClassName_+"/"+dependency).toURI().toURL();
+				searchPath[index++] = new File("/home/swift/"+strMainClass_+"/"+dependency).toURI().toURL();
 			}
 			
 			ClassLoader cl = new URLClassLoader(searchPath);			
-			Class<?> c = Class.forName(strHandlerClassName, true, cl);
+			Class<?> c = Class.forName(strMainClass_, true, cl);
 
-			handler = (IHandler) c.newInstance();
-			logger_.info("HANDLER LOADED: "+strHandlerName_+" with dependencies: "+strDependencies_);
+			microcontroller = (IMicrocontroller) c.newInstance();
+			logger_.info("MICROCONTROLLER LOADED: "+strName_+" with dependencies: "+strDependencies_);
 
 		} catch (Exception e) {
-			logger_.error(strHandlerName_ + ": Failed to load handler class "
-					+ strHandlerClassName + " class path is "
+			logger_.error(strName_ + ": Failed to load handler class "
+					+ strMainClass_ + " class path is "
 					+ System.getProperty("java.class.path"));
-			logger_.error(strHandlerName_ + ": " + e.getStackTrace().toString());			
+			logger_.error(strName_ + ": " + e.getStackTrace().toString());			
 		}
-		return handler;
+		return microcontroller;
 	}
 
-	public Handler(FileDescriptor metadataFD,FileDescriptor log, FileDescriptor out_md, String name, String mainClass, String dependencies, Map<String, String> file_md, Map<String, String> req_md, SBus icbus, String icPipePath, Logger logger) {
+	public Microcontroller(String name, String mainClass, String dependencies, Api api, Logger logger) {
 		logger_ = logger;
-		strHandlerName_ = name;
-		strHandlerClassName_ = mainClass;
+		strName_ = name;
+		strMainClass_ = mainClass;
 		strDependencies_ = dependencies;
-		file_md_ = file_md;
-		req_md_ = req_md;
-		metadataFile_ = new HandlerMetadata(metadataFD);
-		logFile_ = new HandlerLogger(log);
-		out_md_pipe_ = new HandlerOutput(out_md, icbus, icPipePath); // !! DATA TO SWIFT MIDDLEWARE
+		api_ = api; 
 		
-		handler_ = loadHandler(mainClass);
-	}
-
-	
-	public HandlerMetadata getMetadataFile() {
-		return metadataFile_;
-	}
-		
-	public HandlerLogger getLogFile() {
-		return logFile_;
+		microcontroller_ = loadMicrocontroller();
 	}
 	
-	public HandlerOutput getOutPipe() {
-		return out_md_pipe_;
+	public IMicrocontroller getMicrocontroller() {
+		return microcontroller_;
 	}
 	
-
-	public IHandler getHandler() {
-		return handler_;
+	public Api getApi(){
+		return api_;	
 	}
-	
-	public Map<String, String> getFileMetadata() {
-		return file_md_;
-	}
-	
-	public Map<String, String> getReqMetadata() {
-		return req_md_;
-	}
-
 }

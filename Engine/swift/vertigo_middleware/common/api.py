@@ -5,17 +5,18 @@ class Api(object):
     """
     The RunTimeSandbox represents a re-usable per scope sandbox.
     """
-    def __init__(self, logger, conf, scope):
+    def __init__(self, logger, conf, account):
         """
         :param logger: swift.common.utils.LogAdapter instance
         :param pipe_path: path where the pipe is located for the current tenant
         """
         self.logger = logger
         self.conf = conf
-        self.scope = scope
+        self.account = account
+        self.scope = account[5:18]
         
         self.pipe_path = os.path.join(conf["pipes_dir"], self.scope)
-        self.api_pipe_path = os.path.join(self.pipe_path , conf["ic_pipe"])
+        self.api_pipe_path = os.path.join(self.pipe_path , conf["api_pipe"])
 
     @property
     def is_started(self):
@@ -25,8 +26,9 @@ class Api(object):
         :param docker_container_name : name of the container
         :returns: whether exists
         """ 
-        cmd = ("ps -aef | grep -i 'internal_client_daemon.py' | grep " +
+        cmd = ("ps -aef | grep -i 'api_daemon.py' | grep " +
                "-v 'grep' | grep '"+self.api_pipe_path+"'| awk '{ print $2 }'")
+        
         pid = os.popen(cmd).read()
         
         if not pid:
@@ -40,10 +42,10 @@ class Api(object):
         each tenant. If the internal API is already started, it does nothing.
         """                   
         if not self.is_started:
-            cmd = '/usr/bin/python /opt/vertigo/internal_client_daemon.py ' \
-                  + self.api_pipe_path +' DEBUG &'
+            cmd = '/usr/bin/python /opt/vertigo/api_daemon.py ' \
+                  + self.account +' '+self.api_pipe_path +' DEBUG &'
     
-            #logger.info(cmd)
+            self.logger.info(cmd)
             # TODO: Is better to call an external script?
             p = subprocess.call(cmd, shell=True)
     

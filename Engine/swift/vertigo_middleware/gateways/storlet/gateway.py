@@ -109,7 +109,6 @@ class VertigoGatewayStorlet():
 
         # Execute multiple Storlets, PIPELINE, if any.
         for key in sorted(storlet_list):
-            # Get Storlet and parameters
             storlet, params, server = self._get_storlet_data(storlet_list[key])
             
             if server == self.server:

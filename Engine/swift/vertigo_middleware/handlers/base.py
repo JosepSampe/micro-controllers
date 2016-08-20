@@ -64,6 +64,8 @@ class VertigoBaseHandler(object):
         self.execution_server = conf["execution_server"]
 
     def _setup_docker_gateway(self, response):
+        self.request.headers['X-Current-Server'] = self.execution_server
+        self.request.headers['X-Method'] = self.method
         self.mc_docker_gateway = VertigoGatewayDocker(
             self.request, response,
             self.conf, self.logger, self.account)

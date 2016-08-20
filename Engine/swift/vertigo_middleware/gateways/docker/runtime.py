@@ -14,8 +14,8 @@ SBUS_FD_LOGGER = 4
 
 SBUS_CMD_EXECUTE = 1
 
-MC_MAIN_HEADER = "X-Object-Meta-Handler-Main"
-MC_DEP_HEADER = "X-Object-Meta-Handler-Library-Dependency"
+MC_MAIN_HEADER = "X-Object-Meta-Microcontroller-Main"
+MC_DEP_HEADER = "X-Object-Meta-Microcontroller-Library-Dependency"
 
 
 class RunTimeSandbox(object):
@@ -50,6 +50,10 @@ class RunTimeSandbox(object):
         Starts the docker container.
         """
         docker_container_name = '%s_%s' % (self.docker_img_prefix, self.scope)
+
+        #cmd = "docker rm -f " + docker_container_name
+        #f = subprocess.call(cmd, shell=True)
+        
         if not self._is_started(docker_container_name):
             docker_image_name = '%s/%s' % (self.docker_repo, self.account)
         
@@ -62,7 +66,7 @@ class RunTimeSandbox(object):
             sandbox_storlet_dir_prefix = "/home/swift"
         
             mc_mount = '%s:%s' % (host_storlet_prefix, sandbox_storlet_dir_prefix)
-        
+
             cmd = "docker run --net=none --name " + docker_container_name + \
                   " -d -v /dev/log:/dev/log -v " + pipe_mount + " -v " + mc_mount + \
                   " -i -t " + docker_image_name + " debug /home/swift/start_daemon.sh"
@@ -76,7 +80,8 @@ class RunTimeSandbox(object):
             if p == 0:
                 time.sleep(1)
                 self.logger.info('Vertigo - Container "' + docker_container_name + '" started')
-                
+            
+            # TODO: if docker name is used by ended docker
         else:
             self.logger.info('Vertigo - Container "' + docker_container_name + '" is already started')
 
@@ -87,24 +92,18 @@ class MicroController(object):
     Microcontroller main class.
     """
     def __init__(self, object_path, logger_path, name, main, dependencies):
-
-        self.full_md_path = os.path.join(object_path, '%s.md' %
-                                         name.rsplit('.', 1)[0])
-        self.full_log_path = os.path.join(logger_path, '%s/%s.log' %
-                                          (main,  name.rsplit('.', 1)[0]))
+        self.log_path = os.path.join(logger_path, main)
+        self.log_name = name.replace('jar','log')
+        self.full_log_path = os.path.join(self.log_path, self.log_name)
         self.micro_controller = name
         self.main_class = main
         self.dependencies = dependencies
-
-        if not os.path.exists(os.path.join(logger_path, '%s' % main)):
-            os.makedirs(os.path.join(logger_path, '%s' % main))
+        
+        if not os.path.exists(self.log_path):
+            os.makedirs(self.log_path)
 
     def open(self):
-        self.metadata_file = open(self.full_md_path, 'a+')
         self.logger_file = open(self.full_log_path, 'a')
-
-    def get_mdfd(self):
-        return self.metadata_file.fileno()
 
     def get_logfd(self):
         return self.logger_file.fileno()
@@ -123,24 +122,22 @@ class MicroController(object):
         return statinfo.st_size
 
     def close(self):
-        self.metadata_file.close()
         self.logger_file.close()
 
 
 class VertigoInvocationProtocol(object):
 
-    def __init__(self, object_path, mc_pipe_path, mc_logger_path, req_haders,
-                 file_headers, mc_list, mc_metadata, timeout, logger):
+    def __init__(self, object_path, mc_pipe_path, mc_logger_path, req_headers,
+                 object_headers, mc_metadata, timeout, logger):
         self.logger = logger
         self.mc_pipe_path = mc_pipe_path
         self.mc_logger_path = mc_logger_path
         self.timeout = timeout
-        self.req_md = req_haders
-        self.file_md = file_headers
-        self.mc_list = mc_list  # Micro-controller name list
+        self.req_md = req_headers
+        self.object_md = object_headers
         self.mc_md = mc_metadata  # Micro-controller metadata
         self.object_path = object_path  # Path of requested object
-        self.micro_controllers = list()  # Micro-controller object list
+        self.microcontrollers = list()  # Micro-controller object list
 
         # remote side file descriptors and their metadata lists
         # to be sent as part of invocation
@@ -161,24 +158,16 @@ class VertigoInvocationProtocol(object):
         self.fdmd.append(md)
 
     def _add_logger_stream(self):
-        for mc in self.micro_controllers:
+        for mc in self.microcontrollers:
             self.fds.append(mc.get_logfd())
             md = dict()
             md['type'] = SBUS_FD_LOGGER
-            md['handler'] = mc.get_name()
-            self.fdmd.append(md)
-
-    def _add_metadata_stream(self):  # ADDED
-        for mc in self.micro_controllers:
-            self.fds.append(mc.get_mdfd())
-            md = dict()
-            md['type'] = SBUS_FD_OUTPUT_OBJECT_METADATA
-            md['handler'] = mc.get_name()
+            md['microcontroller'] = mc.get_name()
             md['main'] = mc.get_main()
             md['dependencies'] = mc.get_dependencies()
             self.fdmd.append(md)
 
-    def _add_file_req_md(self):
+    def _add_object_req_md(self):
         self.fds.append(self.null_write_fd)
         if "X-Service-Catalog" in self.req_md:
             del self.req_md['X-Service-Catalog']
@@ -186,7 +175,7 @@ class VertigoInvocationProtocol(object):
         if "Cookie" in self.req_md:
             del self.req_md['Cookie']
 
-        headers = {'req_md': self.req_md, 'file_md': self.file_md}
+        headers = {'req_md': self.req_md, 'object_md': self.object_md}
 
         md = dict()
         md['type'] = SBUS_FD_INPUT_OBJECT
@@ -199,13 +188,11 @@ class VertigoInvocationProtocol(object):
         self.null_read_fd, self.null_write_fd = os.pipe()
 
         # Add req and file headers
-        self._add_file_req_md()
+        self._add_object_req_md()
         # Add output pipe
         self._add_output_stream()
         # Add the loggers
         self._add_logger_stream()
-        # Add the metadata files
-        self._add_metadata_stream()
 
     def _close_remote_side_descriptors(self):
         if self.response_write_fd:
@@ -244,15 +231,15 @@ class VertigoInvocationProtocol(object):
         return out_data
 
     def communicate(self):
-        for mc_name in self.mc_list:
+        for mc_name in self.mc_md.keys():
             mc = MicroController(self.object_path,
                                  self.mc_logger_path,
                                  mc_name,
                                  self.mc_md[mc_name][MC_MAIN_HEADER],
                                  self.mc_md[mc_name][MC_DEP_HEADER])
-            self.micro_controllers.append(mc)
+            self.microcontrollers.append(mc)
 
-        for mc in self.micro_controllers:
+        for mc in self.microcontrollers:
             mc.open()
 
         self._prepare_invocation_descriptors()
@@ -263,7 +250,7 @@ class VertigoInvocationProtocol(object):
             raise e
         finally:
             self._close_remote_side_descriptors()
-            for mc in self.micro_controllers:
+            for mc in self.microcontrollers:
                 mc.close()
 
         out_data = self._read_response()

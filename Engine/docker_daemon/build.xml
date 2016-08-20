@@ -5,7 +5,7 @@
 	</target>
 
 	<target name="daemon">
-		<javac srcdir="src/com/urv/vertigo/daemon/" destdir="bin" includeantruntime="false">
+		<javac srcdir="src/com/urv/vertigo/" destdir="bin" includeantruntime="false">
 			<classpath>
 		        <pathelement 
 		        	path="lib/json_simple-1.1.jar"/>
@@ -17,12 +17,14 @@
 		        	path="lib/SBusJavaFacade.jar"/>
 				<pathelement 
 					path="lib/slf4j-api-1.7.7.jar"/>
+				<pathelement 
+					path="lib/jedis-2.9.0.jar"/>
 			</classpath>
 		</javac>
 
-	     <jar destfile="bin/CDaemon.jar" 
+	     <jar destfile="bin/DockerDaemon.jar" 
 	          basedir="bin"
-	     	  includes="com/urv/vertigo/daemon/*">
+	     	  includes="**/*.class">
 	     </jar>
 	</target>
 	

@@ -156,7 +156,27 @@ class VertigoProxyHandler(VertigoBaseHandler):
             # Converts the POST request to a PUT request to properly forward
             # it to the object server.
             self.request.method = 'PUT'
-            self._augment_empty_request()                     
-            
-        return self.request.get_response(self.app)       
+            self._augment_empty_request()
+
+        return self.request.get_response(self.app)
+
+    @public
+    def HEAD(self):
+        """
+        HEAD handler on Proxy
+        """
+        response = self.request.get_response(self.app)
+
+        for key in response.headers.keys():
+            if key.startswith('X-Object-Sysmeta-Vertigo-'):
+                response.headers[key.replace('X-Object-Sysmeta-','')] = response.headers[key]
+        
+        if 'Vertigo-Microcontroller' in response.headers:
+            mc_dict = eval(response.headers['Vertigo-Microcontroller'])
+            for trigger in mc_dict.keys():
+                if not mc_dict[trigger]:
+                    del mc_dict[trigger]
+            response.headers['Vertigo-Microcontroller'] = mc_dict
+
+        return response
     

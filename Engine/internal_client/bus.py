@@ -1,9 +1,10 @@
 import ctypes
-from datagram import Datagram
 
+from datagram import Datagram
 from ctypes import c_char_p
 from ctypes import c_int
 from ctypes import POINTER
+
 
 '''------------------------------------------------------------------------'''
 

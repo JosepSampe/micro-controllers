@@ -1,10 +1,11 @@
 /*============================================================================
- 20-Oct-2015    josep.sampe       Initial implementation.
+ 20-Oct-2015    josep.sampe     	Initial implementation.
+ 17-Aug-2016	josep.sampe			Refactor
  ===========================================================================*/
-package com.urv.vertigo.daemon;
+package com.urv.vertigo.microcontroller;
 
-import java.util.Map;
+import com.urv.vertigo.api.Api;
 
-public interface IHandler {
-	public void invoke(HandlerLogger logger, HandlerMetadata metadata, Map<String, String> file_md, Map<String, String> req_md,  HandlerOutput out);
+public interface IMicrocontroller {
+	public void invoke(Api api);
 }

@@ -5,8 +5,8 @@ from shutil import copy2
 import os
 
 
-MC_MAIN_HEADER = "X-Object-Meta-Handler-Main"
-MC_DEP_HEADER = "X-Object-Meta-Handler-Library-Dependency"
+MC_MAIN_HEADER = "X-Object-Meta-Microcontroller-Main"
+MC_DEP_HEADER = "X-Object-Meta-Microcontroller-Library-Dependency"
 
 
 class VertigoGatewayDocker():
@@ -39,20 +39,19 @@ class VertigoGatewayDocker():
         :param mc_list: microcontroller list
         :returns: response from the microcontrollers
         """
-        RunTimeSandbox(self.logger, self.conf, self.account).start()
-        Api(self.logger, self.conf, self.scope).start()
+        #RunTimeSandbox(self.logger, self.conf, self.account).start()
+        #Api(self.logger, self.conf, self.account).start()
         
         # TODO: Execute microcontroller on proxy side
         mc_metadata = self._get_microcontroller_metadata(mc_list)
         data_dir = get_data_dir(self)
-        self.logger.info('Vertigo - Object path: ' + data_dir)
+        self.logger.info('Vertigo - Object path: ' + data_dir)        
 
         protocol = VertigoInvocationProtocol(data_dir,
                                              self.mc_pipe_path,
                                              self.logger_path,
                                              dict(self.request.headers),
                                              self.response.headers,
-                                             mc_list,
                                              mc_metadata,
                                              self.mc_timeout,
                                              self.logger)
@@ -98,8 +97,9 @@ class VertigoGatewayDocker():
             # raise NameError('Vertigo - ' + swift_container+'/'+object_name +' not found in cache.')
             self.logger.info('Vertigo - ' + swift_container+'/'+object_name +' not found in cache.')
             self._update_cache(swift_container, object_name)
-
-        self.logger.info('Vertigo - ' + swift_container+'/'+object_name +' in cache.')
+        else:
+            self._update_cache(swift_container, object_name) # DELETE!!!!!!!!!!!!!!!
+            self.logger.info('Vertigo - ' + swift_container+'/'+object_name +' in cache.')
         
         return True
         
@@ -138,11 +138,12 @@ class VertigoGatewayDocker():
             metadata = get_swift_metadata(cached_target_obj)
             set_swift_metadata(docker_target_obj, metadata)          
         
-    def _get_swift_metadata(self, swift_container, object_name):
+    def _get_metadata(self, swift_container, object_name):
         """
         Retrieves the swift metadata from the local cached object.
 
         :param swift_container: container name (microcontroller or dependency)
+        :param object_name: object name
         :returns: swift metadata dictionary
         """ 
         cached_target_obj = os.path.join(self.conf["cache_dir"], self.scope, 
@@ -163,13 +164,18 @@ class VertigoGatewayDocker():
                 
         for mc_name in mc_list:
             if self._is_avialable_in_cache(self.mc_container, mc_name):
-                mc_metadata[mc_name] = self._get_swift_metadata(self.mc_container, mc_name)
+                mc_metadata[mc_name] = self._get_metadata(self.mc_container, 
+                                                          mc_name)
                 mc_main = mc_metadata[mc_name][MC_MAIN_HEADER]
                 self._update_from_cache(mc_main, self.mc_container, mc_name)
                 
-                dep_list = mc_metadata[mc_name][MC_DEP_HEADER].split(",")
-                for dep_name in dep_list: 
-                    if self._is_avialable_in_cache(self.dep_container, dep_name): 
-                        self._update_from_cache(mc_main, self.dep_container, dep_name)
+                if mc_metadata[mc_name][MC_DEP_HEADER]:
+                    dep_list = mc_metadata[mc_name][MC_DEP_HEADER].split(",")
+                    for dep_name in dep_list:
+                        if self._is_avialable_in_cache(self.dep_container, 
+                                                       dep_name):
+                            self._update_from_cache(mc_main, 
+                                                    self.dep_container,
+                                                    dep_name)
         
         return mc_metadata

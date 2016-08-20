@@ -1,17 +1,23 @@
 /*============================================================================
- 21-Oct-2015    josep.sampe       Initial implementation.
+ 18-Aug-2016    josep.sampe       Initial implementation.
  ===========================================================================*/
-package com.urv.vertigo.daemon;
+package com.urv.vertigo.api;
 
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
 import java.io.IOException;
 
-public class HandlerLogger {
+import org.slf4j.Logger;
+
+public class ApiLogger {
+	private Logger logger_;
 	private FileOutputStream stream;
 
-	public HandlerLogger(FileDescriptor fd) {
+	public ApiLogger(FileDescriptor fd, Logger logger) {
 		stream = new FileOutputStream(fd);
+		logger_ = logger;
+		
+		logger_.trace("ApiLogger created");
 	}
 
 	public void emitLog(String message) {
@@ -24,7 +30,7 @@ public class HandlerLogger {
 
 	}
 
-	public void Flush() {
+	public void flush() {
 		try {
 			stream.flush();
 		} catch (IOException e) {

@@ -3,7 +3,7 @@ from swift.common.utils import public
 import time
 
 from vertigo_middleware.handlers import VertigoBaseHandler
-from vertigo_middleware.common.utils import get_microcontroller_list, set_microcontroller, delete_microcontroller, get_microcontroller_dict
+from vertigo_middleware.common.utils import get_microcontroller_list, set_microcontroller, delete_microcontroller
 
 
 class VertigoObjectHandler(VertigoBaseHandler):
@@ -26,7 +26,8 @@ class VertigoObjectHandler(VertigoBaseHandler):
         return self.request.params.get('multipart-manifest') == 'get'
 
     def handle_request(self):
-        if hasattr(self, self.request.method):
+        
+        if hasattr(self, self.request.method) and not self.is_slo_get_request:
             try:
                 handler = getattr(self, self.request.method)
                 getattr(handler, 'publicly_accessible')
@@ -44,6 +45,24 @@ class VertigoObjectHandler(VertigoBaseHandler):
 
     def _call_storlet_gateway_on_get(self, resp, storlet_list):
         return self.storlet_gateway.execute_storlets(resp, storlet_list)
+    
+    def _process_mc_data(self, response, mc_data):
+        """
+        Processes the data returned from the microcontroller
+        """
+        if mc_data['command'] == 'CONTINUE':
+            return response
+        
+        elif mc_data['command'] == 'STORLET':
+            slist = mc_data['list']
+            self.logger.info('Vertigo - Go to execute Storlets: '+str(slist))
+            self._setup_storlet_gateway()
+            return self.apply_storlet_on_get(response, slist)
+        
+        elif mc_data['command'] == 'CANCEL':
+            msg = mc_data['message']
+            return Response(body = msg+'\n', headers = {'etag':''},
+                            request = self.request)
 
     @public
     def GET(self):
@@ -53,26 +72,14 @@ class VertigoObjectHandler(VertigoBaseHandler):
         response = self.request.get_response(self.app)
         
         start = time.time()
-        mc_list = get_microcontroller_list(self)
         
+        mc_list = get_microcontroller_list(response.headers, self.method)        
         if mc_list:
             self.logger.info('Vertigo - There are microcontrollers' +
                              ' to execute: ' + str(mc_list))
-            self.request.headers['X-Current-Server'] = self.execution_server
             self._setup_docker_gateway(response)
-            # Go to run the micro-controller(s)
-            storlet_list = self.mc_docker_gateway.execute_microcontrollers(mc_list)
-
-            self.logger.info('Vertigo - Microcontroller executed correctly')
-            # Go to run the Storlet(s) whether the microcontroller
-            # sends back any.
-
-            if storlet_list:
-                self.logger.info('Vertigo - Go to execute Storlets: '+str(storlet_list))
-                self._setup_storlet_gateway()
-                response = self.apply_storlet_on_get(response, storlet_list)
-            else:
-                self.logger.info('Vertigo - No Storlets to execute')
+            mc_data = self.mc_docker_gateway.execute_microcontrollers(mc_list)
+            response = self._process_mc_data(response, mc_data)
         else:
             self.logger.info('Vertigo - No Microcontrollers to execute')
             
@@ -101,7 +108,6 @@ class VertigoObjectHandler(VertigoBaseHandler):
                     '" correctly assigned to the "'+ trigger + '" trigger.\n'
             except ValueError as e:
                 msg = e.args[0]
-
             self.logger.info(msg)
             return Response(body = msg, headers = {'etag':''},
                             request = self.request)
@@ -120,19 +126,4 @@ class VertigoObjectHandler(VertigoBaseHandler):
                             request = self.request)   
         else:
             return self.request.get_response(self.app)
-      
-    @public
-    def HEAD(self):
-        """
-        HEAD handler on Object
-        """
-        original_resp = self.request.get_response(self.app)
-        mc_dict = get_microcontroller_dict(self)
-        if mc_dict:
-            for trigger in mc_dict.keys():
-                if not mc_dict[trigger]:
-                    del mc_dict[trigger]
-            original_resp.headers['Vertigo-Microcontroller'] = mc_dict
-
-        return original_resp
     
