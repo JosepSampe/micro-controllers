@@ -1,6 +1,6 @@
 from swift.common.internal_client import InternalClient
 from swift.common.exceptions import DiskFileXattrNotSupported, DiskFileNoSpace, DiskFileNotExist
-from swift.obj.diskfile import get_data_dir as df_data_dir, get_ondisk_files, _get_filename
+from swift.obj.diskfile import get_data_dir as df_data_dir, _get_filename
 from swift.common.request_helpers import get_name_and_placement
 from swift.common.utils import storage_directory, hash_path
 from swift.common.wsgi import make_subrequest
@@ -185,7 +185,9 @@ def create_link(vertigo, link_path, dest_path):
         del new_env['HTTP_X_COPY_FROM']
 
     auth_token = vertigo.request.headers.get('X-Auth-Token')
-    
+
+    link_path = os.path.join('/', vertigo.api_version, 
+                             vertigo.account, link_path)
     sub_req = make_subrequest(
             new_env, 'PUT', link_path,
             headers={'X-Auth-Token': auth_token, 
@@ -225,10 +227,10 @@ def get_data_file(vertigo):
     """
     data_dir = get_data_dir(vertigo)
     files = os.listdir(data_dir)
-    data_file, meta_file, ts_file = get_ondisk_files(files, data_dir)
 
-    return data_file
-
+    for swift_file in files:
+        if swift_file.endswith(".data"):
+            return os.path.join(data_dir, swift_file)
 
 def open_data_file(data_file):
     """

@@ -1,6 +1,6 @@
 /*============================================================================
- 27-Jan-2016    josep.sampe			Initial implementation.
- 18-Aug-2016	josep.sampe			New implementation
+ 27-Jan-2016    josep.sampe	Initial implementation.
+ 18-Aug-2016	josep.sampe	New implementation
  ===========================================================================*/
 package com.urv.vertigo.mc.transgrep;
 

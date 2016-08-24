@@ -119,7 +119,7 @@ class VertigoProxyHandler(VertigoBaseHandler):
                             request=self.request)
         else:
             response = self.request.get_response(self.app)
-
+            
         if response.headers['Content-Type'] == 'Vertigo-Link':
             dest_obj = response.headers['X-Object-Sysmeta-Vertigo-Link-to']
             response = self._get_linked_object(dest_obj)
@@ -161,17 +161,22 @@ class VertigoProxyHandler(VertigoBaseHandler):
             response = self.request.get_response(self.app)
 
         elif self.is_object_move:
-            link_path = os.path.join('/', self.api_version, self.account, 
-                                     self.container, self.obj)
+            link_path = os.path.join(self.container, self.obj)
             dest_path = self.request.headers['X-Vertigo-Link-To']
-            link_md = self._verify_access(self.container, self.obj) 
-            if "X-Object-Sysmeta-Vertigo-Link-to" not in link_md \
-                    and link_md['Content-Type'] != 'Vertigo-Link':
-                self.request.method = 'COPY'
-                self.request.headers['Destination'] = dest_path
-                response = self.request.get_response(self.app)
-
-            response = create_link(self, link_path, dest_path)
+            if link_path != dest_path:
+                link_md = self._verify_access(self.container, self.obj) 
+                if "X-Object-Sysmeta-Vertigo-Link-to" not in link_md \
+                        and link_md['Content-Type'] != 'Vertigo-Link':
+                    self.request.method = 'COPY'
+                    self.request.headers['Destination'] = dest_path
+                    response = self.request.get_response(self.app)
+                if response.is_success:
+                    response = create_link(self, link_path, dest_path)
+            else:
+                msg = "Vertigo - Error: Link path and destination path are the same.\n"
+                response = Response(body = msg, headers = {'etag':''},
+                                    request = self.request)
+                
         else:
             response = self.request.get_response(self.app)
             
@@ -228,13 +233,16 @@ class VertigoProxyHandler(VertigoBaseHandler):
         link_path = os.path.join(self.container, self.obj)
         dest_path = self.request.headers['Destination']
         
-        link_md = self._verify_access(self.container, self.obj) 
-     
-        if "X-Object-Sysmeta-Vertigo-Link-to" not in link_md \
-                    and link_md['Content-Type'] != 'Vertigo-Link':
-            self.request.method = 'COPY'
-            response = self.request.get_response(self.app)
-            
-        response = create_link(self, link_path, dest_path)
-        
+        if link_path != dest_path:
+            link_md = self._verify_access(self.container, self.obj)
+            if "X-Object-Sysmeta-Vertigo-Link-to" not in link_md \
+                        and link_md['Content-Type'] != 'Vertigo-Link':
+                self.request.method = 'COPY'
+                response = self.request.get_response(self.app)
+            if response.is_success:   
+                response = create_link(self, link_path, dest_path)
+        else:
+            msg = "Vertigo - Error: Link path and destination path are the same.\n"
+            response = Response(body = msg, headers = {'etag':''},
+                                request = self.request)
         return response

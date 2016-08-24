@@ -1,6 +1,6 @@
 /*============================================================================
- 20-Oct-2015    josep.sampe			Initial implementation
- 18-Aug-2016	josep.sampe			New implementation
+ 20-Oct-2015    josep.sampe	Initial implementation
+ 18-Aug-2016	josep.sampe	New implementation
  ===========================================================================*/
 package com.urv.vertigo.mc.cbac;
 

@@ -1,11 +1,10 @@
 /*============================================================================
- 20-Jan-2015    josep.sampe       	Initial implementation.
- 18-Aug-2016	josep.sampe			New implementation
+ 20-Jan-2015    josep.sampe	Initial implementation.
+ 18-Aug-2016	josep.sampe	New implementation
  ===========================================================================*/
 package com.urv.vertigo.mc.counter;
 
 import java.text.SimpleDateFormat;
-
 import com.urv.vertigo.api.Api;
 import com.urv.vertigo.microcontroller.IMicrocontroller;
 
