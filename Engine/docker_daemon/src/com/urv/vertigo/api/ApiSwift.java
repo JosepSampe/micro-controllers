@@ -103,11 +103,33 @@ public class ApiSwift {
 	}
 	
 	public void copy(String source, String dest){
-
+		if (!source.equals(dest)){
+			HttpURLConnection conn = newConnection(dest);
+			conn.setFixedLengthStreamingMode(0);
+			conn.setRequestProperty("X-Copy-From", source);
+			try {
+				conn.setRequestMethod("PUT");
+			} catch (ProtocolException e) {
+				logger_.trace("Error: Bad Protocol");
+			}
+			sendRequest(conn);
+			logger_.trace("Copying "+source+" object to "+dest);
+		}
 	}
 	
 	public void move(String source, String dest){
-
+		if (!source.equals(dest)){
+			HttpURLConnection conn = newConnection(source);
+			conn.setFixedLengthStreamingMode(0);
+			conn.setRequestProperty("X-Vertigo-Link-To", dest);
+			try {
+				conn.setRequestMethod("PUT");
+			} catch (ProtocolException e) {
+				logger_.trace("Error: Bad Protocol");
+			}
+			sendRequest(conn);
+			logger_.trace("Moving "+source+" object to "+dest);
+		}
 	}
 	
 	public void delete(String source){
@@ -151,14 +173,15 @@ public class ApiSwift {
 			logger_.trace("Error opeing connection");
 		}
 		conn.setRequestProperty("X-Auth-Token", token);
+		conn.setDoOutput(true);
 		return conn;	
 	}
 	
 	private int sendMcMetadata(HttpURLConnection conn, String metadata){
-		conn.setDoOutput(true);
 		OutputStream os;
 		int status = 404;
 		try {
+			conn.connect();
 			os = conn.getOutputStream();
 			os.write(metadata.getBytes());
 			os.close();
@@ -173,6 +196,7 @@ public class ApiSwift {
 	private int sendRequest(HttpURLConnection conn){
 		int status = 404;
 		try {
+			conn.connect();
 			status = conn.getResponseCode();
 		} catch (IOException e) {
 			logger_.trace("Error getting response");

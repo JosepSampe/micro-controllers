@@ -1,5 +1,4 @@
 from vertigo_middleware.common.utils import make_swift_request, get_data_dir, set_swift_metadata, get_swift_metadata
-from vertigo_middleware.common.api import Api
 from vertigo_middleware.gateways.docker.runtime import RunTimeSandbox, VertigoInvocationProtocol
 from shutil import copy2
 import os
@@ -39,9 +38,8 @@ class VertigoGatewayDocker():
         :param mc_list: microcontroller list
         :returns: response from the microcontrollers
         """
-        #RunTimeSandbox(self.logger, self.conf, self.account).start()
-        #Api(self.logger, self.conf, self.account).start()
-        
+        RunTimeSandbox(self.logger, self.conf, self.account).start()
+
         # TODO: Execute microcontroller on proxy side
         mc_metadata = self._get_microcontroller_metadata(mc_list)
         data_dir = get_data_dir(self)

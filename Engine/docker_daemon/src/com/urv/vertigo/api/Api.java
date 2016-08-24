@@ -21,12 +21,12 @@ public class Api {
 
 	public Api(String mcName, FileDescriptor log, FileDescriptor toSwift, Map<String, String> objectMd, 
 			   Map<String, String> reqMd, Logger localLog) 
-	{
+	{	
 		String tenantId = reqMd.get("X-Tenant-Id");
 		String currentObject = reqMd.get("Referer").split("/",6)[5];
 		String token = reqMd.get("X-Auth-Token");
 		String method = reqMd.get("X-Method");
-
+		
 		logger_ = localLog;
 		swift = new ApiSwift(token, tenantId, logger_);
 		logger = new ApiLogger(log, logger_);

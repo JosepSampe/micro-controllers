@@ -1,5 +1,5 @@
 /*============================================================================
- 20-Oct-2015    josep.sampe       	Initial implementation
+ 20-Oct-2015    josep.sampe			Initial implementation
  18-Aug-2016	josep.sampe			New implementation
  ===========================================================================*/
 package com.urv.vertigo.mc.cbac;
@@ -18,11 +18,11 @@ public class CBACHandler implements IMicrocontroller {
 		
 		String requetRoles = api.request.roles;
 		String role = api.microcontroller.metadata.get("role").toString();
-        String allowed_cols = api.microcontroller.metadata.get("allowed_cols").toString();
-        
-        api.logger.emitLog("User roles: "+requetRoles);
-        api.logger.emitLog("Role: "+role+", Allowed columns: "+allowed_cols); 
-        
+		String allowed_cols = api.microcontroller.metadata.get("allowed_cols").toString();
+		
+		api.logger.emitLog("User roles: "+requetRoles);
+		api.logger.emitLog("Role: "+role+", Allowed columns: "+allowed_cols); 
+		
 		if (requetRoles.toLowerCase().contains(role)){
 			api.logger.emitLog("--> Allowed request");
 			api.storlet.set(0,"adult-1.0.jar","select="+allowed_cols,"object");

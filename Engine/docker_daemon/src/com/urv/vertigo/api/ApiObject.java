@@ -23,7 +23,8 @@ public class ApiObject {
 		object = currentObject;
 		swift = apiSwift;
 		logger_ = logger;
-		loadMetadataToRedis(objectMetadata);
+		objectMetadata.entrySet().removeIf(entry -> entry.getKey().startsWith("X-Object-Sysmeta-Vertigo"));
+		objectMetadata.entrySet().removeIf(entry -> entry.getKey().startsWith("X-Object-Meta"));
 		metadata = objectMetadata;
 		timestamp = metadata.get("X-Timestamp");
 		etag = metadata.get("Etag");
@@ -57,11 +58,5 @@ public class ApiObject {
 	
 	public void flushMetadata(){
 		swift.flushMetadata(object);
-	}
-	
-	private void loadMetadataToRedis(Map<String, String> objectMetadata){
-		objectMetadata.entrySet().removeIf(entry -> entry.getKey().startsWith("X-Object-Sysmeta-Vertigo"));
-		objectMetadata.entrySet().removeIf(entry -> entry.getKey().startsWith("X-Object-Meta"));
-	}
-	
+	}	
 }

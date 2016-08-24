@@ -1,9 +1,11 @@
 from vertigo_middleware.handlers import VertigoBaseHandler
-from vertigo_middleware.common.utils import verify_access
-from swift.common.swob import HTTPMethodNotAllowed, HTTPUnauthorized, Response
+from vertigo_middleware.common.utils import verify_access, create_link
+from swift.common.swob import HTTPMethodNotAllowed, HTTPNotFound, Response
 from swift.common.utils import public, cache_from_env
+from swift.common.wsgi import make_subrequest
 import pickle
 import json
+import os
 
 
 class VertigoProxyHandler(VertigoBaseHandler):
@@ -62,12 +64,29 @@ class VertigoProxyHandler(VertigoBaseHandler):
         Verifies acces to the specified object in swift
         :param container: swift container name
         :param obj: swift object name
-        :raise HTTPUnauthorized: if the object doesn't exists in swift 
+        :raise HTTPNotFound: if the object doesn't exists in swift 
         """
-        path = '/'.join(['', self.api_version, self.account, container, obj])
-        if not verify_access(self, path):
-            raise HTTPUnauthorized('Vertigo - Object error: Perhaps "'
-                                    + obj + '" doesn\'t exists in Swift.\n')
+        path = os.path.join('/', self.api_version, self.account, container, obj)
+        md = verify_access(self, path)
+        if not md:
+            raise HTTPNotFound('Vertigo - Object error: "' + container + '/'
+                               + obj + '" doesn\'t exists in Swift.\n')
+        else:
+            return md
+        
+    def _get_linked_object(self, dest_obj):
+        """
+        Makes a subrequest to the provided container/object
+        :param dest_obj: container/object
+        :return: swift.common.swob.Response Instance
+        """
+        dest_path = os.path.join('/', self.api_version, self.account, dest_obj)
+        new_env = dict(self.request.environ)
+        sub_req = make_subrequest(new_env, 'GET', dest_path,
+                            headers=self.request.headers,
+                            swift_source='Vertigo')
+
+        return sub_req.get_response(self.app)
     
     def _call_storlet_gateway_on_put(self, req, storlet_list):
         req, app_iter = self.storlet_gateway.execute_storlets(req, storlet_list)
@@ -78,7 +97,7 @@ class VertigoProxyHandler(VertigoBaseHandler):
         resp, app_iter = self.storlet_gateway.execute_storlets(
             resp, storlet_list)
         resp.app_iter = app_iter
-        resp.headers.pop('Vertigo')
+        resp.headers.pop('Storlet-List')
         resp.headers.pop("Storlet-Executed")
         return resp
 
@@ -90,7 +109,7 @@ class VertigoProxyHandler(VertigoBaseHandler):
         if self.is_object_in_cache():
             value = pickle.loads(self.cached_object)
 
-            self.logger.info('Vertigo - OBJECT IN CACHE')
+            self.logger.info('Vertigo - Object in cache')
 
             resp_headers = value["Headers"]
             resp_headers['content-length'] = len(value["Body"])
@@ -101,14 +120,18 @@ class VertigoProxyHandler(VertigoBaseHandler):
         else:
             response = self.request.get_response(self.app)
 
-        if 'Vertigo' in response.headers and \
+        if response.headers['Content-Type'] == 'Vertigo-Link':
+            dest_obj = response.headers['X-Object-Sysmeta-Vertigo-Link-to']
+            response = self._get_linked_object(dest_obj)
+
+        if 'Storlet-List' in response.headers and \
                 self.is_account_storlet_enabled():
             # There are storlets to execute on proxy side
             self.logger.info('Vertigo - There are Storlets to execute')
 
             self._setup_storlet_gateway()
-            storlet_list = json.loads(response.headers['Vertigo'])
-            return self.apply_storlet_on_get(response, storlet_list)
+            storlet_list = json.loads(response.headers['Storlet-List'])
+            response = self.apply_storlet_on_get(response, storlet_list)
 
         # There are no storlets to execute on proxy side
         elif 'Storlet-Executed' in response.headers:
@@ -116,7 +139,7 @@ class VertigoProxyHandler(VertigoBaseHandler):
             if 'Transfer-Encoding' in response.headers:
                 response.headers.pop('Transfer-Encoding')
             response.headers['Content-Length'] = None
-
+            
         return response
 
     @public
@@ -130,12 +153,29 @@ class VertigoProxyHandler(VertigoBaseHandler):
             self._verify_access(self.container, self.obj)
             self._verify_access(self.mc_container, micro_controller)
             self._augment_empty_request()
+            response = self.request.get_response(self.app)
         
-        if self.is_trigger_deletion:
+        elif self.is_trigger_deletion:
             self._verify_access(self.container, self.obj)
             self._augment_empty_request()
+            response = self.request.get_response(self.app)
+
+        elif self.is_object_move:
+            link_path = os.path.join('/', self.api_version, self.account, 
+                                     self.container, self.obj)
+            dest_path = self.request.headers['X-Vertigo-Link-To']
+            link_md = self._verify_access(self.container, self.obj) 
+            if "X-Object-Sysmeta-Vertigo-Link-to" not in link_md \
+                    and link_md['Content-Type'] != 'Vertigo-Link':
+                self.request.method = 'COPY'
+                self.request.headers['Destination'] = dest_path
+                response = self.request.get_response(self.app)
+
+            response = create_link(self, link_path, dest_path)
+        else:
+            response = self.request.get_response(self.app)
             
-        return self.request.get_response(self.app)
+        return response
     
     @public
     def POST(self):
@@ -180,3 +220,21 @@ class VertigoProxyHandler(VertigoBaseHandler):
 
         return response
     
+    @public
+    def MOVE(self):
+        """
+        MOVE handler on Proxy
+        """
+        link_path = os.path.join(self.container, self.obj)
+        dest_path = self.request.headers['Destination']
+        
+        link_md = self._verify_access(self.container, self.obj) 
+     
+        if "X-Object-Sysmeta-Vertigo-Link-to" not in link_md \
+                    and link_md['Content-Type'] != 'Vertigo-Link':
+            self.request.method = 'COPY'
+            response = self.request.get_response(self.app)
+            
+        response = create_link(self, link_path, dest_path)
+        
+        return response

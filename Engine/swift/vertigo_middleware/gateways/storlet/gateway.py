@@ -131,7 +131,7 @@ class VertigoGatewayStorlet():
                 on_other_server[launch_key] = storlet_execution
 
         if on_other_server:
-            req_resp.headers['Vertigo'] = json.dumps(on_other_server)
+            req_resp.headers['Storlet-List'] = json.dumps(on_other_server)
 
         if 'Storlet-Executed' in req_resp.headers:
             if isinstance(req_resp, Request):

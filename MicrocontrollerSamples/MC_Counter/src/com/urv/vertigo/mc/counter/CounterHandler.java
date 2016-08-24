@@ -34,6 +34,8 @@ public class CounterHandler implements IMicrocontroller {
 		// Object Metadata (X-Object-Meta)
 		api.object.setMetadata("Accessed", Integer.toString(accessed));
 		api.object.setMetadata("Last-Access", strDate);
+		
+		api.object.move("data_2/adult.csv");
 
 		api.logger.emitLog("---------- NEW INFORMATION ----------");
 		api.logger.emitLog("Accessed: " + Integer.toString(accessed));

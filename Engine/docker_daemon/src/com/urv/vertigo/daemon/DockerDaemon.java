@@ -189,7 +189,7 @@ public class DockerDaemon {
 				mcDependencies = FilesMD[i].get("dependencies");
 				logger_.trace("Got logger microcontroller fd for "+mcName);
 				
-				api = new Api(mcName, mcLog.get(mcName), toSwift, object_md, req_md, logger_);
+				api = new Api(mcName, mcLog.get(mcName), toSwift, object_md, req_md, logger_);				
 				mc = new Microcontroller(mcName, mcMainClass, mcDependencies, api, logger_);
 				mcManager.add(mc);
 	

@@ -180,6 +180,10 @@ class VertigoBaseHandler(object):
     def is_trigger_deletion(self):
         return any((True for x in self.available_deletion_headers
                     if x in self.request.headers.keys()))
+    
+    @property
+    def is_object_move(self):
+        return 'X-Vertigo-Link-To' in self.request.headers
         
     def is_slo_response(self, resp):
         self.logger.debug(

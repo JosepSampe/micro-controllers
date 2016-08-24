@@ -146,20 +146,18 @@ def verify_access(vertigo, path):
     
     new_env = dict(vertigo.request.environ)
     if 'HTTP_TRANSFER_ENCODING' in new_env.keys():
-        del new_env['HTTP_TRANSFER_ENCODING']
-    
+        del new_env['HTTP_TRANSFER_ENCODING']   
     
     for key in DEFAULT_MD_STRING.keys():
         env_key = 'HTTP_X_VERTIGO_' + key.upper()
         if env_key in new_env.keys():
             del new_env[env_key]
-    
-    
+
     auth_token = vertigo.request.headers.get('X-Auth-Token')
     sub_req = make_subrequest(
         new_env, 'HEAD', path,
         headers={'X-Auth-Token': auth_token},
-        swift_source='SE')
+        swift_source='Vertigo')
 
     resp = sub_req.get_response(vertigo.app)
     
@@ -167,6 +165,37 @@ def verify_access(vertigo, path):
         return False
 
     return resp.headers
+
+def create_link(vertigo, link_path, dest_path):              
+    """
+    Creates a link to a real object
+    
+    :param vertigo: swift_vertigo.vertigo_handler.VertigoProxyHandler instance
+    :param link_path: swift path of the link
+    :param dest_path: swift path of the object to link
+    """   
+    vertigo.logger.debug('Vertigo - Creating link %s to %s' % (link_path, 
+                                                               dest_path))
+    
+    new_env = dict(vertigo.request.environ)
+    if 'HTTP_TRANSFER_ENCODING' in new_env.keys():
+        del new_env['HTTP_TRANSFER_ENCODING']
+    
+    if 'HTTP_X_COPY_FROM' in new_env.keys():
+        del new_env['HTTP_X_COPY_FROM']
+
+    auth_token = vertigo.request.headers.get('X-Auth-Token')
+    
+    sub_req = make_subrequest(
+            new_env, 'PUT', link_path,
+            headers={'X-Auth-Token': auth_token, 
+                     'Content-Length':0, 
+                     'Content-Type':'Vertigo-Link',
+                     'X-Object-Sysmeta-Vertigo-Link-to':dest_path},
+            swift_source='Vertigo')
+    resp = sub_req.get_response(vertigo.app)
+
+    return resp
 
 
 def get_data_dir(vertigo):

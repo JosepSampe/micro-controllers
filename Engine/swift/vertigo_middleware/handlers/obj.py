@@ -24,10 +24,21 @@ class VertigoObjectHandler(VertigoBaseHandler):
         if the object is a SLO
         """
         return self.request.params.get('multipart-manifest') == 'get'
+    
+    @property
+    def is_copy_request(self):
+        """
+        Determines from a GET request if is a copy request
+        """
+        return 'X-Copy-From' in self.request.headers
 
+    @property
+    def is_vertigo_valid_request(self):
+        return not self.is_copy_request and not self.is_slo_get_request
+    
     def handle_request(self):
         
-        if hasattr(self, self.request.method) and not self.is_slo_get_request:
+        if hasattr(self, self.request.method) and self.is_vertigo_valid_request:
             try:
                 handler = getattr(self, self.request.method)
                 getattr(handler, 'publicly_accessible')
@@ -72,7 +83,6 @@ class VertigoObjectHandler(VertigoBaseHandler):
         response = self.request.get_response(self.app)
         
         start = time.time()
-        
         mc_list = get_microcontroller_list(response.headers, self.method)        
         if mc_list:
             self.logger.info('Vertigo - There are microcontrollers' +
