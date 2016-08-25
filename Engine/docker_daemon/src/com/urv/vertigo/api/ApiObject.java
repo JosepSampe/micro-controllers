@@ -11,7 +11,7 @@ public class ApiObject {
 	private String object;
 	private ApiSwift swift;
 	private Logger logger_;	
-	private Map<String, String> metadata;
+	public Metadata metadata;
 	public String timestamp;
 	public String etag;
 	public String lastModified;
@@ -25,25 +25,18 @@ public class ApiObject {
 		logger_ = logger;
 		objectMetadata.entrySet().removeIf(entry -> entry.getKey().startsWith("X-Object-Sysmeta-Vertigo"));
 		objectMetadata.entrySet().removeIf(entry -> entry.getKey().startsWith("X-Object-Meta"));
-		metadata = objectMetadata;
-		timestamp = metadata.get("X-Timestamp");
-		etag = metadata.get("Etag");
-		lastModified = metadata.get("Last-Modified");
-		contentLength = metadata.get("Content-Length");
-		backendTimestamp = metadata.get("X-Backend-Timestamp");
-		contentType = metadata.get("Content-Type");
+		metadata = new Metadata();
+		
+		timestamp = objectMetadata.get("X-Timestamp");
+		etag = objectMetadata.get("Etag");
+		lastModified = objectMetadata.get("Last-Modified");
+		contentLength = objectMetadata.get("Content-Length");
+		backendTimestamp = objectMetadata.get("X-Backend-Timestamp");
+		contentType = objectMetadata.get("Content-Type");
 
 		logger_.trace("ApiObject created");
 	}
-	
-	public String getMetadata(String key){
-		return swift.getMetadata(object, "X-Object-Meta-"+key);
-	}
-
-	public void setMetadata(String key, String value){
-		swift.setMetadata(object, key, value);
-	}
-	
+		
 	public void copy(String dest){
 		swift.copy(object, dest);
 	}
@@ -55,8 +48,44 @@ public class ApiObject {
 	public void delete(){
 		swift.delete(object);
 	}
-	
-	public void flushMetadata(){
-		swift.flushMetadata(object);
-	}	
+
+	public class Metadata { 
+		 
+		public String get(String key){
+			return swift.metadata.get(object, "X-Object-Meta-"+key);
+		}
+
+		public void set(String key, String value){
+			swift.metadata.set(object, key, value);
+		}
+
+		public Long incr(String key){
+			Long newValue = swift.metadata.incr(object, key);
+			return newValue;
+		}
+		
+		public Long incrBy(String key, int value){
+			Long newValue = swift.metadata.incrBy(object, key, value);
+			return newValue;
+		}
+		
+		public Long decr(String key){
+			Long newValue = swift.metadata.decr(object, key);
+			return newValue;
+		}
+		
+		public Long decrBy(String key, Integer value){
+			Long newValue = swift.metadata.decrBy(object, key, value);
+			return newValue;
+		}
+
+		public void del(String key){
+			swift.metadata.del(object, key);
+		}
+		
+		public void flush(){
+			swift.metadata.flush(object);
+		}
+		
+	}
 }

@@ -205,7 +205,8 @@ class VertigoProxyHandler(VertigoBaseHandler):
 
         for key in response.headers.keys():
             if key.startswith('X-Object-Sysmeta-Vertigo-'):
-                response.headers[key.replace('X-Object-Sysmeta-','')] = response.headers[key]
+                new_key = key.replace('X-Object-Sysmeta-','')
+                response.headers[new_key] = response.headers[key]
         
         if 'Vertigo-Microcontroller' in response.headers:
             mc_dict = eval(response.headers['Vertigo-Microcontroller'])
@@ -233,7 +234,8 @@ class VertigoProxyHandler(VertigoBaseHandler):
             if response.is_success:   
                 response = create_link(self, link_path, dest_path)
         else:
-            msg = "Vertigo - Error: Link path and destination path are the same.\n"
+            msg = ("Vertigo - Error: Link path and destination path"
+                   "are the same.\n")
             response = Response(body = msg, headers = {'etag':''},
                                 request = self.request)
         return response

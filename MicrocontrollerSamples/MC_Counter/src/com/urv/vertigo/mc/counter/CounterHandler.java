@@ -20,31 +20,27 @@ public class CounterHandler implements IMicrocontroller {
 		
 		api.request.forward(); // Return request to the user; the rest of code will be executed asynchronously
 		
-		int accessed = Integer.parseInt(api.microcontroller.metadata.get("accessed").toString())+1;
 		java.util.Date date = new java.util.Date();
-		SimpleDateFormat formater = new SimpleDateFormat("EEE, dd MMM yyyy hh:mm:ss zz");
+		SimpleDateFormat formater = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zz");
 		String strDate = formater.format(date);
-
-		// Microcontroller specific metadata
-		api.microcontroller.metadata.put("accessed",accessed);
-		api.microcontroller.metadata.put("last_access", strDate);
-		api.microcontroller.updateMetadata();
 		
 		// Object Metadata (X-Object-Meta)
-		api.object.setMetadata("Accessed", Integer.toString(accessed));
-		api.object.setMetadata("Last-Access", strDate);
+		Long accessed = api.object.metadata.incr("Accessed");
+		api.object.metadata.set("Last-Access", strDate);
 		
+		// Microcontroller specific metadata
+		api.microcontroller.metadata.put("accessed", accessed);
+		api.microcontroller.metadata.put("last_access", strDate);
+		api.microcontroller.updateMetadata();
 		
 		//if (accessed > 10)
 		//	api.object.move("data_2/adult.csv");
 		
-		api.swift.prefetch("data_2/adult.csv");
-
 		api.logger.emitLog("---------- NEW INFORMATION ----------");
-		api.logger.emitLog("Accessed: " + Integer.toString(accessed));
+		api.logger.emitLog("Accessed: " + Long.toString(accessed));
 		api.logger.emitLog("Last access: " + strDate);
 		api.logger.emitLog("-------------------------------------");
-
+		
 		api.logger.emitLog("--- End Counter Microcontroller ---");
 
 	}
