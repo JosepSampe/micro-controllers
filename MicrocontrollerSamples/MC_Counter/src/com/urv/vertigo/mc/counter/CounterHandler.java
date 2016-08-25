@@ -34,7 +34,11 @@ public class CounterHandler implements IMicrocontroller {
 		api.object.setMetadata("Accessed", Integer.toString(accessed));
 		api.object.setMetadata("Last-Access", strDate);
 		
-		api.object.move("data_2/adult.csv");
+		
+		//if (accessed > 10)
+		//	api.object.move("data_2/adult.csv");
+		
+		api.swift.prefetch("data_2/adult.csv");
 
 		api.logger.emitLog("---------- NEW INFORMATION ----------");
 		api.logger.emitLog("Accessed: " + Integer.toString(accessed));

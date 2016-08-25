@@ -19,6 +19,8 @@
 					path="lib/slf4j-api-1.7.7.jar"/>
 				<pathelement 
 					path="lib/jedis-2.9.0.jar"/>
+				<pathelement 
+					path="lib/spymemcached-2.12.1.jar"/>
 			</classpath>
 		</javac>
 

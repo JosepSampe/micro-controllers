@@ -201,36 +201,29 @@ class VertigoBaseHandler(object):
         return is_slo
 
     def is_account_storlet_enabled(self):
-        account_meta = get_account_info(self.request.environ,
-                                        self.app)['meta']
-        storlets_enabled = account_meta.get('storlet-enabled',
-                                            'False')
+        account_meta = get_account_info(self.request.environ, self.app)['meta']
+        storlets_enabled = account_meta.get('storlet-enabled', 'False')
         if not config_true_value(storlets_enabled):
             self.logger.debug('Vertigo - Account disabled for storlets')
-            return HTTPBadRequest('Vertigo - Account disabled for storlets',
-                                  request=self.request)
-
+            raise HTTPBadRequest('Vertigo - Error: Account disabled for'
+                                 ' storlets.\n', request = self.request)
         return True
 
-    def _call_storlet_gateway(self, resp):
+    def apply_storlet_on_get(self, resp, storlet_list):
         """
         Call gateway module to get result of storlet execution
         in GET flow
         """
-        raise NotImplementedError()
-
-    def apply_storlet_on_get(self, resp, storlet_list):
-        resp = self._call_storlet_gateway_on_get(resp, storlet_list)
-
-        if 'Content-Length' in resp.headers:
-            resp.headers.pop('Content-Length')
-        if 'Transfer-Encoding' in resp.headers:
-            resp.headers.pop('Transfer-Encoding')
-
-        return resp
+        self._setup_storlet_gateway()
+        return self.storlet_gateway.execute_storlets(resp, storlet_list)
 
     def apply_storlet_on_put(self, req, storlet_list):
-        self.request = self._call_storlet_gateway_on_put(req, storlet_list)
+        """
+        Call gateway module to get result of storlet execution
+        in PUT flow
+        """
+        self._setup_storlet_gateway()
+        self.request =self.storlet_gateway.execute_storlets(req, storlet_list)
 
         if 'CONTENT_LENGTH' in self.request.environ:
             self.request.environ.pop('CONTENT_LENGTH')

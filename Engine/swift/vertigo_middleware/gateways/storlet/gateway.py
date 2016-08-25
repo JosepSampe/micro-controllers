@@ -105,6 +105,7 @@ class VertigoGatewayStorlet():
 
     def execute_storlets(self, req_resp, storlet_list):
         vertigo_iter = None
+        storlet_executed = False
         on_other_server = {}
 
         # Execute multiple Storlets, PIPELINE, if any.
@@ -119,9 +120,7 @@ class VertigoGatewayStorlet():
                     return HTTPUnauthorized('Vertigo - Storlet '+storlet+': No permission')
                 
                 vertigo_iter = self._run_storlet(req_resp, params, vertigo_iter)
-                # Notify to the Proxy that Storlet was executed in the
-                # object-server
-                req_resp.headers["Storlet-Executed"] = True
+                storlet_executed = True
 
             else:
                 storlet_execution = {'storlet': storlet,
@@ -133,7 +132,7 @@ class VertigoGatewayStorlet():
         if on_other_server:
             req_resp.headers['Storlet-List'] = json.dumps(on_other_server)
 
-        if 'Storlet-Executed' in req_resp.headers:
+        if storlet_executed:
             if isinstance(req_resp, Request):
                 req_resp.environ['wsgi.input'] = vertigo_iter
             else:

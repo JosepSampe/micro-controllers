@@ -20,17 +20,35 @@ class VertigoProxyHandler(VertigoBaseHandler):
     def _parse_vaco(self):
         return self.request.split_path(4, 4, rest_with_last=True)
 
-    def is_object_in_cache(self):
-
+    def _is_object_in_cache(self, obj):
+        """
+        Checks if an object is in memcache. If exists, the object is stored
+        in self.cached_object.
+        :return: True/False
+        """
+        self.logger.info('Vertigo - Checking in cache: ' + obj)
         if self.memcache is None:
             self.memcache = cache_from_env(self.request.environ)
-
-        self.cached_object = self.memcache.get(self.account + "/" +
-                                               self.container + "/" + self.obj)
-        self.logger.info('Vertigo - Checking in cache: ' + self.account + "/" +
-                         self.container + "/" + self.obj)
-
+        self.cached_object = self.memcache.get(obj)
+        
         return self.cached_object is not None
+    
+    def _get_cached_object(self, obj):
+        """
+        Gets the object from memcache. Executes associated microcontrollers.
+        :return: Response object
+        """       
+        self.logger.info('Vertigo - Object %s in cache', obj)
+        cached_obj = pickle.loads(self.cached_object)
+        resp_headers = cached_obj["Headers"]
+        resp_headers['content-length'] = len(cached_obj["Body"])
+
+        response = Response(body=cached_obj["Body"],
+                            headers=resp_headers,
+                            request=self.request)
+    
+        # TODO: Execute microcontrollers
+        return response
 
     @property
     def is_vertigo_object_put(self):
@@ -61,10 +79,11 @@ class VertigoProxyHandler(VertigoBaseHandler):
   
     def _verify_access(self, container, obj):
         """
-        Verifies acces to the specified object in swift
+        Verifies access to the specified object in swift
         :param container: swift container name
         :param obj: swift object name
         :raise HTTPNotFound: if the object doesn't exists in swift 
+        :return md: Object metadata
         """
         path = os.path.join('/', self.api_version, self.account, container, obj)
         md = verify_access(self, path)
@@ -87,59 +106,32 @@ class VertigoProxyHandler(VertigoBaseHandler):
                             swift_source='Vertigo')
 
         return sub_req.get_response(self.app)
-    
-    def _call_storlet_gateway_on_put(self, req, storlet_list):
-        req, app_iter = self.storlet_gateway.execute_storlets(req, storlet_list)
-        req.environ['wsgi.input'] = app_iter
-        return req
-
-    def _call_storlet_gateway_on_get(self, resp, storlet_list):
-        resp, app_iter = self.storlet_gateway.execute_storlets(
-            resp, storlet_list)
-        resp.app_iter = app_iter
-        resp.headers.pop('Storlet-List')
-        resp.headers.pop("Storlet-Executed")
-        return resp
 
     @public
     def GET(self):
         """
         GET handler on Proxy
-        """        
-        if self.is_object_in_cache():
-            value = pickle.loads(self.cached_object)
-
-            self.logger.info('Vertigo - Object in cache')
-
-            resp_headers = value["Headers"]
-            resp_headers['content-length'] = len(value["Body"])
-
-            return Response(body=value["Body"],
-                            headers=resp_headers,
-                            request=self.request)
+        """
+        obj = os.path.join(self.account, self.container, self.obj)
+        if self._is_object_in_cache(obj): 
+            response = self._get_cached_object(obj)
         else:
             response = self.request.get_response(self.app)
             
         if response.headers['Content-Type'] == 'Vertigo-Link':
             dest_obj = response.headers['X-Object-Sysmeta-Vertigo-Link-to']
-            response = self._get_linked_object(dest_obj)
+            obj = os.path.join(self.account, dest_obj)
+            if self._is_object_in_cache(obj):
+                response = self._get_cached_object(obj)
+            else:
+                response = self._get_linked_object(dest_obj)
 
         if 'Storlet-List' in response.headers and \
                 self.is_account_storlet_enabled():
-            # There are storlets to execute on proxy side
             self.logger.info('Vertigo - There are Storlets to execute')
-
-            self._setup_storlet_gateway()
-            storlet_list = json.loads(response.headers['Storlet-List'])
+            storlet_list = json.loads(response.headers.pop('Storlet-List'))
             response = self.apply_storlet_on_get(response, storlet_list)
 
-        # There are no storlets to execute on proxy side
-        elif 'Storlet-Executed' in response.headers:
-            #  Storlet was already invoked at object side
-            if 'Transfer-Encoding' in response.headers:
-                response.headers.pop('Transfer-Encoding')
-            response.headers['Content-Length'] = None
-            
         return response
 
     @public
@@ -148,7 +140,6 @@ class VertigoProxyHandler(VertigoBaseHandler):
         PUT handler on Proxy
         """
         if self.is_trigger_assignation:
-            # Only enters here when a user assign a micro-controller to an object
             _, micro_controller = self.get_mc_assignation_data()
             self._verify_access(self.container, self.obj)
             self._verify_access(self.mc_container, micro_controller)
@@ -173,10 +164,10 @@ class VertigoProxyHandler(VertigoBaseHandler):
                 if response.is_success:
                     response = create_link(self, link_path, dest_path)
             else:
-                msg = "Vertigo - Error: Link path and destination path are the same.\n"
+                msg = ("Vertigo - Error: Link path and destination path "
+                       "cannot be the same.\n")
                 response = Response(body = msg, headers = {'etag':''},
                                     request = self.request)
-                
         else:
             response = self.request.get_response(self.app)
             

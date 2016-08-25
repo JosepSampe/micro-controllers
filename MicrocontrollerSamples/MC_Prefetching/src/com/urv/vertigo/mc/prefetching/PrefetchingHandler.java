@@ -1,45 +1,32 @@
 /*============================================================================
-08-Feb-2016    josep.sampe       Initial implementation.
+ 08-Feb-2016    josep.sampe	Initial implementation.
+ 24-Aug-2016    josep.sampe	New implementation.
  ===========================================================================*/
 package com.urv.vertigo.mc.prefetching;
 
-import java.util.Map;
+import java.util.Arrays;
+import java.util.List;
+import com.urv.vertigo.api.Api;
+import com.urv.vertigo.microcontroller.IMicrocontroller;
 
-import org.json.simple.JSONObject;
-import org.json.simple.parser.JSONParser;
-import org.json.simple.parser.ParseException;
-
-import com.urv.vertigo.daemon.*;
-
-public class PrefetchingHandler implements IHandler {
+public class PrefetchingHandler implements IMicrocontroller {
+	
 	/***
-	 * MicroController invoke method. 
+	 * Microcontroller invoke method. 
 	 */
+	public void invoke(Api api) {
+		api.logger.emitLog("*** Init Prefetching Microcontroller ***");
 
-	@Override
-	public void invoke( HandlerLogger logger, HandlerMetadata meta, Map<String, String> file_md, 
-						Map<String, String> req_md,  HandlerOutput out) {
-		logger.emitLog("*********** Init Web Prefetching MicroController ************");
+		api.request.forward(); // Return request to the user; the rest of code will be executed asynchronously
 
-		out.execStorlets(); // No Storlets to execute
-		
-        
-		String metastorlet = meta.getMetadata();        
-		JSONObject jsonMetadata = null;
-		
-		try {
-			jsonMetadata = (JSONObject)new JSONParser().parse(metastorlet);
-		} catch (ParseException e1) {
-			e1.printStackTrace();
-		}
+		String resources = api.object.getMetadata("resources");
+		List<String> staticResources = Arrays.asList(resources.split(","));
 
-		logger.emitLog(req_md.get("Referer").toString());
+		api.logger.emitLog("Resources: "+staticResources.toString());
 		
-		
-		out.setExecParam("source_file_list", jsonMetadata.get("prefetch_list").toString());
-		out.setExecParam("object_path", req_md.get("Referer").toString());
-		out.execCommand("PREFETCH",req_md);
+		for (String resource : staticResources)
+			api.swift.prefetch(resource);
 
-		logger.emitLog("************ End Web Prefetching MicroController ************");
+		api.logger.emitLog("--- End Prefetching Microcontroller ---");
 	}
 }

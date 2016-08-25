@@ -49,14 +49,6 @@ class VertigoObjectHandler(VertigoBaseHandler):
             return self.request.get_response(self.app)
             #return HTTPMethodNotAllowed(request=self.request)
 
-    def _call_storlet_gateway_on_put(self, req, storlet_list):
-        req = self.storlet_gateway.execute_storlets(req, storlet_list)
-        req.headers.pop('Storlet-Executed')
-        return req
-
-    def _call_storlet_gateway_on_get(self, resp, storlet_list):
-        return self.storlet_gateway.execute_storlets(resp, storlet_list)
-    
     def _process_mc_data(self, response, mc_data):
         """
         Processes the data returned from the microcontroller
@@ -66,8 +58,7 @@ class VertigoObjectHandler(VertigoBaseHandler):
         
         elif mc_data['command'] == 'STORLET':
             slist = mc_data['list']
-            self.logger.info('Vertigo - Go to execute Storlets: '+str(slist))
-            self._setup_storlet_gateway()
+            self.logger.info('Vertigo - Go to execute Storlets: ' + str(slist))
             return self.apply_storlet_on_get(response, slist)
         
         elif mc_data['command'] == 'CANCEL':
@@ -109,7 +100,6 @@ class VertigoObjectHandler(VertigoBaseHandler):
         PUT handler on Object
         """
         if self.is_trigger_assignation:
-            # Only enters here when a user assign a micro-controller to an object
             trigger, micro_controller = self.get_mc_assignation_data()
             
             try:
@@ -119,10 +109,11 @@ class VertigoObjectHandler(VertigoBaseHandler):
             except ValueError as e:
                 msg = e.args[0]
             self.logger.info(msg)
-            return Response(body = msg, headers = {'etag':''},
-                            request = self.request)
             
-        if self.is_trigger_deletion:
+            response = Response(body = msg, headers = {'etag':''},
+                                request = self.request)
+            
+        elif self.is_trigger_deletion:
             trigger, micro_controller = self.get_mc_deletion_data()
             
             try:
@@ -132,8 +123,10 @@ class VertigoObjectHandler(VertigoBaseHandler):
             except ValueError as e:
                 msg = e.args[0]
 
-            return Response(body = msg, headers = {'etag':''},
-                            request = self.request)   
+            response = Response(body = msg, headers = {'etag':''},
+                                request = self.request)   
         else:
-            return self.request.get_response(self.app)
+            response = self.request.get_response(self.app)
+        
+        return response
     

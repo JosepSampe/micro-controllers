@@ -5,10 +5,14 @@ package com.urv.vertigo.api;
 
 import java.io.IOException;
 import java.io.OutputStream;
+import java.math.BigInteger;
 import java.net.HttpURLConnection;
+import java.net.InetSocketAddress;
 import java.net.MalformedURLException;
 import java.net.ProtocolException;
 import java.net.URL;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -16,6 +20,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import redis.clients.jedis.Jedis;
+import net.spy.memcached.MemcachedClient;
 import org.slf4j.Logger;
 
 
@@ -29,8 +34,12 @@ public class ApiSwift {
 	private String swiftBackend = "http://192.168.2.1:8080/v1/"; // TODO: get from cofig file
 	private String redisHost = "192.168.2.1"; // TODO: get from cofig file
 	private int redisPort = 6379; // TODO: get from cofig file
-	private int defaultDatabase = 5; // TODO: get from cofig file
-	private Jedis redis = new Jedis(redisHost,redisPort);
+	private int redisDefaultDatabase = 5; // TODO: get from cofig file
+	private String memcachedHost = "192.168.2.1"; // TODO: get from cofig file
+	private int memcachedPort = 11211; // TODO: get from cofig file
+	
+	private Jedis redis = null;
+	private MemcachedClient mc = null;
 
 	
 	public ApiSwift(String strToken, String projectId, Logger logger) {
@@ -38,8 +47,17 @@ public class ApiSwift {
 		tenantId = projectId;
 		storageUrl = swiftBackend+"AUTH_"+projectId+"/";
 		logger_ = logger;
+
+		redis = new Jedis(redisHost,redisPort);
+		redis.select(redisDefaultDatabase);
+		
+		try {
+			mc = new MemcachedClient(new InetSocketAddress(memcachedHost, memcachedPort));
+		} catch (IOException e) {
+			logger_.trace("Failed to create Memcached client");
+		}
+		
 		logger_.trace("ApiSwift created");
-		redis.select(defaultDatabase);		
 	}
 	
 	private Map<String, String> getAllMetadata(String source){
@@ -132,6 +150,14 @@ public class ApiSwift {
 		}
 	}
 	
+	public void prefetch(String source){
+		String id =  "AUTH_"+tenantId+"/"+source;
+		logger_.trace("Prefetching "+id);
+		String hash = MD5(id);
+		String data = null;
+		mc.set(hash, 600, data);
+	}	
+	
 	public void delete(String source){
 		HttpURLConnection conn = newConnection(source);
 		try {
@@ -191,7 +217,7 @@ public class ApiSwift {
 		}
 		conn.disconnect();	
 		return status;
-	  }
+	}
 	
 	private int sendRequest(HttpURLConnection conn){
 		int status = 404;
@@ -203,6 +229,18 @@ public class ApiSwift {
 		}
 		conn.disconnect();
 		return status;
-	  }
+	}
+	
+	public String MD5(String key) {
+        MessageDigest m = null;
+		try {
+			m = MessageDigest.getInstance("MD5");
+		} catch (NoSuchAlgorithmException e) {
+			logger_.trace("Hash Algorith error");
+		}
+        m.update(key.getBytes(),0,key.length());
+        String hash = new BigInteger(1,m.digest()).toString(16);
+        return hash;
+	}
 	
 }

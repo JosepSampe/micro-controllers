@@ -8,7 +8,7 @@
 		<javac srcdir="src/com/urv/vertigo/mc/prefetching/" destdir="bin" includeantruntime="false">
 			<classpath>
 		        <pathelement 
-		        	path="lib/CDaemon.jar"/>
+		        	path="lib/DockerDaemon.jar"/>
 				<pathelement 
 					path="lib/json-simple-1.1.1.jar"/>
 			</classpath>		</javac>
