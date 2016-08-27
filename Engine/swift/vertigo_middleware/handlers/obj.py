@@ -33,8 +33,13 @@ class VertigoObjectHandler(VertigoBaseHandler):
         return 'X-Copy-From' in self.request.headers
 
     @property
+    def is_mc_enabled(self):
+        return self.request.headers['mc-enabled'] == 'True'
+    
+    @property
     def is_vertigo_valid_request(self):
-        return not self.is_copy_request and not self.is_slo_get_request
+        return not self.is_copy_request and not self.is_slo_get_request \
+               and self.is_mc_enabled
     
     def handle_request(self):
         
@@ -72,9 +77,10 @@ class VertigoObjectHandler(VertigoBaseHandler):
         GET handler on Object
         """
         response = self.request.get_response(self.app)
-        
+
         start = time.time()
-        mc_list = get_microcontroller_list(response.headers, self.method)        
+
+        mc_list = get_microcontroller_list(response.headers, self.method)      
         if mc_list:
             self.logger.info('Vertigo - There are microcontrollers' +
                              ' to execute: ' + str(mc_list))

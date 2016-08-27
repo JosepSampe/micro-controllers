@@ -3,8 +3,11 @@
  ===========================================================================*/
 package com.urv.vertigo.api;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.io.OutputStreamWriter;
 import java.math.BigInteger;
 import java.net.HttpURLConnection;
 import java.net.InetSocketAddress;
@@ -19,6 +22,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.UUID;
+
 import redis.clients.jedis.Jedis;
 import net.spy.memcached.MemcachedClient;
 import org.slf4j.Logger;
@@ -40,10 +45,9 @@ public class ApiSwift {
 	
 	private Jedis redis = null;
 	private MemcachedClient mc = null;
-	
 	public Metadata metadata;
 
-	
+
 	public ApiSwift(String strToken, String projectId, Logger logger) {
 		token = strToken;
 		tenantId = projectId;
@@ -177,6 +181,28 @@ public class ApiSwift {
 		
 	}
 
+	public BufferedReader get(String source){
+		BufferedReader reader = null;
+		HttpURLConnection conn = newConnection(source);
+		conn.setDoOutput(false);
+		conn.setDoInput(true);
+
+		String tok = UUID.randomUUID().toString();
+		String key = "VERTIGO_TOKEN_"+tok.split("-")[0]+"_AUTH_"+tenantId+"/"+source;
+		mc.set(MD5(key), 10, tok);
+		
+		try {
+			conn.setRequestProperty("X-Vertigo-Token", tok);
+			conn.setRequestMethod("GET");
+			reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+		} catch (ProtocolException pe) {
+			logger_.trace("Error: Bad Protocol");
+		} catch (IOException ioe) {
+			logger_.trace("Error: Can't get Input Stream");
+		}
+		return reader;
+	}
+
 	public void setMicrocontroller(String source, String mc, String method, String metadata){
 		HttpURLConnection conn = newConnection(source);
 		conn.setRequestProperty("X-Vertigo-on"+method, mc);
@@ -243,13 +269,14 @@ public class ApiSwift {
 		try {
 			url = new URL(storageUri);
 			conn = (HttpURLConnection) url.openConnection();
+			conn.setDoOutput(true);
+			conn.setRequestProperty("X-Auth-Token", token);
+			conn.setRequestProperty("User-Agent", "vertigo/microcontroller");
 		} catch (MalformedURLException e) {
 			logger_.trace("Error: Malformated URL");
 		} catch (IOException e) {
 			logger_.trace("Error opeing connection");
 		}
-		conn.setRequestProperty("X-Auth-Token", token);
-		conn.setDoOutput(true);
 		return conn;	
 	}
 	
@@ -281,7 +308,7 @@ public class ApiSwift {
 		return status;
 	}
 	
-	public String MD5(String key) {
+	private String MD5(String key) {
         MessageDigest m = null;
 		try {
 			m = MessageDigest.getInstance("MD5");
@@ -290,6 +317,8 @@ public class ApiSwift {
 		}
         m.update(key.getBytes(),0,key.length());
         String hash = new BigInteger(1,m.digest()).toString(16);
+        while (hash.length() < 32)
+        	hash = "0"+hash;
         return hash;
 	}
 	

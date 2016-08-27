@@ -159,12 +159,8 @@ def verify_access(vertigo, path):
         headers={'X-Auth-Token': auth_token},
         swift_source='Vertigo')
 
-    resp = sub_req.get_response(vertigo.app)
-    
-    if not resp.is_success:
-        return False
+    return sub_req.get_response(vertigo.app)
 
-    return resp.headers
 
 def create_link(vertigo, link_path, dest_path):              
     """
@@ -174,8 +170,8 @@ def create_link(vertigo, link_path, dest_path):
     :param link_path: swift path of the link
     :param dest_path: swift path of the object to link
     """   
-    vertigo.logger.debug('Vertigo - Creating link %s to %s' % (link_path, 
-                                                               dest_path))
+    vertigo.logger.debug('Vertigo - Creating link from %s to %s' % (link_path,
+                                                                    dest_path))
     
     new_env = dict(vertigo.request.environ)
     if 'HTTP_TRANSFER_ENCODING' in new_env.keys():
@@ -192,7 +188,7 @@ def create_link(vertigo, link_path, dest_path):
             new_env, 'PUT', link_path,
             headers={'X-Auth-Token': auth_token, 
                      'Content-Length':0, 
-                     'Content-Type':'Vertigo-Link',
+                     'Content-Type':'vertigo/link',
                      'X-Object-Sysmeta-Vertigo-Link-to':dest_path},
             swift_source='Vertigo')
     resp = sub_req.get_response(vertigo.app)

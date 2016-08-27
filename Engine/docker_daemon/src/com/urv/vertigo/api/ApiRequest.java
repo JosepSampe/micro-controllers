@@ -16,7 +16,7 @@ public class ApiRequest {
 	private FileOutputStream stream;
 	private JSONObject outMetadata = new JSONObject();
 	private Logger logger_;
-	public Map<String, String> metadata;
+	private Map<String, String> metadata;
 	public String method;
 	public String currentServer;
 	public String timestamp;
@@ -88,25 +88,25 @@ public class ApiRequest {
 		userName = metadata.get("X-User-Name");
 	}
 	
-	@SuppressWarnings("unchecked") 
+	@SuppressWarnings("unchecked")
 	public void forward(){	
 		outMetadata.put("command","CONTINUE");
-		this.run();
+		this.execute();
 	}
 	
-	@SuppressWarnings("unchecked") 
+	@SuppressWarnings("unchecked")
 	public void cancel(String message){	
 		outMetadata.put("command", "CANCEL");
 		outMetadata.put("message", message);
-		this.run();
+		this.execute();
 	}
 	
-	private void run() {
+	private void execute() {
 		try {
 			stream.write(outMetadata.toString().getBytes());
 			this.flush();
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger_.trace("Error sending command on ApiRequest");
 		}
 	}
 	
@@ -114,7 +114,7 @@ public class ApiRequest {
 		try {
 			stream.flush();
 		} catch (IOException e) {
-			e.printStackTrace();
+			logger_.trace("Error flushing command on ApiRequest");
 		}
 	}
 }

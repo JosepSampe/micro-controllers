@@ -4,6 +4,10 @@
  ===========================================================================*/
 package com.urv.vertigo.mc.counter;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.text.SimpleDateFormat;
 import com.urv.vertigo.api.Api;
 import com.urv.vertigo.microcontroller.IMicrocontroller;
@@ -36,6 +40,19 @@ public class CounterHandler implements IMicrocontroller {
 		//if (accessed > 10)
 		//	api.object.move("data_2/adult.csv");
 		
+
+		try {
+			
+			BufferedReader reader = api.object.get();
+			api.logger.emitLog(reader.readLine());
+			reader.close();
+
+			
+		} catch (IOException e) {
+			api.logger.emitLog("Error");
+		}
+		
+
 		api.logger.emitLog("---------- NEW INFORMATION ----------");
 		api.logger.emitLog("Accessed: " + Long.toString(accessed));
 		api.logger.emitLog("Last access: " + strDate);

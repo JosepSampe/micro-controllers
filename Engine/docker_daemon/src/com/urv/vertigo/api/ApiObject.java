@@ -3,6 +3,8 @@
  ===========================================================================*/
 package com.urv.vertigo.api;
 
+import java.io.BufferedReader;
+import java.io.OutputStreamWriter;
 import java.util.Map;
 import org.slf4j.Logger;
 
@@ -36,7 +38,11 @@ public class ApiObject {
 
 		logger_.trace("ApiObject created");
 	}
-		
+	
+	public BufferedReader get(){
+		return swift.get(object);
+	}
+			
 	public void copy(String dest){
 		swift.copy(object, dest);
 	}

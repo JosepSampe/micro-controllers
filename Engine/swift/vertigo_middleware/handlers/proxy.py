@@ -16,6 +16,8 @@ class VertigoProxyHandler(VertigoBaseHandler):
 
         self.mc_container = self.conf["mc_container"]
         self.memcache = None
+        self.request.headers['mc-enabled'] = True
+        self.memcache = cache_from_env(self.request.environ)
 
     def _parse_vaco(self):
         return self.request.split_path(4, 4, rest_with_last=True)
@@ -27,8 +29,6 @@ class VertigoProxyHandler(VertigoBaseHandler):
         :return: True/False
         """
         self.logger.info('Vertigo - Checking in cache: ' + obj)
-        if self.memcache is None:
-            self.memcache = cache_from_env(self.request.environ)
         self.cached_object = self.memcache.get(obj)
         
         return self.cached_object is not None
@@ -86,12 +86,13 @@ class VertigoProxyHandler(VertigoBaseHandler):
         :return md: Object metadata
         """
         path = os.path.join('/', self.api_version, self.account, container, obj)
-        md = verify_access(self, path)
-        if not md:
+        response = verify_access(self, path)
+        
+        if not response.is_success:
             raise HTTPNotFound('Vertigo - Object error: "' + container + '/'
                                + obj + '" doesn\'t exists in Swift.\n')
         else:
-            return md
+            return response
         
     def _get_linked_object(self, dest_obj):
         """
@@ -107,18 +108,33 @@ class VertigoProxyHandler(VertigoBaseHandler):
 
         return sub_req.get_response(self.app)
 
+   
+    def _check_microcntroller_execution(self, obj):
+        user_agent = self.request.headers['User-Agent']
+        if user_agent == "vertigo/microcontroller":
+            req_token = self.request.headers['X-Vertigo-Token']
+            key = 'VERTIGO_TOKEN_'+req_token.split('-')[0] + "_" + obj
+            admin_token = self.memcache.get(key)
+            req_token = self.request.headers['X-Vertigo-Token']
+            if req_token == admin_token:
+                self.request.headers['mc-enabled'] = False
+                self.logger.info('Vertigo - Microcontroller execution disabled'
+                                 ': Request from microcontroller')
+   
     @public
     def GET(self):
         """
         GET handler on Proxy
-        """
+        """    
         obj = os.path.join(self.account, self.container, self.obj)
+        self._check_microcntroller_execution(obj)
+        
         if self._is_object_in_cache(obj): 
             response = self._get_cached_object(obj)
         else:
             response = self.request.get_response(self.app)
             
-        if response.headers['Content-Type'] == 'Vertigo-Link':
+        if response.headers['Content-Type'] == 'vertigo/link':
             dest_obj = response.headers['X-Object-Sysmeta-Vertigo-Link-to']
             obj = os.path.join(self.account, dest_obj)
             if self._is_object_in_cache(obj):
@@ -138,7 +154,7 @@ class VertigoProxyHandler(VertigoBaseHandler):
     def PUT(self):
         """
         PUT handler on Proxy
-        """
+        """        
         if self.is_trigger_assignation:
             _, micro_controller = self.get_mc_assignation_data()
             self._verify_access(self.container, self.obj)
@@ -151,13 +167,16 @@ class VertigoProxyHandler(VertigoBaseHandler):
             self._augment_empty_request()
             response = self.request.get_response(self.app)
 
+        elif self.is_object_grouping:
+            pass
+        
         elif self.is_object_move:
             link_path = os.path.join(self.container, self.obj)
             dest_path = self.request.headers['X-Vertigo-Link-To']
             if link_path != dest_path:
-                link_md = self._verify_access(self.container, self.obj) 
-                if "X-Object-Sysmeta-Vertigo-Link-to" not in link_md \
-                        and link_md['Content-Type'] != 'Vertigo-Link':
+                response = self._verify_access(self.container, self.obj) 
+                if "X-Object-Sysmeta-Vertigo-Link-to" not in response.headers \
+                        and response.headers['Content-Type'] != 'vertigo/link':
                     self.request.method = 'COPY'
                     self.request.headers['Destination'] = dest_path
                     response = self.request.get_response(self.app)
@@ -182,15 +201,15 @@ class VertigoProxyHandler(VertigoBaseHandler):
             _, micro_controller = self.get_mc_assignation_data()
             self._verify_access(self.container, self.obj)
             self._verify_access(self.mc_container, micro_controller)
-            # Converts the POST request to a PUT request to properly forward
-            # it to the object server.
+            # Converts the POST request to a PUT request to properly
+            # forward it to the object server.
             self.request.method = 'PUT'
             self._augment_empty_request()
            
         if self.is_trigger_deletion:
             self._verify_access(self.container, self.obj)
-            # Converts the POST request to a PUT request to properly forward
-            # it to the object server.
+            # Converts the POST request to a PUT request to properly
+            # forward it to the object server.
             self.request.method = 'PUT'
             self._augment_empty_request()
 
@@ -226,9 +245,9 @@ class VertigoProxyHandler(VertigoBaseHandler):
         dest_path = self.request.headers['Destination']
         
         if link_path != dest_path:
-            link_md = self._verify_access(self.container, self.obj)
-            if "X-Object-Sysmeta-Vertigo-Link-to" not in link_md \
-                        and link_md['Content-Type'] != 'Vertigo-Link':
+            response = self._verify_access(self.container, self.obj)
+            if "X-Object-Sysmeta-Vertigo-Link-to" not in response.headers \
+                        and response.headers['Content-Type'] != 'vertigo/link':
                 self.request.method = 'COPY'
                 response = self.request.get_response(self.app)
             if response.is_success:   

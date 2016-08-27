@@ -19,11 +19,11 @@ public class PrefetchingHandler implements IMicrocontroller {
 
 		api.request.forward(); // Return request to the user; the rest of code will be executed asynchronously
 
-		String resources = api.object.getMetadata("resources");
+		String resources = api.object.metadata.get("resources");
+		api.logger.emitLog("Resources: "+resources);
+		
 		List<String> staticResources = Arrays.asList(resources.split(","));
 
-		api.logger.emitLog("Resources: "+staticResources.toString());
-		
 		for (String resource : staticResources)
 			api.swift.prefetch(resource);
 
