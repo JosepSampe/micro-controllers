@@ -1,8 +1,8 @@
 from swift.proxy.controllers.base import get_account_info
 from swift.common.swob import HTTPUnauthorized, HTTPBadRequest, Range
 from swift.common.utils import config_true_value
-
-from vertigo_middleware.gateways import VertigoGatewayDocker, VertigoGatewayStorlet
+from vertigo_middleware.gateways import VertigoGatewayDocker
+from vertigo_middleware.gateways import VertigoGatewayStorlet
 
 
 class NotVertigoRequest(Exception):
@@ -50,13 +50,13 @@ class VertigoBaseHandler(object):
         self.available_assignation_headers = ['X-Vertigo-Onget',
                                               'X-Vertigo-Ondelete',
                                               'X-Vertigo-Onput',
-                                              'X-Vertigo-Ontimer']   
+                                              'X-Vertigo-Ontimer']
         self.available_deletion_headers = ['X-Vertigo-Onget-Delete',
                                            'X-Vertigo-Ondelete-Delete',
                                            'X-Vertigo-Onput-Delete',
                                            'X-Vertigo-Ontimer-Delete',
                                            'X-Vertigo-Delete']
-        
+
         self.app = app
         self.logger = logger
         self.conf = conf
@@ -89,21 +89,21 @@ class VertigoBaseHandler(object):
         header = [i for i in self.available_assignation_headers
                   if i in self.request.headers.keys()]
         if len(header) > 1:
-            raise HTTPUnauthorized('Vertigo - The system can only set 1'\
+            raise HTTPUnauthorized('Vertigo - The system can only set 1'
                                    ' microcontroller each time.\n')
         mc = self.request.headers[header[0]]
-        
+
         return header[0].rsplit('-', 1)[1].lower(), mc
-    
+
     def get_mc_deletion_data(self):
         header = [i for i in self.available_deletion_headers
                   if i in self.request.headers.keys()]
         if len(header) > 1:
-            raise HTTPUnauthorized('Vertigo - The system can only delete 1'\
+            raise HTTPUnauthorized('Vertigo - The system can only delete 1'
                                    ' microcontroller each time.\n')
         mc = self.request.headers[header[0]]
 
-        return header[0].rsplit('-', 2)[1].lower(), mc   
+        return header[0].rsplit('-', 2)[1].lower(), mc
 
     @property
     def api_version(self):
@@ -125,7 +125,7 @@ class VertigoBaseHandler(object):
         """
         Parse method of path from self.request which depends on child class
         (Proxy or Object)
-        
+
         :return tuple: a string tuple of (version, account, container, object)
         """
         raise NotImplementedError()
@@ -140,7 +140,7 @@ class VertigoBaseHandler(object):
     def is_storlet_execution(self):
         """
         Check if the request requires storlet execution
-        
+
         :return: Whether storlet should be executed
         """
         return 'X-Run-Storlet' in self.request.headers
@@ -151,11 +151,11 @@ class VertigoBaseHandler(object):
         Determines whether the request is a byte-range request
         """
         return 'Range' in self.request.headers
-    
+
     @property
     def is_storlet_range_request(self):
         return 'X-Storlet-Range' in self.request.headers
-    
+
     @property
     def is_storlet_multiple_range_request(self):
         if not self.is_storlet_range_request:
@@ -163,7 +163,7 @@ class VertigoBaseHandler(object):
 
         r = self.request.headers['X-Storlet-Range']
         return len(Range(r).ranges) > 1
-    
+
     @property
     def is_vertigo_container_request(self):
         """
@@ -180,15 +180,15 @@ class VertigoBaseHandler(object):
     def is_trigger_deletion(self):
         return any((True for x in self.available_deletion_headers
                     if x in self.request.headers.keys()))
-    
+
     @property
     def is_object_grouping(self):
         return 'X-Vertigo-Group' in self.request.headers
-      
+
     @property
     def is_object_move(self):
         return 'X-Vertigo-Link-To' in self.request.headers
-        
+
     def is_slo_response(self, resp):
         self.logger.debug(
             'Verify if {0}/{1}/{2} is an SLO assembly object'.format(
@@ -210,7 +210,7 @@ class VertigoBaseHandler(object):
         if not config_true_value(storlets_enabled):
             self.logger.debug('Vertigo - Account disabled for storlets')
             raise HTTPBadRequest('Vertigo - Error: Account disabled for'
-                                 ' storlets.\n', request = self.request)
+                                 ' storlets.\n', request=self.request)
         return True
 
     def apply_storlet_on_get(self, resp, storlet_list):
@@ -227,7 +227,7 @@ class VertigoBaseHandler(object):
         in PUT flow
         """
         self._setup_storlet_gateway()
-        self.request =self.storlet_gateway.execute_storlets(req, storlet_list)
+        self.request = self.storlet_gateway.execute_storlets(req, storlet_list)
 
         if 'CONTENT_LENGTH' in self.request.environ:
             self.request.environ.pop('CONTENT_LENGTH')

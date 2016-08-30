@@ -1,8 +1,8 @@
 from swift.common.swob import HTTPInternalServerError, HTTPException, wsgify
 from swift.common.utils import get_logger
 from ConfigParser import RawConfigParser
-
-from vertigo_middleware.handlers import VertigoProxyHandler, VertigoObjectHandler
+from vertigo_middleware.handlers import VertigoProxyHandler
+from vertigo_middleware.handlers import VertigoObjectHandler
 from vertigo_middleware.handlers.base import NotVertigoRequest
 
 
@@ -18,7 +18,7 @@ class VertigoHandlerMiddleware(object):
     def _get_handler(self, exec_server):
         """
         Generate Handler class based on execution_server parameter
-        
+
         :param exec_server: Where this storlet_middleware is running.
                             This should value shoud be 'proxy' or 'object'
         :raise ValueError: If exec_server is invalid
@@ -48,7 +48,7 @@ class VertigoHandlerMiddleware(object):
 
         try:
             return request_handler.handle_request()
-        
+
         except HTTPException:
             self.logger.exception('Vertigo execution failed')
             raise
@@ -59,7 +59,7 @@ class VertigoHandlerMiddleware(object):
 
 def filter_factory(global_conf, **local_conf):
     """Standard filter factory to use the middleware with paste.deploy"""
-    
+
     conf = global_conf.copy()
     conf.update(local_conf)
 
@@ -69,8 +69,10 @@ def filter_factory(global_conf, **local_conf):
     vertigo_conf['mc_timeout'] = conf.get('mc_timeout', 5)
     vertigo_conf['mc_pipe'] = conf.get('mc_pipe', 'vertigo_pipe')
     vertigo_conf['api_pipe'] = conf.get('mc_pipe', 'api_pipe')
-    vertigo_conf['mc_dir'] = conf.get('mc_dir', '/home/docker_device/vertigo/scopes')
-    vertigo_conf['cache_dir'] = conf.get('cache_dir', '/home/docker_device/cache/scopes')
+    vertigo_conf['mc_dir'] = conf.get(
+        'mc_dir', '/home/docker_device/vertigo/scopes')
+    vertigo_conf['cache_dir'] = conf.get(
+        'cache_dir', '/home/docker_device/cache/scopes')
     vertigo_conf['mc_container'] = conf.get('mc_container',
                                             'microcontroller')
     vertigo_conf['mc_dependency'] = conf.get('mc_dependency', 'dependency')
@@ -81,7 +83,7 @@ def filter_factory(global_conf, **local_conf):
     storlet_parameters = configParser.items('filter:storlet_handler')
     for key, val in storlet_parameters:
         vertigo_conf[key] = val
-    
+
     configParser = RawConfigParser()
     configParser.read(vertigo_conf['storlet_gateway_conf'])
     additional_items = configParser.items("DEFAULT")
@@ -91,7 +93,7 @@ def filter_factory(global_conf, **local_conf):
     """ Load Storlets Gateway class """
     module_name = vertigo_conf['storlet_gateway_module']
     mo = module_name[:module_name.rfind(':')]
-    cl = module_name[module_name.rfind(':') + 1:]    
+    cl = module_name[module_name.rfind(':') + 1:]
     module = __import__(mo, fromlist=[cl])
     the_class = getattr(module, cl)
     vertigo_conf["storlet_gateway_module"] = the_class

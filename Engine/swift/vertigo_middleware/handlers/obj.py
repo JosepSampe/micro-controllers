@@ -1,9 +1,10 @@
 from swift.common.swob import HTTPMethodNotAllowed, Response
 from swift.common.utils import public
-import time
-
 from vertigo_middleware.handlers import VertigoBaseHandler
-from vertigo_middleware.common.utils import get_microcontroller_list, set_microcontroller, delete_microcontroller
+from vertigo_middleware.common.utils import get_microcontroller_list
+from vertigo_middleware.common.utils import set_microcontroller
+from vertigo_middleware.common.utils import delete_microcontroller
+import time
 
 
 class VertigoObjectHandler(VertigoBaseHandler):
@@ -24,7 +25,7 @@ class VertigoObjectHandler(VertigoBaseHandler):
         if the object is a SLO
         """
         return self.request.params.get('multipart-manifest') == 'get'
-    
+
     @property
     def is_copy_request(self):
         """
@@ -35,15 +36,14 @@ class VertigoObjectHandler(VertigoBaseHandler):
     @property
     def is_mc_enabled(self):
         return self.request.headers['mc-enabled'] == 'True'
-    
+
     @property
     def is_vertigo_valid_request(self):
         return not self.is_copy_request and not self.is_slo_get_request \
-               and self.is_mc_enabled
-    
+            and self.is_mc_enabled
+
     def handle_request(self):
-        
-        if hasattr(self, self.request.method) and self.is_vertigo_valid_request:
+        if hasattr(self, self.method) and self.is_vertigo_valid_request:
             try:
                 handler = getattr(self, self.request.method)
                 getattr(handler, 'publicly_accessible')
@@ -52,7 +52,7 @@ class VertigoObjectHandler(VertigoBaseHandler):
             return handler()
         else:
             return self.request.get_response(self.app)
-            #return HTTPMethodNotAllowed(request=self.request)
+            # return HTTPMethodNotAllowed(request=self.request)
 
     def _process_mc_data(self, response, mc_data):
         """
@@ -60,16 +60,16 @@ class VertigoObjectHandler(VertigoBaseHandler):
         """
         if mc_data['command'] == 'CONTINUE':
             return response
-        
+
         elif mc_data['command'] == 'STORLET':
             slist = mc_data['list']
             self.logger.info('Vertigo - Go to execute Storlets: ' + str(slist))
             return self.apply_storlet_on_get(response, slist)
-        
+
         elif mc_data['command'] == 'CANCEL':
             msg = mc_data['message']
-            return Response(body = msg+'\n', headers = {'etag':''},
-                            request = self.request)
+            return Response(body=msg + '\n', headers={'etag': ''},
+                            request=self.request)
 
     @public
     def GET(self):
@@ -80,7 +80,7 @@ class VertigoObjectHandler(VertigoBaseHandler):
 
         start = time.time()
 
-        mc_list = get_microcontroller_list(response.headers, self.method)      
+        mc_list = get_microcontroller_list(response.headers, self.method)
         if mc_list:
             self.logger.info('Vertigo - There are microcontrollers' +
                              ' to execute: ' + str(mc_list))
@@ -89,10 +89,11 @@ class VertigoObjectHandler(VertigoBaseHandler):
             response = self._process_mc_data(response, mc_data)
         else:
             self.logger.info('Vertigo - No Microcontrollers to execute')
-            
+
         end = time.time() - start
         self.logger.info('---')
-        self.logger.info('Total execution time: ' + str(int(round(end * 1000))) + 'ms')
+        self.logger.info('Total execution time: ' +
+                         str(int(round(end * 1000))) + 'ms')
         self.logger.info('---')
         # f = open('/home/lab144/josep/middleware_get_tstamp.log','a')
         # f.write(str(end)+'\n') # python will convert \n to os.linesep
@@ -107,32 +108,31 @@ class VertigoObjectHandler(VertigoBaseHandler):
         """
         if self.is_trigger_assignation:
             trigger, micro_controller = self.get_mc_assignation_data()
-            
+
             try:
                 set_microcontroller(self, trigger, micro_controller)
                 msg = 'Vertigo - Microcontroller "' + micro_controller + \
-                    '" correctly assigned to the "'+ trigger + '" trigger.\n'
+                    '" correctly assigned to the "' + trigger + '" trigger.\n'
             except ValueError as e:
                 msg = e.args[0]
             self.logger.info(msg)
-            
-            response = Response(body = msg, headers = {'etag':''},
-                                request = self.request)
-            
+
+            response = Response(body=msg, headers={'etag': ''},
+                                request=self.request)
+
         elif self.is_trigger_deletion:
             trigger, micro_controller = self.get_mc_deletion_data()
-            
+
             try:
                 delete_microcontroller(self, trigger, micro_controller)
                 msg = 'Vertigo - Microcontroller "' + micro_controller +\
-                    '" correctly removed from the "'+ trigger + '" trigger.\n'
+                    '" correctly removed from the "' + trigger + '" trigger.\n'
             except ValueError as e:
                 msg = e.args[0]
 
-            response = Response(body = msg, headers = {'etag':''},
-                                request = self.request)   
+            response = Response(body=msg, headers={'etag': ''},
+                                request=self.request)
         else:
             response = self.request.get_response(self.app)
-        
+
         return response
-    

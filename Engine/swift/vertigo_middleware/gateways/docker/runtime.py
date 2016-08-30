@@ -22,6 +22,7 @@ class RunTimeSandbox(object):
     """
     The RunTimeSandbox represents a re-usable per scope sandbox.
     """
+
     def __init__(self, logger, conf, account):
         self.account = account[5:]
         self.scope = account[5:18]
@@ -33,69 +34,75 @@ class RunTimeSandbox(object):
     def _is_started(self, container_name):
         """
         Auxiliary function that checks whether the container is started.
-        
+
         :param docker_container_name : name of the container
         :returns: whether exists
         """
-        cmd = ("docker ps | grep -v 'grep' | grep '"+container_name+"' | awk '{print $1}'")
+        cmd = ("docker ps | grep -v 'grep' | grep '" +
+               container_name + "' | awk '{print $1}'")
         docker_id = os.popen(cmd).read()
 
         if not docker_id:
             return False
 
         return True
-        
+
     def start(self):
         """
         Starts the docker container.
         """
         container_name = '%s_%s' % (self.docker_img_prefix, self.scope)
-        
+
         if not self._is_started(container_name):
             docker_image_name = '%s/%s' % (self.docker_repo, self.account)
-        
+
             host_pipe_prefix = self.conf["pipes_dir"] + "/" + self.scope
             sandbox_pipe_prefix = "/mnt/channels"
-        
+
             pipe_mount = '%s:%s' % (host_pipe_prefix, sandbox_pipe_prefix)
-        
+
             host_storlet_prefix = self.conf["mc_dir"] + "/" + self.scope
             sandbox_storlet_dir_prefix = "/home/swift"
-        
-            mc_mount = '%s:%s' % (host_storlet_prefix, sandbox_storlet_dir_prefix)
+
+            mc_mount = '%s:%s' % (host_storlet_prefix,
+                                  sandbox_storlet_dir_prefix)
 
             cmd = "docker run --name " + container_name + \
-                  " -d -v /dev/log:/dev/log -v " + pipe_mount + " -v " + mc_mount + \
-                  " -i -t " + docker_image_name + " debug /home/swift/start_daemon.sh"
-        
+                  " -d -v /dev/log:/dev/log -v " + pipe_mount + \
+                  " -v " + mc_mount + " -i -t " + docker_image_name + \
+                  " debug /home/swift/start_daemon.sh"
+
             self.logger.info(cmd)
-        
-            self.logger.info('Vertigo - Starting container ' + container_name + ' ...')
-        
+
+            self.logger.info('Vertigo - Starting container ' +
+                             container_name + ' ...')
+
             p = subprocess.call(cmd, shell=True)
 
             if p == 0:
                 time.sleep(1)
-                self.logger.info('Vertigo - Container "' + container_name + '" started')
-            
+                self.logger.info('Vertigo - Container "' +
+                                 container_name + '" started')
+
             # TODO: if docker name is used by ended docker
         else:
-            self.logger.info('Vertigo - Container "' + container_name + '" is already started')
-
+            self.logger.info('Vertigo - Container "' +
+                             container_name + '" is already started')
 
 
 class MicroController(object):
     """
     Microcontroller main class.
     """
+
     def __init__(self, object_path, logger_path, name, main, dependencies):
         self.log_path = os.path.join(logger_path, main)
-        self.log_name = name.replace('jar','log')
+        self.log_name = name.replace('jar', 'log')
         self.full_log_path = os.path.join(self.log_path, self.log_name)
         self.micro_controller = name
         self.main_class = main
         self.dependencies = dependencies
-        
+
         if not os.path.exists(self.log_path):
             os.makedirs(self.log_path)
 
