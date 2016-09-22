@@ -1,7 +1,9 @@
-from swift.common.swob import Request
-from swift.common.swob import HTTPUnauthorized
-from vertigo_middleware.common.utils import make_swift_request
+from swift.common.swob import Request, HTTPUnauthorized
+from swift.common.utils import config_true_value
+from storlet_middleware.handlers.base import SwiftFileManager
 import json
+
+from vertigo_middleware.common.utils import make_swift_request
 
 
 class VertigoGatewayStorlet():
@@ -12,15 +14,26 @@ class VertigoGatewayStorlet():
         self.app = app
         self.api_version = api_v
         self.account = account
+        self.scope = self.account[5:18]
         self.method = method
         self.server = self.conf['execution_server']
 
-        self.storlet_container = self.conf["storlet_container"]
-        self.storlet_metadata = None
         self.storlet_name = None
-        self.gateway_module = self.conf['storlet_gateway_module']
-        self.gateway_docker = None
-        self.gateway_method = None
+        self.storlet_metadata = None
+        self.gateway = None
+        self.gateway_class = self.conf['storlets_gateway_module']
+        self.sreq_class = self.gateway_class.request_class
+
+        self.storlet_container = conf.get('storlet_container')
+        self.storlet_dependency = conf.get('storlet_dependency')
+        self.log_container = conf.get('storlet_logcontainer')
+        self.client_conf_file = '/etc/swift/storlet-proxy-server.conf'
+
+    def _setup_gateway(self):
+        """
+        Setup Storlet gateway instance
+        """
+        self.gateway = self.gateway_class(self.conf, self.logger, self.scope)
 
     def _get_storlet_data(self, storlet_data):
         storlet = storlet_data["storlet"]
@@ -28,6 +41,34 @@ class VertigoGatewayStorlet():
         server = storlet_data["server"]
 
         return storlet, parameters, server
+
+    def _get_storlet_invocation_options(self, req):
+        options = dict()
+
+        filtered_key = ['X-Storlet-Range', 'X-Storlet-Generate-Log']
+
+        for key in req.headers:
+            prefix = 'X-Storlet-'
+            if key.startswith(prefix) and key not in filtered_key:
+                new_key = 'storlet_' + \
+                    key[len(prefix):].lower().replace('-', '_')
+                options[new_key] = req.headers.get(key)
+
+        scope = self.account
+        if scope.rfind(':') > 0:
+            scope = scope[:scope.rfind(':')]
+
+        options['scope'] = self.scope
+
+        options['generate_log'] = \
+            config_true_value(req.headers.get('X-Storlet-Generate-Log'))
+
+        options['file_manager'] = \
+            SwiftFileManager(self.account, self.storlet_container,
+                             self.storlet_dependency, self.log_container,
+                             self.client_conf_file, self.logger)
+
+        return options
 
     def _augment_storlet_request(self, req):
         """
@@ -74,38 +115,34 @@ class VertigoGatewayStorlet():
 
         return True
 
-    def _set_storlet_request(self, req_resp, params):
+    def _build_storlet_request(self, req_resp, params, data_iter):
+        storlet_id = self.storlet_name
 
-        self.gateway_docker = self.gateway_module(self.conf, self.logger,
-                                                  self.app, self.account)
-
-        self.gateway_method = getattr(self.gateway_docker, "gateway" +
-                                      self.server.title() +
-                                      self.method.title() + "Flow")
-
-        """ Simulate Storlet request """
         new_env = dict(req_resp.environ)
-        sreq = Request.blank(new_env['PATH_INFO'], new_env)
+        req = Request.blank(new_env['PATH_INFO'], new_env)
 
-        sreq.headers['X-Run-Storlet'] = self.storlet_name
-        self._augment_storlet_request(sreq)
-        sreq.environ['QUERY_STRING'] = params
+        req.environ['QUERY_STRING'] = params
+        req.headers['X-Run-Storlet'] = self.storlet_name
+        self._augment_storlet_request(req)
+        options = self._get_storlet_invocation_options(req)
+
+        if hasattr(data_iter, '_fp'):
+            sreq = self.sreq_class(storlet_id, req.params, dict(),
+                                   data_fd=data_iter._fp.fileno(),
+                                   options=options)
+        else:
+            sreq = self.sreq_class(storlet_id, req.params, dict(),
+                                   data_iter, options=options)
 
         return sreq
 
-    def _run_storlet(self, req_resp, params, vertigo_iter):
-        sreq = self._set_storlet_request(req_resp, params)
-
-        if self.method == 'PUT':
-            sresp = self.gateway_method(sreq, vertigo_iter)
-        elif self.method == 'GET':
-            sresp = self.gateway_method(sreq, req_resp, vertigo_iter)
+    def _call_gateway(self, req_resp, params, data_iter):
+        sreq = self._build_storlet_request(req_resp, params, data_iter)
+        sresp = self.gateway.invocation_flow(sreq)
 
         return sresp.data_iter
 
-    def execute_storlets(self, req_resp, storlet_list):
-        vertigo_iter = None
-        storlet_executed = False
+    def run(self, req_resp, storlet_list, data_iter):
         on_other_server = {}
 
         # Execute multiple Storlets, PIPELINE, if any.
@@ -113,17 +150,15 @@ class VertigoGatewayStorlet():
             storlet, params, server = self._get_storlet_data(storlet_list[key])
 
             if server == self.server:
+                self._setup_gateway()
                 self.logger.info('Vertigo - Go to execute ' + storlet +
                                  ' storlet with parameters "' + params + '"')
 
                 if not self._verify_access_to_storlet(storlet):
                     return HTTPUnauthorized('Vertigo - Storlet ' + storlet +
                                             ': No permission')
-
-                vertigo_iter = self._run_storlet(
-                    req_resp, params, vertigo_iter)
-                storlet_executed = True
-
+                self._setup_gateway()
+                data_iter = self._call_gateway(req_resp, params, data_iter)
             else:
                 storlet_execution = {'storlet': storlet,
                                      'params': params,
@@ -134,10 +169,9 @@ class VertigoGatewayStorlet():
         if on_other_server:
             req_resp.headers['Storlet-List'] = json.dumps(on_other_server)
 
-        if storlet_executed:
-            if isinstance(req_resp, Request):
-                req_resp.environ['wsgi.input'] = vertigo_iter
-            else:
-                req_resp.app_iter = vertigo_iter
+        if isinstance(req_resp, Request):
+            req_resp.environ['wsgi.input'] = data_iter
+        else:
+            req_resp.app_iter = data_iter
 
         return req_resp

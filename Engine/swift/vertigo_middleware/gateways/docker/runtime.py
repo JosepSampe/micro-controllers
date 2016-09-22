@@ -6,6 +6,7 @@ import json
 import os
 import subprocess
 import time
+import cmd
 
 SBUS_FD_INPUT_OBJECT = 0
 SBUS_FD_OUTPUT_OBJECT = 1
@@ -24,7 +25,6 @@ class RunTimeSandbox(object):
     """
 
     def __init__(self, logger, conf, account):
-        self.account = account[5:]
         self.scope = account[5:18]
         self.conf = conf
         self.logger = logger
@@ -54,7 +54,7 @@ class RunTimeSandbox(object):
         container_name = '%s_%s' % (self.docker_img_prefix, self.scope)
 
         if not self._is_started(container_name):
-            docker_image_name = '%s/%s' % (self.docker_repo, self.account)
+            docker_image_name = '%s/%s' % (self.docker_repo, self.scope)
 
             host_pipe_prefix = self.conf["pipes_dir"] + "/" + self.scope
             sandbox_pipe_prefix = "/mnt/channels"
@@ -77,6 +77,8 @@ class RunTimeSandbox(object):
             self.logger.info('Vertigo - Starting container ' +
                              container_name + ' ...')
 
+            print cmd
+            
             p = subprocess.call(cmd, shell=True)
 
             if p == 0:

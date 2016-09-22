@@ -283,12 +283,11 @@ def set_microcontroller(vertigo, trigger, mc):
         data_file = get_data_file(vertigo)
         metadata = get_swift_metadata(data_file)
         metadata[VERTIGO_MC_HEADER] = mc_dict
-
-        sysmeta_key = SYSMETA_HEADER + trigger + '-' + mc
+        sysmeta_key = (SYSMETA_HEADER + trigger + '-' + mc).title()
         if specific_md:
             metadata[sysmeta_key] = specific_md
         else:
-            if SYSMETA_HEADER + trigger + '-' + mc in metadata:
+            if sysmeta_key in metadata:
                 del metadata[sysmeta_key]
 
         set_swift_metadata(data_file, metadata)
@@ -342,20 +341,25 @@ def delete_microcontroller(vertigo, trigger, mc):
                     del metadata[key]
         else:
             if metadata[VERTIGO_MC_HEADER]:
+                if isinstance(metadata[VERTIGO_MC_HEADER], dict):
+                    mc_dict = metadata[VERTIGO_MC_HEADER]
+                else:
+                    mc_dict = eval(metadata[VERTIGO_MC_HEADER])
                 if mc == 'all':
-                    mc_list = metadata[VERTIGO_MC_HEADER][trigger]
-                    metadata[VERTIGO_MC_HEADER][trigger] = None
+                    mc_list = mc_dict[trigger]
+                    mc_dict[trigger] = None
                     for mc_k in mc_list:
                         sysmeta_key = SYSMETA_HEADER + trigger + '-' + mc_k
                         if sysmeta_key in metadata:
                             del metadata[sysmeta_key]
-                elif mc in metadata[VERTIGO_MC_HEADER][trigger]:
-                    metadata[VERTIGO_MC_HEADER][trigger].remove(mc)
+                elif mc in mc_dict[trigger]:
+                    mc_dict[trigger].remove(mc)
                     sysmeta_key = SYSMETA_HEADER + trigger + '-' + mc
                     if sysmeta_key in metadata:
                         del metadata[sysmeta_key]
                 else:
                     raise
+                metadata[VERTIGO_MC_HEADER] = mc_dict
                 metadata = clean_microcontroller_dict(metadata)
             else:
                 raise

@@ -96,7 +96,7 @@ def filter_factory(global_conf, **local_conf):
     cl = module_name[module_name.rfind(':') + 1:]
     module = __import__(mo, fromlist=[cl])
     the_class = getattr(module, cl)
-    vertigo_conf["storlet_gateway_module"] = the_class
+    vertigo_conf["storlets_gateway_module"] = the_class
 
     def swift_vertigo(app):
         return VertigoHandlerMiddleware(app, global_conf, vertigo_conf)

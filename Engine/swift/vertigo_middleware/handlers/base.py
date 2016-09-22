@@ -169,7 +169,7 @@ class VertigoBaseHandler(object):
         """
         Determines whether the request is over any vertigo container
         """
-        pass
+        return self.container in self.vertigo_containers
 
     @property
     def is_trigger_assignation(self):
@@ -219,7 +219,8 @@ class VertigoBaseHandler(object):
         in GET flow
         """
         self._setup_storlet_gateway()
-        return self.storlet_gateway.execute_storlets(resp, storlet_list)
+        data_iter = resp.app_iter
+        return self.storlet_gateway.run(resp, storlet_list, data_iter)
 
     def apply_storlet_on_put(self, req, storlet_list):
         """
@@ -227,7 +228,8 @@ class VertigoBaseHandler(object):
         in PUT flow
         """
         self._setup_storlet_gateway()
-        self.request = self.storlet_gateway.execute_storlets(req, storlet_list)
+        data_iter = req.environ['wsgi.input']
+        self.request = self.storlet_gateway.run(req, storlet_list, data_iter)
 
         if 'CONTENT_LENGTH' in self.request.environ:
             self.request.environ.pop('CONTENT_LENGTH')

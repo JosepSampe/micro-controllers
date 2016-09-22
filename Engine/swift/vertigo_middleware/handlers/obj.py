@@ -38,12 +38,15 @@ class VertigoObjectHandler(VertigoBaseHandler):
         return self.request.headers['mc-enabled'] == 'True'
 
     @property
-    def is_vertigo_valid_request(self):
+    def is_valid_request(self):
+        """
+        Determines if is a Vertigo valid request
+        """
         return not self.is_copy_request and not self.is_slo_get_request \
-            and self.is_mc_enabled
+            and self.is_mc_enabled and not self.is_vertigo_container_request
 
     def handle_request(self):
-        if hasattr(self, self.method) and self.is_vertigo_valid_request:
+        if hasattr(self, self.request.method) and self.is_valid_request:
             try:
                 handler = getattr(self, self.request.method)
                 getattr(handler, 'publicly_accessible')

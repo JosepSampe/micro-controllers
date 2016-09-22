@@ -65,8 +65,9 @@ class VertigoGatewayDocker():
         :param container: container name
         :param object_name: Name of the microcontroller or dependency
         """
-        cache_target_path = os.path.join(
-            self.conf["cache_dir"], self.scope, 'vertigo', swift_container)
+        cache_target_path = os.path.join(self.conf["cache_dir"],
+                                         self.scope, 'vertigo',
+                                         swift_container)
         cache_target_obj = os.path.join(cache_target_path, object_name)
 
         if not os.path.exists(cache_target_path):
@@ -104,8 +105,7 @@ class VertigoGatewayDocker():
                              '/' + obj_name + ' not found in cache.')
             self._update_cache(swift_container, obj_name)
         else:
-            # DELETE!!!!!!!!!!!!!!!
-            self._update_cache(swift_container, obj_name)
+            self._update_cache(swift_container, obj_name)  # DELETE! (Only for test purposes)
             self.logger.info('Vertigo - ' + swift_container +
                              '/' + obj_name + ' in cache.')
 
