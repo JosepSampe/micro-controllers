@@ -18,33 +18,6 @@ class VertigoObjectHandler(VertigoBaseHandler):
             5, 5, rest_with_last=True)
         return ('v1', acc, cont, obj)
 
-    @property
-    def is_slo_get_request(self):
-        """
-        Determines from a GET request and its  associated response
-        if the object is a SLO
-        """
-        return self.request.params.get('multipart-manifest') == 'get'
-
-    @property
-    def is_copy_request(self):
-        """
-        Determines from a GET request if is a copy request
-        """
-        return 'X-Copy-From' in self.request.headers
-
-    @property
-    def is_mc_enabled(self):
-        return self.request.headers['mc-enabled'] == 'True'
-
-    @property
-    def is_valid_request(self):
-        """
-        Determines if is a Vertigo valid request
-        """
-        return not self.is_copy_request and not self.is_slo_get_request \
-            and self.is_mc_enabled and not self.is_vertigo_container_request
-
     def handle_request(self):
         if hasattr(self, self.request.method) and self.is_valid_request:
             try:

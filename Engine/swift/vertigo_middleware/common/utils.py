@@ -349,12 +349,12 @@ def delete_microcontroller(vertigo, trigger, mc):
                     mc_list = mc_dict[trigger]
                     mc_dict[trigger] = None
                     for mc_k in mc_list:
-                        sysmeta_key = SYSMETA_HEADER + trigger + '-' + mc_k
+                        sysmeta_key = (SYSMETA_HEADER + trigger + '-' + mc_k).title()
                         if sysmeta_key in metadata:
                             del metadata[sysmeta_key]
                 elif mc in mc_dict[trigger]:
                     mc_dict[trigger].remove(mc)
-                    sysmeta_key = SYSMETA_HEADER + trigger + '-' + mc
+                    sysmeta_key = (SYSMETA_HEADER + trigger + '-' + mc).title()
                     if sysmeta_key in metadata:
                         del metadata[sysmeta_key]
                 else:

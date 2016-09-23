@@ -50,13 +50,8 @@ class VertigoProxyHandler(VertigoBaseHandler):
         # TODO: Execute microcontrollers
         return response
 
-    @property
-    def is_vertigo_object_put(self):
-        return (self.container in self.vertigo_containers and self.obj and
-                self.request.method == 'PUT')
-
     def handle_request(self):
-        if hasattr(self, self.request.method):
+        if hasattr(self, self.request.method) and self.is_valid_request:
             try:
                 handler = getattr(self, self.request.method)
                 getattr(handler, 'publicly_accessible')
@@ -156,13 +151,25 @@ class VertigoProxyHandler(VertigoBaseHandler):
         """
         if self.is_trigger_assignation:
             _, micro_controller = self.get_mc_assignation_data()
-            self._verify_access(self.container, self.obj)
+            response = self._verify_access(self.container, self.obj)
+            if response.headers['Content-Type'] == 'vertigo/link':
+                link = response.headers["X-Object-Sysmeta-Vertigo-Link-to"]
+                container, obj = link.split('/', 2)
+                self._verify_access(container, obj)
+                new_path = os.path.join('/', self.api_version, self.account, container, obj)
+                self.request.environ['PATH_INFO'] = new_path
             self._verify_access(self.mc_container, micro_controller)
             self._augment_empty_request()
             response = self.request.get_response(self.app)
 
         elif self.is_trigger_deletion:
-            self._verify_access(self.container, self.obj)
+            response = self._verify_access(self.container, self.obj)
+            if response.headers['Content-Type'] == 'vertigo/link':
+                link = response.headers["X-Object-Sysmeta-Vertigo-Link-to"]
+                container, obj = link.split('/', 2)
+                self._verify_access(container, obj)
+                new_path = os.path.join('/', self.api_version, self.account, container, obj)
+                self.request.environ['PATH_INFO'] = new_path
             self._augment_empty_request()
             response = self.request.get_response(self.app)
 

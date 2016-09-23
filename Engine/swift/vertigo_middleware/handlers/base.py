@@ -172,6 +172,41 @@ class VertigoBaseHandler(object):
         return self.container in self.vertigo_containers
 
     @property
+    def is_vertigo_object_put(self):
+        return (self.container in self.vertigo_containers and self.obj and
+                self.request.method == 'PUT')
+
+    @property
+    def is_slo_get_request(self):
+        """
+        Determines from a GET request and its  associated response
+        if the object is a SLO
+        """
+        return self.request.params.get('multipart-manifest') == 'get'
+
+    @property
+    def is_copy_request(self):
+        """
+        Determines from a GET request if is a copy request
+        """
+        return 'X-Copy-From' in self.request.headers
+
+    @property
+    def is_mc_disabled(self):
+        if 'mc-enabled' in self.request.headers:
+            return self.request.headers['mc-enabled'] == 'False'
+        else:
+            return False
+
+    @property
+    def is_valid_request(self):
+        """
+        Determines if is a Vertigo valid request
+        """
+        return not any([self.is_copy_request, self.is_slo_get_request,
+                        self.is_mc_disabled, self.is_vertigo_container_request])
+
+    @property
     def is_trigger_assignation(self):
         return any((True for x in self.available_assignation_headers
                     if x in self.request.headers.keys()))
