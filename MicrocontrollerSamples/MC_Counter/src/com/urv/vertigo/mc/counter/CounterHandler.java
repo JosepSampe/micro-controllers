@@ -32,6 +32,9 @@ public class CounterHandler implements IMicrocontroller {
 		Long accessed = api.object.metadata.incr("Accessed");
 		api.object.metadata.set("Last-Access", strDate);
 		
+		
+		api.logger.emitLog(api.microcontroller.metadata.toString());
+		
 		// Microcontroller specific metadata
 		api.microcontroller.metadata.put("accessed", accessed);
 		api.microcontroller.metadata.put("last_access", strDate);
@@ -40,7 +43,7 @@ public class CounterHandler implements IMicrocontroller {
 		//if (accessed > 10)
 		//	api.object.move("data_2/adult.csv");
 		
-
+		/*
 		try {
 			
 			BufferedReader reader = api.object.get();
@@ -49,9 +52,9 @@ public class CounterHandler implements IMicrocontroller {
 
 			
 		} catch (IOException e) {
-			api.logger.emitLog("Error");
+			api.logger.emitLog("Error getting object from swift");
 		}
-		
+		*/
 
 		api.logger.emitLog("---------- NEW INFORMATION ----------");
 		api.logger.emitLog("Accessed: " + Long.toString(accessed));

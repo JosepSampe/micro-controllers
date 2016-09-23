@@ -24,8 +24,8 @@ public class ApiObject {
 		object = currentObject;
 		swift = apiSwift;
 		logger_ = logger;
-		objectMetadata.entrySet().removeIf(entry -> entry.getKey().startsWith("X-Object-Sysmeta-Vertigo"));
-		objectMetadata.entrySet().removeIf(entry -> entry.getKey().startsWith("X-Object-Meta"));
+		//objectMetadata.entrySet().removeIf(entry -> entry.getKey().startsWith("X-Object-Sysmeta-Vertigo"));
+		//objectMetadata.entrySet().removeIf(entry -> entry.getKey().startsWith("X-Object-Meta"));
 		metadata = new Metadata();
 		
 		timestamp = objectMetadata.get("X-Timestamp");

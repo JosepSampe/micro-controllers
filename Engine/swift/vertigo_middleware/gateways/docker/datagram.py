@@ -5,8 +5,6 @@ import syslog
 SBUS_FD_OUTPUT_OBJECT = 1
 SBUS_CMD_NOP = 9
 
-'''------------------------------------------------------------------------'''
-
 
 class Datagram(object):
     '''@summary: This class aggregates data to be transferred
@@ -15,8 +13,6 @@ class Datagram(object):
 
     command_dict_key_name_ = 'command'
     task_id_dict_key_name_ = 'taskId'
-
-    '''--------------------------------------------------------------------'''
 
     def __init__(self):
         '''@summary:              CTOR
@@ -40,11 +36,8 @@ class Datagram(object):
         self.files_metadata_ = None
         self.exec_params_ = None
 
-    '''--------------------------------------------------------------------'''
-
     @staticmethod
-    def create_service_datagram(command,
-                                outfd):
+    def create_service_datagram(command, outfd):
         '''@summary:       Datagram static factory.
                         Create "service" datagram, i.e.
                         - command shall be one of
@@ -70,12 +63,7 @@ class Datagram(object):
         dtg.set_metadata(meta)
         return dtg
 
-    '''--------------------------------------------------------------------'''
-
-    def from_raw_data(self,
-                      h_files,
-                      str_json_metadata,
-                      str_json_params):
+    def from_raw_data(self, h_files, str_json_metadata, str_json_params):
         '''@summary:                 CTOR
                                   Construct object from file list and
                                   two JSON-encoded strings.
@@ -91,10 +79,7 @@ class Datagram(object):
         self.extract_metadata(str_json_metadata)
         self.extract_params(str_json_params)
 
-    '''--------------------------------------------------------------------'''
-
-    def extract_metadata(self,
-                         str_json_metadata):
+    def extract_metadata(self, str_json_metadata):
         '''@summary:                 Extract files_metadata array
                                   of dictionaries form a JSON string
         @requires:                n_files_ has to be se
@@ -108,8 +93,6 @@ class Datagram(object):
             for i in range(self.get_num_files()):
                 str_curr_metadata = all_metadata[str(i)]
                 self.files_metadata_.append(json.loads(str_curr_metadata))
-
-    '''--------------------------------------------------------------------'''
 
     def extract_params(self, str_json_params):
         '''@summary:               Extract command field and exec_params
@@ -135,8 +118,6 @@ class Datagram(object):
         else:
             self.exec_params_ = None
 
-    '''--------------------------------------------------------------------'''
-
     def get_params_and_cmd_as_json(self):
         '''@summary: Convert command field and execution parameters
                   dictionary into JSON as the following -
@@ -158,8 +139,6 @@ class Datagram(object):
         str_result = json.dumps(exec_params)
         return str_result
 
-    '''--------------------------------------------------------------------'''
-
     def get_files_metadata_as_json(self):
         '''@summary: Encode the list of dictionaries into JSON as the following
                   1. Create a combined dictionary (Integer-to-String)
@@ -177,8 +156,6 @@ class Datagram(object):
             str_result = json.dumps(all_metadata)
         return str_result
 
-    '''--------------------------------------------------------------------'''
-
     def get_num_files(self):
         '''@summary: Getter.
         @return:  The quantity of file descriptors.
@@ -186,16 +163,12 @@ class Datagram(object):
         '''
         return self.n_files_
 
-    '''--------------------------------------------------------------------'''
-
     def get_files(self):
         '''@summary: Getter.
         @return:  The list of file descriptors.
         @rtype:   List of integers
         '''
         return self.h_files_
-
-    '''--------------------------------------------------------------------'''
 
     def set_files(self, h_files):
         '''@summary:       Setter.
@@ -217,8 +190,6 @@ class Datagram(object):
                 else:
                     self.h_files_.append(h_files[i])
 
-    '''--------------------------------------------------------------------'''
-
     def get_first_file_of_type(self, file_type):
         '''@summary:         Iterate through file list and metadata.
                           Find the first file with the required type
@@ -237,16 +208,12 @@ class Datagram(object):
                                   'Failed to open file: %s' % err.strerror)
         return required_file
 
-    '''--------------------------------------------------------------------'''
-
     def get_metadata(self):
         '''@summary: Getter.
         @return:  The list of meta-data dictionaries.
         @rtype:   List of dictionaries
         '''
         return self.files_metadata_
-
-    '''--------------------------------------------------------------------'''
 
     def set_metadata(self, metadata):
         '''@summary:        Setter.
@@ -257,16 +224,12 @@ class Datagram(object):
         '''
         self.files_metadata_ = metadata
 
-    '''--------------------------------------------------------------------'''
-
     def get_exec_params(self):
         '''@summary: Getter.
         @return:  The execution parameters dictionary.
         @rtype:   Dictionary
         '''
         return self.exec_params_
-
-    '''--------------------------------------------------------------------'''
 
     def set_exec_params(self, params):
         '''@summary:      Setter.
@@ -276,8 +239,6 @@ class Datagram(object):
         @rtype:        void
         '''
         self.exec_params_ = params
-
-    '''--------------------------------------------------------------------'''
 
     def add_exec_param(self, param_name, param_value):
         '''@summary:        Add a single pair to the exec_params_ dictionary
@@ -300,16 +261,12 @@ class Datagram(object):
             self.get_exec_params()[param_name] = param_value
         return b_status
 
-    '''--------------------------------------------------------------------'''
-
     def get_command(self):
         '''@summary: Getter.
         @return:  The Storlet Daemon command.
         @rtype:   SBusStorletCommand
         '''
         return self.e_command_
-
-    '''--------------------------------------------------------------------'''
 
     def set_command(self, cmd):
         '''@summary:   Setter.
@@ -320,16 +277,12 @@ class Datagram(object):
         '''
         self.e_command_ = cmd
 
-    '''--------------------------------------------------------------------'''
-
     def get_task_id(self):
         '''@summary: Getter.
         @return:  The task id.
         @rtype:   string
         '''
         return self.task_id_
-
-    '''--------------------------------------------------------------------'''
 
     def set_task_id(self, taskId):
         '''@summary:   Setter.
@@ -339,8 +292,6 @@ class Datagram(object):
         @rtype:     void
         '''
         self.task_id_ = taskId
-
-    '''--------------------------------------------------------------------'''
 
     @staticmethod
     def dictionaies_equal(d1, d2):

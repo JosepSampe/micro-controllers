@@ -170,7 +170,7 @@ public class DockerDaemon {
 			String strFDtype = FilesMD[i].get("type");
 			
 			if (strFDtype.equals("SBUS_FD_OUTPUT_OBJECT")) {
-				toSwift = dtg.getFiles()[i];			
+				toSwift = dtg.getFiles()[i];
 				logger_.trace("Got Microcontroller output fd");
 				
 			} else if (strFDtype.equals("SBUS_FD_INPUT_OBJECT")){

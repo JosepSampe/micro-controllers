@@ -1,11 +1,8 @@
-import ctypes
-
 from datagram import Datagram
 from ctypes import c_char_p
 from ctypes import c_int
 from ctypes import POINTER
-
-'''------------------------------------------------------------------------'''
+import ctypes
 
 
 class Bus(object):
@@ -14,13 +11,10 @@ class Bus(object):
     '''
     SBUS_SO_NAME = '/usr/local/lib/python2.7/dist-packages/sbus.so'
 
-    '''--------------------------------------------------------------------'''
-
     def __init__(self):
         '''@summary:             CTOR
                               Setup argument types mappings.
         '''
-
         # load the C-library
         self.sbus_back_ = ctypes.CDLL(Bus.SBUS_SO_NAME)
 
@@ -52,8 +46,6 @@ class Bus(object):
                                                   POINTER(c_int)]
         self.sbus_back_.sbus_recv_msg.restype = c_int
 
-    '''--------------------------------------------------------------------'''
-
     @staticmethod
     def start_logger(str_log_level='DEBUG', container_id=None):
         '''@summary:             Start logger.
@@ -68,8 +60,6 @@ class Bus(object):
         sbus_back_.sbus_start_logger.argtypes = [c_char_p, c_char_p]
         sbus_back_.sbus_start_logger(str_log_level, container_id)
 
-    '''--------------------------------------------------------------------'''
-
     @staticmethod
     def stop_logger():
         '''@summary: Stop logger.
@@ -78,8 +68,6 @@ class Bus(object):
         # load the C-library
         sbus_back_ = ctypes.CDLL(Bus.SBUS_SO_NAME)
         sbus_back_.sbus_stop_logger()
-
-    '''--------------------------------------------------------------------'''
 
     def create(self, sbus_name):
         '''@summary:         Instantiate an SBus. A wrapper for C function.
@@ -90,8 +78,6 @@ class Bus(object):
         '''
         return self.sbus_back_.sbus_create(sbus_name)
 
-    '''--------------------------------------------------------------------'''
-
     def listen(self, sbus_handler):
         '''@summary:            Listen to the SBus.
                              Suspend the executing thread.
@@ -101,8 +87,6 @@ class Bus(object):
         @rtype:              integer
         '''
         return self.sbus_back_.sbus_listen(sbus_handler)
-
-    '''--------------------------------------------------------------------'''
 
     def receive(self, sbus_handler):
         '''@summary:            Read the data from SBus.
@@ -155,8 +139,6 @@ class Bus(object):
                                      str_metadata,
                                      str_params)
         return result_dtg
-
-    '''--------------------------------------------------------------------'''
 
     @staticmethod
     def send(sbus_name, datagram):
