@@ -52,6 +52,7 @@ class VertigoGatewayDocker():
                                              self.logger_path,
                                              dict(self.request.headers),
                                              self.response.headers,
+                                             mc_list,
                                              mc_metadata,
                                              self.mc_timeout,
                                              self.logger)

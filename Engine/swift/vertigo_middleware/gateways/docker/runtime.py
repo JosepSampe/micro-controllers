@@ -78,7 +78,7 @@ class RunTimeSandbox(object):
                              container_name + ' ...')
 
             print cmd
-            
+
             p = subprocess.call(cmd, shell=True)
 
             if p == 0:
@@ -134,16 +134,17 @@ class MicroController(object):
 class VertigoInvocationProtocol(object):
 
     def __init__(self, object_path, mc_pipe_path, mc_logger_path, req_headers,
-                 object_headers, mc_metadata, timeout, logger):
+                 object_headers, mc_list, mc_metadata, timeout, logger):
         self.logger = logger
         self.mc_pipe_path = mc_pipe_path
         self.mc_logger_path = mc_logger_path
         self.timeout = timeout
         self.req_md = req_headers
         self.object_md = object_headers
-        self.mc_md = mc_metadata  # Micro-controller metadata
+        self.mc_list = mc_list  # Ordered microcontroller execution list
+        self.mc_md = mc_metadata  # Microcontroller metadata
         self.object_path = object_path  # Path of requested object
-        self.microcontrollers = list()  # Micro-controller object list
+        self.microcontrollers = list()  # Microcontroller object list
 
         # remote side file descriptors and their metadata lists
         # to be sent as part of invocation
@@ -219,25 +220,39 @@ class VertigoInvocationProtocol(object):
     def _wait_for_read_with_timeout(self, fd):
         r, _, _ = select.select([fd], [], [], self.timeout)
         if len(r) == 0:
-            if self.task_id:
-                self._cancel()
-            raise Timeout('Timeout while waiting for Micro-controller output')
+            raise Timeout('Timeout while waiting for Microcontroller output')
         if fd in r:
             return
 
     def _read_response(self):
-        self._wait_for_read_with_timeout(self.response_read_fd)
-        flat_json = os.read(self.response_read_fd, 1024)
+        mc_response = dict()
+        for mc_name in self.mc_list:
+            self._wait_for_read_with_timeout(self.response_read_fd)
+            flat_json = os.read(self.response_read_fd, 1024)
+            mc_response[mc_name] = json.loads(flat_json)
 
-        if flat_json == "{}":
-            out_data = None
-        else:
-            out_data = json.loads(flat_json)
+        out_data = dict()
+        for mc_name in self.mc_list:
+            command = mc_response[mc_name]['command']
+            if command == 'CANCEL':
+                out_data['command'] = command
+                out_data['message'] = mc_response[mc_name]['message']
+                break
+            if command == 'STORLET':
+                out_data['command'] = command
+                if 'list' not in out_data:
+                    out_data['list'] = dict()
+                for k in sorted(mc_response[mc_name]['list']):
+                    new_key = len(out_data['list'])
+                    out_data['list'][new_key] = mc_response[mc_name]['list'][k]
+            if command == 'CONTINUE':
+                if 'command' not in out_data:
+                    out_data['command'] = command
 
         return out_data
 
     def communicate(self):
-        for mc_name in self.mc_md.keys():
+        for mc_name in self.mc_list:
             mc = MicroController(self.object_path,
                                  self.mc_logger_path,
                                  mc_name,
