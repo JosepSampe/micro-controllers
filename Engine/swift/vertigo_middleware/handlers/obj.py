@@ -108,6 +108,11 @@ class VertigoObjectHandler(VertigoBaseHandler):
 
             response = Response(body=msg, headers={'etag': ''},
                                 request=self.request)
+
+        elif self.request.headers['Content-Type'] == 'vertigo/link':
+            response = self.request.get_response(self.app)
+            response.headers['Content-Type'] = 'vertigo/link'
+
         else:
             response = self.request.get_response(self.app)
 

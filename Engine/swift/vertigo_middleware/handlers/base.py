@@ -255,7 +255,16 @@ class VertigoBaseHandler(object):
         """
         self._setup_storlet_gateway()
         data_iter = resp.app_iter
-        return self.storlet_gateway.run(resp, storlet_list, data_iter)
+        response = self.storlet_gateway.run(resp, storlet_list, data_iter)
+
+        if 'Content-Length' in response.headers:
+            response.headers.pop('Content-Length')
+        if 'Transfer-Encoding' in response.headers:
+            response.headers.pop('Transfer-Encoding')
+        if 'Etag' in response.headers:
+            response.headers['Etag'] = ''
+
+        return response
 
     def apply_storlet_on_put(self, req, storlet_list):
         """

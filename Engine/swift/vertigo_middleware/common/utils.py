@@ -163,13 +163,14 @@ def verify_access(vertigo, path):
     return sub_req.get_response(vertigo.app)
 
 
-def create_link(vertigo, link_path, dest_path):
+def create_link(vertigo, link_path, dest_path, heads):
     """
     Creates a link to a real object
 
     :param vertigo: swift_vertigo.vertigo_handler.VertigoProxyHandler instance
     :param link_path: swift path of the link
     :param dest_path: swift path of the object to link
+    :param headers: original object headers
     """
     vertigo.logger.debug('Vertigo - Creating link from %s to %s' % (link_path,
                                                                     dest_path))
@@ -185,11 +186,13 @@ def create_link(vertigo, link_path, dest_path):
 
     link_path = os.path.join('/', vertigo.api_version,
                              vertigo.account, link_path)
+
     sub_req = make_subrequest(
         new_env, 'PUT', link_path,
         headers={'X-Auth-Token': auth_token,
                  'Content-Length': 0,
                  'Content-Type': 'vertigo/link',
+                 'Original-Content-Length': heads["Content-Length"],
                  'X-Object-Sysmeta-Vertigo-Link-to': dest_path},
         swift_source='Vertigo')
     resp = sub_req.get_response(vertigo.app)

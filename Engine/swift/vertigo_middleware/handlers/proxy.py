@@ -142,6 +142,11 @@ class VertigoProxyHandler(VertigoBaseHandler):
             storlet_list = json.loads(response.headers.pop('Storlet-List'))
             response = self.apply_storlet_on_get(response, storlet_list)
 
+        if 'Content-Length' not in response.headers:
+            response.headers['Content-Length'] = None
+            if 'Transfer-Encoding' in response.headers:
+                response.headers.pop('Transfer-Encoding')
+
         return response
 
     @public
@@ -181,13 +186,14 @@ class VertigoProxyHandler(VertigoBaseHandler):
             dest_path = self.request.headers['X-Vertigo-Link-To']
             if link_path != dest_path:
                 response = self._verify_access(self.container, self.obj)
+                headers = response.headers
                 if "X-Object-Sysmeta-Vertigo-Link-to" not in response.headers \
                         and response.headers['Content-Type'] != 'vertigo/link':
                     self.request.method = 'COPY'
                     self.request.headers['Destination'] = dest_path
                     response = self.request.get_response(self.app)
                 if response.is_success:
-                    response = create_link(self, link_path, dest_path)
+                    response = create_link(self, link_path, dest_path, headers)
             else:
                 msg = ("Vertigo - Error: Link path and destination path "
                        "cannot be the same.\n")

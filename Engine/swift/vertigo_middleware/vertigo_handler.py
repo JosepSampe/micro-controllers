@@ -37,8 +37,9 @@ class VertigoHandlerMiddleware(object):
         try:
             request_handler = self.handler_class(
                 req, self.vertigo_conf, self.app, self.logger)
-            self.logger.debug('vertigo_handler call in %s with %s/%s/%s' %
-                              (self.exec_server, request_handler.account,
+            self.logger.debug('vertigo_handler %s call in %s with %s/%s/%s' %
+                              (req.method, self.exec_server,
+                               request_handler.account,
                                request_handler.container,
                                request_handler.obj))
         except HTTPException:
