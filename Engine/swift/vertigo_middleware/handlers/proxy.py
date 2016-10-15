@@ -1,6 +1,6 @@
 from vertigo_middleware.handlers import VertigoBaseHandler
 from vertigo_middleware.common.utils import verify_access, create_link
-from swift.common.swob import HTTPMethodNotAllowed, HTTPNotFound, Response
+from swift.common.swob import HTTPMethodNotAllowed, HTTPNotFound, HTTPUnauthorized, Response
 from swift.common.utils import public, cache_from_env
 from swift.common.wsgi import make_subrequest
 import pickle
@@ -84,10 +84,47 @@ class VertigoProxyHandler(VertigoBaseHandler):
         response = verify_access(self, path)
 
         if not response.is_success:
-            raise HTTPNotFound('Vertigo - Object error: "' + cont + '/' +
-                               obj + '" doesn\'t exists in Swift.\n')
+            if response.status_int == 401:
+                raise HTTPUnauthorized('Unauthorized to access to this '
+                                       ' resource: ' + cont + '/' + obj + '\n')
+            else:
+                raise HTTPNotFound('Vertigo - Object error: "' + cont + '/' +
+                                   obj + '" doesn\'t exists in Swift.\n')
         else:
             return response
+
+    def _get_object_list(self, path):
+        """
+        Gets an object list of a specifiesd path. The path may be '*', that means
+        it returns all objects inside the container or a pseudo-folder, that means
+        it only returns the objects inside the pseudo-folder.
+        :param path: pseudo-folder path (ended with *), or '*'
+        :return: list of objects
+        """
+        obj_list = list()
+
+        dest_path = os.path.join('/', self.api_version, self.account, self.container)
+        new_env = dict(self.request.environ)
+        auth_token = self.request.headers.get('X-Auth-Token')
+
+        if path == '*':
+            # All objects inside a container hierarchy
+            obj_list.append('')
+        else:
+            # All objects inside a pseudo-folder hierarchy
+            obj_split = self.obj.rsplit('/', 1)
+            pseudo_folder = obj_split[0] + '/'
+            new_env['QUERY_STRING'] = 'prefix='+pseudo_folder
+
+        sub_req = make_subrequest(new_env, 'GET', dest_path,
+                                  headers={'X-Auth-Token': auth_token},
+                                  swift_source='Vertigo')
+        response = sub_req.get_response(self.app)
+        for obj in response.body.split('\n'):
+            if obj != '':
+                obj_list.append(obj)
+
+        return obj_list
 
     def _get_linked_object(self, dest_obj):
         """
@@ -102,6 +139,57 @@ class VertigoProxyHandler(VertigoBaseHandler):
                                   swift_source='Vertigo')
 
         return sub_req.get_response(self.app)
+
+    def _get_pseudo_folder_metadata(self, psudo_folder):
+        """
+        Makes a HEAD to the specified pseudo-folder (7ms overhead)
+        :param dest_obj: container/object
+        :return: swift.common.swob.Response Instance
+        """
+        dest_path = os.path.join('/', self.api_version, self.account, self.container, psudo_folder)
+        new_env = dict(self.request.environ)
+        auth_token = self.request.headers.get('X-Auth-Token')
+        sub_req = make_subrequest(new_env, 'HEAD', dest_path,
+                                  headers={'X-Auth-Token': auth_token},
+                                  swift_source='Vertigo')
+        response = sub_req.get_response(self.app)
+        return response.headers
+
+    def _process_trigger_assignation_deletion_request(self):
+        """
+        Process both trigger assignation and trigger deletion ovwer an object
+        or a group of objects
+        """
+        self.request.method = 'PUT'
+        obj_list = list()
+        if self.is_trigger_assignation:
+            _, micro_controller = self.get_mc_assignation_data()
+            self._verify_access(self.mc_container, micro_controller)
+
+        if '*' in self.obj:
+            obj_list = self._get_object_list(self.obj)
+        else:
+            obj_list.append(self.obj)
+
+        specific_md = self.request.body
+
+        for obj in obj_list:
+            self.request.body = specific_md
+            response = self._verify_access(self.container, obj)
+            new_path = os.path.join('/', self.api_version, self.account, self.container, obj)
+            if response.headers['Content-Type'] == 'vertigo/link':
+                link = response.headers["X-Object-Sysmeta-Vertigo-Link-to"]
+                container, obj = link.split('/', 2)
+                self._verify_access(container, obj)
+                new_path = os.path.join('/', self.api_version, self.account, container, obj)
+            self.request.environ['PATH_INFO'] = new_path
+            self._augment_empty_request()
+
+            response = self.request.get_response(self.app)
+
+            print response.body
+
+        return response
 
     def _check_microcntroller_execution(self, obj):
         user_agent = self.request.headers['User-Agent']
@@ -154,29 +242,8 @@ class VertigoProxyHandler(VertigoBaseHandler):
         """
         PUT handler on Proxy
         """
-        if self.is_trigger_assignation:
-            _, micro_controller = self.get_mc_assignation_data()
-            response = self._verify_access(self.container, self.obj)
-            if response.headers['Content-Type'] == 'vertigo/link':
-                link = response.headers["X-Object-Sysmeta-Vertigo-Link-to"]
-                container, obj = link.split('/', 2)
-                self._verify_access(container, obj)
-                new_path = os.path.join('/', self.api_version, self.account, container, obj)
-                self.request.environ['PATH_INFO'] = new_path
-            self._verify_access(self.mc_container, micro_controller)
-            self._augment_empty_request()
-            response = self.request.get_response(self.app)
-
-        elif self.is_trigger_deletion:
-            response = self._verify_access(self.container, self.obj)
-            if response.headers['Content-Type'] == 'vertigo/link':
-                link = response.headers["X-Object-Sysmeta-Vertigo-Link-to"]
-                container, obj = link.split('/', 2)
-                self._verify_access(container, obj)
-                new_path = os.path.join('/', self.api_version, self.account, container, obj)
-                self.request.environ['PATH_INFO'] = new_path
-            self._augment_empty_request()
-            response = self.request.get_response(self.app)
+        if self.is_trigger_assignation or self.is_trigger_deletion:
+            response = self._process_trigger_assignation_deletion_request()
 
         elif self.is_object_grouping:
             pass
@@ -209,23 +276,12 @@ class VertigoProxyHandler(VertigoBaseHandler):
         """
         POST handler on Proxy
         """
-        if self.is_trigger_assignation:
-            _, micro_controller = self.get_mc_assignation_data()
-            self._verify_access(self.container, self.obj)
-            self._verify_access(self.mc_container, micro_controller)
-            # Converts the POST request to a PUT request to properly
-            # forward it to the object server.
-            self.request.method = 'PUT'
-            self._augment_empty_request()
+        if self.is_trigger_assignation or self.is_trigger_deletion:
+            response = self._process_trigger_assignation_deletion_request()
+        else:
+            response = self.request.get_response(self.app)
 
-        if self.is_trigger_deletion:
-            self._verify_access(self.container, self.obj)
-            # Converts the POST request to a PUT request to properly
-            # forward it to the object server.
-            self.request.method = 'PUT'
-            self._augment_empty_request()
-
-        return self.request.get_response(self.app)
+        return response
 
     @public
     def HEAD(self):

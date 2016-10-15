@@ -57,6 +57,7 @@ class VertigoObjectHandler(VertigoBaseHandler):
         start = time.time()
 
         mc_list = get_microcontroller_list(response.headers, self.method)
+
         if mc_list:
             self.logger.info('Vertigo - There are microcontrollers' +
                              ' to execute: ' + str(mc_list))
