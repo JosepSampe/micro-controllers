@@ -1,5 +1,5 @@
 from vertigo_middleware.common.utils import make_swift_request, get_data_dir, \
-    set_swift_metadata, get_swift_metadata
+    set_object_metadata, get_object_metadata
 from vertigo_middleware.gateways.docker.runtime import RunTimeSandbox, \
     VertigoInvocationProtocol
 from shutil import copy2
@@ -80,7 +80,7 @@ class VertigoGatewayDocker():
         with open(cache_target_obj, 'w') as fn:
             fn.write(resp.body)
 
-        set_swift_metadata(cache_target_obj, resp.headers)
+        set_object_metadata(cache_target_obj, resp.headers)
 
     def _is_avialable_in_cache(self, swift_container, obj_name):
         """
@@ -106,7 +106,7 @@ class VertigoGatewayDocker():
                              '/' + obj_name + ' not found in cache.')
             self._update_cache(swift_container, obj_name)
         else:
-            self._update_cache(swift_container, obj_name)  # DELETE! (Only for test purposes)
+            # self._update_cache(swift_container, obj_name)  # DELETE! (Only for test purposes)
             self.logger.info('Vertigo - ' + swift_container +
                              '/' + obj_name + ' in cache.')
 
@@ -134,8 +134,8 @@ class VertigoGatewayDocker():
         elif not os.path.isfile(docker_target_obj):
             update_from_cache = True
         else:
-            cached_obj_metadata = get_swift_metadata(cached_target_obj)
-            docker_obj_metadata = get_swift_metadata(docker_target_obj)
+            cached_obj_metadata = get_object_metadata(cached_target_obj)
+            docker_obj_metadata = get_object_metadata(docker_target_obj)
 
             cached_obj_tstamp = float(cached_obj_metadata['X-Timestamp'])
             docker_obj_tstamp = float(docker_obj_metadata['X-Timestamp'])
@@ -147,8 +147,8 @@ class VertigoGatewayDocker():
             self.logger.info('Vertigo - Going to update from cache: ' +
                              swift_container + '/' + obj_name)
             copy2(cached_target_obj, docker_target_obj)
-            metadata = get_swift_metadata(cached_target_obj)
-            set_swift_metadata(docker_target_obj, metadata)
+            metadata = get_object_metadata(cached_target_obj)
+            set_object_metadata(docker_target_obj, metadata)
 
     def _get_metadata(self, swift_container, obj_name):
         """
@@ -160,7 +160,7 @@ class VertigoGatewayDocker():
         """
         cached_target_obj = os.path.join(self.conf["cache_dir"], self.scope,
                                          'vertigo', swift_container, obj_name)
-        metadata = get_swift_metadata(cached_target_obj)
+        metadata = get_object_metadata(cached_target_obj)
 
         return metadata
 

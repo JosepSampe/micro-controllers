@@ -1,9 +1,9 @@
 from swift.common.swob import HTTPMethodNotAllowed, Response
 from swift.common.utils import public
 from vertigo_middleware.handlers import VertigoBaseHandler
-from vertigo_middleware.common.utils import get_microcontroller_list
-from vertigo_middleware.common.utils import set_microcontroller
-from vertigo_middleware.common.utils import delete_microcontroller
+from vertigo_middleware.common.utils import get_microcontroller_list_object
+from vertigo_middleware.common.utils import set_microcontroller_object
+from vertigo_middleware.common.utils import delete_microcontroller_object
 import time
 
 
@@ -56,7 +56,12 @@ class VertigoObjectHandler(VertigoBaseHandler):
 
         start = time.time()
 
-        mc_list = get_microcontroller_list(response.headers, self.method)
+        if self.obj.endswith('/'):
+            # is a pseudo-folder, for the moment the microcontrollers are
+            # not executed over a psudo-folder
+            mc_list = None
+        else:
+            mc_list = get_microcontroller_list_object(response.headers, self.method)
 
         if mc_list:
             self.logger.info('Vertigo - There are microcontrollers' +
@@ -65,7 +70,7 @@ class VertigoObjectHandler(VertigoBaseHandler):
             mc_data = self.mc_docker_gateway.execute_microcontrollers(mc_list)
             response = self._process_mc_data(response, mc_data)
         else:
-            self.logger.info('Vertigo - No Microcontrollers to execute')
+            self.logger.info('Vertigo - No microcontrollers to execute')
 
         end = time.time() - start
         self.logger.info('---')
@@ -87,7 +92,7 @@ class VertigoObjectHandler(VertigoBaseHandler):
             trigger, micro_controller = self.get_mc_assignation_data()
 
             try:
-                set_microcontroller(self, trigger, micro_controller)
+                set_microcontroller_object(self, trigger, micro_controller)
                 msg = 'Vertigo - Microcontroller "' + micro_controller + \
                     '" correctly assigned to the "' + trigger + '" trigger.\n'
             except ValueError as e:
@@ -101,7 +106,7 @@ class VertigoObjectHandler(VertigoBaseHandler):
             trigger, micro_controller = self.get_mc_deletion_data()
 
             try:
-                delete_microcontroller(self, trigger, micro_controller)
+                delete_microcontroller_object(self, trigger, micro_controller)
                 msg = 'Vertigo - Microcontroller "' + micro_controller +\
                     '" correctly removed from the "' + trigger + '" trigger.\n'
             except ValueError as e:

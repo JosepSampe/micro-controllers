@@ -13,10 +13,15 @@ import os
 
 
 PICKLE_PROTOCOL = 2
-VERTIGO_METADATA_KEY = 'user.swift.microcontroller'
-SYSMETA_HEADER = 'X-Object-Sysmeta-Vertigo-'
-VERTIGO_MC_HEADER = SYSMETA_HEADER + 'Microcontroller'
+
+SYSMETA_OBJ_HEADER = 'X-Object-Sysmeta-Vertigo-'
+VERTIGO_MC_HEADER_OBJ = SYSMETA_OBJ_HEADER + 'Microcontroller'
+
+SYSMETA_CONTAINER_HEADER = 'X-Container-Sysmeta-Vertigo-'
+VERTIGO_MC_HEADER_CONTAINER = SYSMETA_CONTAINER_HEADER + 'Microcontroller'
+
 SWIFT_METADATA_KEY = 'user.swift.metadata'
+
 LOCAL_PROXY = '/etc/swift/storlet-proxy-server.conf'
 DEFAULT_MD_STRING = {'onget': None,
                      'onput': None,
@@ -32,10 +37,7 @@ def read_metadata(fd, md_key=None):
     :param md_key: metadata key to be read from object file
     :returns: dictionary of metadata
     """
-    if md_key:
-        meta_key = md_key
-    else:
-        meta_key = VERTIGO_METADATA_KEY
+    meta_key = SWIFT_METADATA_KEY
 
     metadata = ''
     key = 0
@@ -66,10 +68,7 @@ def write_metadata(fd, metadata, xattr_size=65536, md_key=None):
     :param md_key: metadata key to be write to object file
     :param metadata: metadata to write
     """
-    if md_key:
-        meta_key = md_key
-    else:
-        meta_key = VERTIGO_METADATA_KEY
+    meta_key = SWIFT_METADATA_KEY
 
     metastr = pickle.dumps(metadata, PICKLE_PROTOCOL)
     key = 0
@@ -93,7 +92,7 @@ def write_metadata(fd, metadata, xattr_size=65536, md_key=None):
             raise
 
 
-def get_swift_metadata(data_file):
+def get_object_metadata(data_file):
     """
     Retrieves the swift metadata of a specified data file
 
@@ -107,15 +106,41 @@ def get_swift_metadata(data_file):
     return metadata
 
 
-def set_swift_metadata(data_file, metadata):
+def get_container_metadata(vertigo, container):
+    new_env = dict(vertigo.request.environ)
+    auth_token = vertigo.request.headers.get('X-Auth-Token')
+    sub_req = make_subrequest(new_env, 'HEAD', container,
+                              headers={'X-Auth-Token': auth_token},
+                              swift_source='Vertigo')
+    response = sub_req.get_response(vertigo.app)
+    return response.headers
+
+
+def set_object_metadata(data_file, metadata):
     """
-    Sets the swift metadata to the specified data file
+    Sets the swift metadata to the specified data_file
 
     :param data_file: full path of the data file
     """
     fd = open_data_file(data_file)
     write_metadata(fd, metadata, md_key=SWIFT_METADATA_KEY)
     close_data_file(fd)
+
+
+def set_container_metadata(vertigo, metadata):
+    """
+    Sets the swift metadata to the container
+
+    :param metadata: metadata dictionary
+    """
+    container = os.path.join('/', vertigo.api_version, vertigo.account, vertigo.container)
+    new_env = dict(vertigo.request.environ)
+    auth_token = vertigo.request.headers.get('X-Auth-Token')
+    metadata.update({'X-Auth-Token': auth_token})
+    sub_req = make_subrequest(new_env, 'POST', container,
+                              headers=metadata,
+                              swift_source='Vertigo')
+    sub_req.get_response(vertigo.app)
 
 
 def make_swift_request(op, account, container=None, obj=None):
@@ -253,7 +278,109 @@ def close_data_file(fd):
     os.close(fd)
 
 
-def set_microcontroller(vertigo, trigger, mc):
+def set_microcontroller_container(vertigo, trigger, mc):
+    """
+    Sets a microcontroller to the specified container in the main request,
+    and stores the metadata file
+
+    :param vertigo: swift_vertigo.vertigo_handler.VertigoObjectHandler instance
+    :param trigger: trigger name
+    :param mc: microcontroller name
+    :raises HTTPInternalServerError: If it fails
+    """
+    container = os.path.join('/', vertigo.api_version, vertigo.account, vertigo.container)
+
+    # 1st: set microcontroller name to list
+    metadata = get_container_metadata(vertigo, container)
+    try:
+        mc_dict = get_microcontroller_dict_container(metadata)
+    except:
+        raise ValueError('Vertigo - ERROR: There was an error getting trigger'
+                         ' dictionary from the object.\n')
+
+    if not mc_dict:
+        mc_dict = DEFAULT_MD_STRING
+    if not mc_dict[trigger]:
+        mc_dict[trigger] = list()
+    if mc not in mc_dict[trigger]:
+        mc_dict[trigger].append(mc)
+
+    # 2nd: Get microcontroller specific metadata
+    specific_md = vertigo.request.body.rstrip()
+
+    # 3rd: Assign all metadata to the container
+    try:
+        metadata[VERTIGO_MC_HEADER_CONTAINER] = mc_dict
+        sysmeta_key = (SYSMETA_CONTAINER_HEADER + trigger + '-' + mc).title()
+        if specific_md:
+            metadata[sysmeta_key] = specific_md
+        else:
+            if sysmeta_key in metadata:
+                del metadata[sysmeta_key]
+        set_container_metadata(vertigo, metadata)
+    except:
+        raise ValueError('Vertigo - ERROR: There was an error setting trigger'
+                         ' dictionary from the object.\n')
+
+
+def delete_microcontroller_container(vertigo, trigger, mc):
+    """
+    Deletes a microcontroller to the specified object in the main request
+
+    :param vertigo: swift_vertigo.vertigo_handler.VertigoObjectHandler instance
+    :param trigger: trigger name
+    :param mc: microcontroller name
+    :raises HTTPInternalServerError: If it fails
+    """
+    vertigo.logger.debug('Vertigo - Go to delete "' + mc +
+                         '" microcontroller from "' + trigger + '" trigger')
+
+    try:
+        data_file = get_data_file(vertigo)
+        metadata = get_object_metadata(data_file)
+    except:
+        raise ValueError('Vertigo - ERROR: There was an error getting trigger'
+                         ' metadata from the object.\n')
+
+    try:
+        if trigger == "vertigo" and mc == "all":
+            for key in metadata.keys():
+                if key.startswith(SYSMETA_CONTAINER_HEADER):
+                    del metadata[key]
+        else:
+            if metadata[VERTIGO_MC_HEADER_CONTAINER]:
+                if isinstance(metadata[VERTIGO_MC_HEADER_CONTAINER], dict):
+                    mc_dict = metadata[VERTIGO_MC_HEADER_CONTAINER]
+                else:
+                    mc_dict = eval(metadata[VERTIGO_MC_HEADER_CONTAINER])
+                if mc == 'all':
+                    mc_list = mc_dict[trigger]
+                    mc_dict[trigger] = None
+                    for mc_k in mc_list:
+                        sysmeta_key = (SYSMETA_CONTAINER_HEADER + trigger + '-' + mc_k).title()
+                        if sysmeta_key in metadata:
+                            del metadata[sysmeta_key]
+                elif mc in mc_dict[trigger]:
+                    mc_dict[trigger].remove(mc)
+                    sysmeta_key = (SYSMETA_CONTAINER_HEADER + trigger + '-' + mc).title()
+                    if sysmeta_key in metadata:
+                        del metadata[sysmeta_key]
+                else:
+                    raise
+                metadata[VERTIGO_MC_HEADER_CONTAINER] = mc_dict
+                metadata = clean_microcontroller_dict_object(metadata)
+            else:
+                raise
+        set_object_metadata(data_file, metadata)
+    except:
+        raise ValueError('Vertigo - Error: Microcontroller "' + mc + '" not'
+                         ' assigned to the "' + trigger + '" trigger.\n')
+
+    data_dir = get_data_dir(vertigo)
+    vertigo.logger.debug('Vertigo - Object path: ' + data_dir)
+
+
+def set_microcontroller_object(vertigo, trigger, mc):
     """
     Sets a microcontroller to the specified object in the main request,
     and stores the metadata file
@@ -266,7 +393,7 @@ def set_microcontroller(vertigo, trigger, mc):
 
     # 1st: set microcontroller name to list
     try:
-        mc_dict = get_microcontroller_dict(vertigo)
+        mc_dict = get_microcontroller_dict_object(vertigo)
     except:
         raise ValueError('Vertigo - ERROR: There was an error getting trigger'
                          ' dictionary from the object.\n')
@@ -284,41 +411,22 @@ def set_microcontroller(vertigo, trigger, mc):
     # 3rd: Assign all metadata to the object
     try:
         data_file = get_data_file(vertigo)
-        metadata = get_swift_metadata(data_file)
-        metadata[VERTIGO_MC_HEADER] = mc_dict
-        sysmeta_key = (SYSMETA_HEADER + trigger + '-' + mc).title()
+        metadata = get_object_metadata(data_file)
+        metadata[VERTIGO_MC_HEADER_OBJ] = mc_dict
+        sysmeta_key = (SYSMETA_OBJ_HEADER + trigger + '-' + mc).title()
         if specific_md:
             metadata[sysmeta_key] = specific_md
         else:
             if sysmeta_key in metadata:
                 del metadata[sysmeta_key]
 
-        set_swift_metadata(data_file, metadata)
+        set_object_metadata(data_file, metadata)
     except:
         raise ValueError('Vertigo - ERROR: There was an error setting trigger'
                          ' dictionary from the object.\n')
 
 
-def clean_microcontroller_dict(metadata):
-    """
-    Auxiliary function that cleans the microcontroller dictionary, deleting
-    empty lists for each trigger, and deleting all dictionary whether all
-    values are None.
-
-    :param microcontroller_dict: microcontroller dictionary
-    :returns microcontroller_dict: microcontroller dictionary
-    """
-    for trigger in metadata[VERTIGO_MC_HEADER].keys():
-        if not metadata[VERTIGO_MC_HEADER][trigger]:
-            metadata[VERTIGO_MC_HEADER][trigger] = None
-
-    if all(value is None for value in metadata[VERTIGO_MC_HEADER].values()):
-        del metadata[VERTIGO_MC_HEADER]
-
-    return metadata
-
-
-def delete_microcontroller(vertigo, trigger, mc):
+def delete_microcontroller_object(vertigo, trigger, mc):
     """
     Deletes a microcontroller to the specified object in the main request
 
@@ -332,7 +440,7 @@ def delete_microcontroller(vertigo, trigger, mc):
 
     try:
         data_file = get_data_file(vertigo)
-        metadata = get_swift_metadata(data_file)
+        metadata = get_object_metadata(data_file)
     except:
         raise ValueError('Vertigo - ERROR: There was an error getting trigger'
                          ' metadata from the object.\n')
@@ -340,33 +448,33 @@ def delete_microcontroller(vertigo, trigger, mc):
     try:
         if trigger == "vertigo" and mc == "all":
             for key in metadata.keys():
-                if key.startswith(SYSMETA_HEADER):
+                if key.startswith(SYSMETA_OBJ_HEADER):
                     del metadata[key]
         else:
-            if metadata[VERTIGO_MC_HEADER]:
-                if isinstance(metadata[VERTIGO_MC_HEADER], dict):
-                    mc_dict = metadata[VERTIGO_MC_HEADER]
+            if metadata[VERTIGO_MC_HEADER_OBJ]:
+                if isinstance(metadata[VERTIGO_MC_HEADER_OBJ], dict):
+                    mc_dict = metadata[VERTIGO_MC_HEADER_OBJ]
                 else:
-                    mc_dict = eval(metadata[VERTIGO_MC_HEADER])
+                    mc_dict = eval(metadata[VERTIGO_MC_HEADER_OBJ])
                 if mc == 'all':
                     mc_list = mc_dict[trigger]
                     mc_dict[trigger] = None
                     for mc_k in mc_list:
-                        sysmeta_key = (SYSMETA_HEADER + trigger + '-' + mc_k).title()
+                        sysmeta_key = (SYSMETA_OBJ_HEADER + trigger + '-' + mc_k).title()
                         if sysmeta_key in metadata:
                             del metadata[sysmeta_key]
                 elif mc in mc_dict[trigger]:
                     mc_dict[trigger].remove(mc)
-                    sysmeta_key = (SYSMETA_HEADER + trigger + '-' + mc).title()
+                    sysmeta_key = (SYSMETA_OBJ_HEADER + trigger + '-' + mc).title()
                     if sysmeta_key in metadata:
                         del metadata[sysmeta_key]
                 else:
                     raise
-                metadata[VERTIGO_MC_HEADER] = mc_dict
-                metadata = clean_microcontroller_dict(metadata)
+                metadata[VERTIGO_MC_HEADER_OBJ] = mc_dict
+                metadata = clean_microcontroller_dict_object(metadata)
             else:
                 raise
-        set_swift_metadata(data_file, metadata)
+        set_object_metadata(data_file, metadata)
     except:
         raise ValueError('Vertigo - Error: Microcontroller "' + mc + '" not'
                          ' assigned to the "' + trigger + '" trigger.\n')
@@ -375,7 +483,26 @@ def delete_microcontroller(vertigo, trigger, mc):
     vertigo.logger.debug('Vertigo - Object path: ' + data_dir)
 
 
-def get_microcontroller_dict(vertigo):
+def clean_microcontroller_dict_object(metadata):
+    """
+    Auxiliary function that cleans the microcontroller dictionary, deleting
+    empty lists for each trigger, and deleting all dictionary whether all
+    values are None.
+
+    :param microcontroller_dict: microcontroller dictionary
+    :returns microcontroller_dict: microcontroller dictionary
+    """
+    for trigger in metadata[VERTIGO_MC_HEADER_OBJ].keys():
+        if not metadata[VERTIGO_MC_HEADER_OBJ][trigger]:
+            metadata[VERTIGO_MC_HEADER_OBJ][trigger] = None
+
+    if all(value is None for value in metadata[VERTIGO_MC_HEADER_OBJ].values()):
+        del metadata[VERTIGO_MC_HEADER_OBJ]
+
+    return metadata
+
+
+def get_microcontroller_dict_object(vertigo):
     """
     Gets the list of associated microcontrollers to the requested object.
     This method retrieves a dictionary with all triggers and all
@@ -385,18 +512,36 @@ def get_microcontroller_dict(vertigo):
     :returns: microcontroller dictionary
     """
     data_file = get_data_file(vertigo)
-    metadata = get_swift_metadata(data_file)
+    metadata = get_object_metadata(data_file)
 
-    if VERTIGO_MC_HEADER in metadata:
-        if isinstance(metadata[VERTIGO_MC_HEADER], dict):
-            return metadata[VERTIGO_MC_HEADER]
+    if VERTIGO_MC_HEADER_OBJ in metadata:
+        if isinstance(metadata[VERTIGO_MC_HEADER_OBJ], dict):
+            return metadata[VERTIGO_MC_HEADER_OBJ]
         else:
-            return eval(metadata[VERTIGO_MC_HEADER])
+            return eval(metadata[VERTIGO_MC_HEADER_OBJ])
     else:
         return None
 
 
-def get_microcontroller_list(headers, method):
+def get_microcontroller_dict_container(metadata):
+    """
+    Gets the list of associated microcontrollers to the requested container.
+    This method retrieves a dictionary with all triggers and all
+    microcontrollers associated to each trigger.
+
+    :param vertigo: swift_vertigo.vertigo_handler.VertigoProxyHandler instance
+    :returns: microcontroller dictionary
+    """
+    if VERTIGO_MC_HEADER_CONTAINER in metadata:
+        if isinstance(metadata[VERTIGO_MC_HEADER_CONTAINER], dict):
+            return metadata[VERTIGO_MC_HEADER_CONTAINER]
+        else:
+            return eval(metadata[VERTIGO_MC_HEADER_CONTAINER])
+    else:
+        return None
+
+
+def get_microcontroller_list_object(headers, method):
     """
     Gets the list of associated microcontrollers to the requested object.
     This method gets the microcontroller dictionary from the object headers,
@@ -407,8 +552,11 @@ def get_microcontroller_list(headers, method):
     :param method: current method
     :returns: microcontroller list associated to the type of the request
     """
-    if headers[VERTIGO_MC_HEADER]:
-        microcontroller_dict = eval(headers[VERTIGO_MC_HEADER])
+    if headers[VERTIGO_MC_HEADER_OBJ]:
+        if isinstance(headers[VERTIGO_MC_HEADER_OBJ], dict):
+            microcontroller_dict = headers[VERTIGO_MC_HEADER_OBJ]
+        else:
+            microcontroller_dict = eval(headers[VERTIGO_MC_HEADER_OBJ])
         mc_list = microcontroller_dict["on" + method]
     else:
         mc_list = None

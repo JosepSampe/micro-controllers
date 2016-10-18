@@ -69,13 +69,11 @@ def filter_factory(global_conf, **local_conf):
     vertigo_conf['execution_server'] = conf.get('execution_server')
     vertigo_conf['mc_timeout'] = conf.get('mc_timeout', 5)
     vertigo_conf['mc_pipe'] = conf.get('mc_pipe', 'vertigo_pipe')
-    vertigo_conf['api_pipe'] = conf.get('mc_pipe', 'api_pipe')
-    vertigo_conf['mc_dir'] = conf.get(
-        'mc_dir', '/home/docker_device/vertigo/scopes')
-    vertigo_conf['cache_dir'] = conf.get(
-        'cache_dir', '/home/docker_device/cache/scopes')
-    vertigo_conf['mc_container'] = conf.get('mc_container',
-                                            'microcontroller')
+    # vertigo_conf['api_pipe'] = conf.get('mc_pipe', 'api_pipe')
+    vertigo_conf['metadata_visibility'] = conf.get('metadata_visibility', True)
+    vertigo_conf['mc_dir'] = conf.get('mc_dir', '/home/docker_device/vertigo/scopes')
+    vertigo_conf['cache_dir'] = conf.get('cache_dir', '/home/docker_device/cache/scopes')
+    vertigo_conf['mc_container'] = conf.get('mc_container', 'microcontroller')
     vertigo_conf['mc_dependency'] = conf.get('mc_dependency', 'dependency')
 
     ''' Load storlet parameters '''

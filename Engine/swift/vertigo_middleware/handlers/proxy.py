@@ -1,5 +1,9 @@
 from vertigo_middleware.handlers import VertigoBaseHandler
 from vertigo_middleware.common.utils import verify_access, create_link
+from vertigo_middleware.common.utils import set_microcontroller_container
+from vertigo_middleware.common.utils import delete_microcontroller_container
+from vertigo_middleware.common.utils import get_microcontroller_list_object
+
 from swift.common.swob import HTTPMethodNotAllowed, HTTPNotFound, HTTPUnauthorized, Response
 from swift.common.utils import public, cache_from_env
 from swift.common.wsgi import make_subrequest
@@ -86,7 +90,7 @@ class VertigoProxyHandler(VertigoBaseHandler):
         if not response.is_success:
             if response.status_int == 401:
                 raise HTTPUnauthorized('Unauthorized to access to this '
-                                       ' resource: ' + cont + '/' + obj + '\n')
+                                       'resource: ' + cont + '/' + obj + '\n')
             else:
                 raise HTTPNotFound('Vertigo - Object error: "' + cont + '/' +
                                    obj + '" doesn\'t exists in Swift.\n')
@@ -95,7 +99,7 @@ class VertigoProxyHandler(VertigoBaseHandler):
 
     def _get_object_list(self, path):
         """
-        Gets an object list of a specifiesd path. The path may be '*', that means
+        Gets an object list of a specified path. The path may be '*', that means
         it returns all objects inside the container or a pseudo-folder, that means
         it only returns the objects inside the pseudo-folder.
         :param path: pseudo-folder path (ended with *), or '*'
@@ -140,24 +144,49 @@ class VertigoProxyHandler(VertigoBaseHandler):
 
         return sub_req.get_response(self.app)
 
-    def _get_pseudo_folder_metadata(self, psudo_folder):
+    def _get_parent_vertigo_metadata(self):
         """
-        Makes a HEAD to the specified pseudo-folder (7ms overhead)
-        :param dest_obj: container/object
-        :return: swift.common.swob.Response Instance
+        Makes a HEAD to the parent pseudo-folder or container (7ms overhead)
+        in order to get the microcontroller assignated metadata.
+        :return: vertigo metadata dictionary
         """
-        dest_path = os.path.join('/', self.api_version, self.account, self.container, psudo_folder)
+        obj_split = self.obj.rsplit('/', 1)
+
+        if len(obj_split) > 1:
+            # object parent is pseudo-foldder
+            psudo_folder = obj_split[0] + '/'
+            mc_key = 'X-Object-Sysmeta-Vertigo-Microcontroller'
+            dest_path = os.path.join('/', self.api_version, self.account, self.container, psudo_folder)
+        else:
+            # object parent is container
+            mc_key = 'X-Container-Sysmeta-Vertigo-Microcontroller'
+            dest_path = os.path.join('/', self.api_version, self.account, self.container)
+
         new_env = dict(self.request.environ)
         auth_token = self.request.headers.get('X-Auth-Token')
         sub_req = make_subrequest(new_env, 'HEAD', dest_path,
                                   headers={'X-Auth-Token': auth_token},
                                   swift_source='Vertigo')
         response = sub_req.get_response(self.app)
-        return response.headers
+
+        vertigo_metadata = dict()
+        if response.is_success:
+            for key in response.headers:
+                if key.replace('Container', 'Object').startswith('X-Object-Sysmeta-Vertigo-'):
+                    if key.replace('Container', 'Object').startswith('X-Object-Sysmeta-Vertigo-Onput'):
+                        continue
+                    if key == mc_key:
+                        mc = eval(response.headers[key])
+                        # del mc['onput']
+                        vertigo_metadata[key.replace('Container', 'Object')] = mc
+                    else:
+                        vertigo_metadata[key.replace('Container', 'Object')] = response.headers[key]
+
+        return vertigo_metadata
 
     def _process_trigger_assignation_deletion_request(self):
         """
-        Process both trigger assignation and trigger deletion ovwer an object
+        Process both trigger assignation and trigger deletion over an object
         or a group of objects
         """
         self.request.method = 'PUT'
@@ -172,6 +201,15 @@ class VertigoProxyHandler(VertigoBaseHandler):
             obj_list.append(self.obj)
 
         specific_md = self.request.body
+
+        if self.obj == '*':
+            # Save microcontroller information into container metadata
+            if self.is_trigger_assignation:
+                trigger, micro_controller = self.get_mc_assignation_data()
+                set_microcontroller_container(self, trigger, micro_controller)
+            elif self.is_trigger_deletion:
+                trigger, micro_controller = self.get_mc_deletion_data()
+                delete_microcontroller_container(self, trigger, micro_controller)
 
         for obj in obj_list:
             self.request.body = specific_md
@@ -189,6 +227,30 @@ class VertigoProxyHandler(VertigoBaseHandler):
 
             print response.body
 
+        return response
+
+    def _process_object_move_and_link(self):
+        """
+        Moves an object to the destination path and leaves a soft link to
+        the original path.
+        """
+        link_path = os.path.join(self.container, self.obj)
+        dest_path = self.request.headers['X-Vertigo-Link-To']
+        if link_path != dest_path:
+            response = self._verify_access(self.container, self.obj)
+            headers = response.headers
+            if "X-Object-Sysmeta-Vertigo-Link-to" not in response.headers \
+                    and response.headers['Content-Type'] != 'vertigo/link':
+                self.request.method = 'COPY'
+                self.request.headers['Destination'] = dest_path
+                response = self.request.get_response(self.app)
+            if response.is_success:
+                response = create_link(self, link_path, dest_path, headers)
+        else:
+            msg = ("Vertigo - Error: Link path and destination path "
+                   "cannot be the same.\n")
+            response = Response(body=msg, headers={'etag': ''},
+                                request=self.request)
         return response
 
     def _check_microcntroller_execution(self, obj):
@@ -244,29 +306,21 @@ class VertigoProxyHandler(VertigoBaseHandler):
         """
         if self.is_trigger_assignation or self.is_trigger_deletion:
             response = self._process_trigger_assignation_deletion_request()
-
         elif self.is_object_grouping:
             pass
-
         elif self.is_object_move:
-            link_path = os.path.join(self.container, self.obj)
-            dest_path = self.request.headers['X-Vertigo-Link-To']
-            if link_path != dest_path:
-                response = self._verify_access(self.container, self.obj)
-                headers = response.headers
-                if "X-Object-Sysmeta-Vertigo-Link-to" not in response.headers \
-                        and response.headers['Content-Type'] != 'vertigo/link':
-                    self.request.method = 'COPY'
-                    self.request.headers['Destination'] = dest_path
-                    response = self.request.get_response(self.app)
-                if response.is_success:
-                    response = create_link(self, link_path, dest_path, headers)
-            else:
-                msg = ("Vertigo - Error: Link path and destination path "
-                       "cannot be the same.\n")
-                response = Response(body=msg, headers={'etag': ''},
-                                    request=self.request)
+            response = self._process_object_move_and_link()
         else:
+            # When a users puts an object, the microcontrollers assigned to the
+            # parent container or pseudo-folder are assigned by default to
+            # the new object. Onput microcontrollers are executed here.
+            mc_metadata = self._get_parent_vertigo_metadata()
+            self.request.headers.update(mc_metadata)
+            mc_list = get_microcontroller_list_object(mc_metadata, self.method)
+
+            if mc_list:
+                # TODO: Execute MC on PUT
+                pass
             response = self.request.get_response(self.app)
 
         return response
@@ -278,6 +332,10 @@ class VertigoProxyHandler(VertigoBaseHandler):
         """
         if self.is_trigger_assignation or self.is_trigger_deletion:
             response = self._process_trigger_assignation_deletion_request()
+        elif self.is_object_grouping:
+            pass
+        elif self.is_object_move:
+            response = self._process_object_move_and_link()
         else:
             response = self.request.get_response(self.app)
 
@@ -289,18 +347,18 @@ class VertigoProxyHandler(VertigoBaseHandler):
         HEAD handler on Proxy
         """
         response = self.request.get_response(self.app)
+        if self.conf['metadata_visibility']:
+            for key in response.headers.keys():
+                if key.startswith('X-Object-Sysmeta-Vertigo-'):
+                    new_key = key.replace('X-Object-Sysmeta-', '')
+                    response.headers[new_key] = response.headers[key]
 
-        for key in response.headers.keys():
-            if key.startswith('X-Object-Sysmeta-Vertigo-'):
-                new_key = key.replace('X-Object-Sysmeta-', '')
-                response.headers[new_key] = response.headers[key]
-
-        if 'Vertigo-Microcontroller' in response.headers:
-            mc_dict = eval(response.headers['Vertigo-Microcontroller'])
-            for trigger in mc_dict.keys():
-                if not mc_dict[trigger]:
-                    del mc_dict[trigger]
-            response.headers['Vertigo-Microcontroller'] = mc_dict
+            if 'Vertigo-Microcontroller' in response.headers:
+                mc_dict = eval(response.headers['Vertigo-Microcontroller'])
+                for trigger in mc_dict.keys():
+                    if not mc_dict[trigger]:
+                        del mc_dict[trigger]
+                response.headers['Vertigo-Microcontroller'] = mc_dict
 
         return response
 
