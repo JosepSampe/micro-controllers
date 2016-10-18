@@ -335,9 +335,10 @@ def delete_microcontroller_container(vertigo, trigger, mc):
     vertigo.logger.debug('Vertigo - Go to delete "' + mc +
                          '" microcontroller from "' + trigger + '" trigger')
 
+    container = os.path.join('/', vertigo.api_version, vertigo.account, vertigo.container)
+    metadata = get_container_metadata(vertigo, container)
     try:
-        data_file = get_data_file(vertigo)
-        metadata = get_object_metadata(data_file)
+        mc_dict = get_microcontroller_dict_container(metadata)
     except:
         raise ValueError('Vertigo - ERROR: There was an error getting trigger'
                          ' metadata from the object.\n')
@@ -353,31 +354,32 @@ def delete_microcontroller_container(vertigo, trigger, mc):
                     mc_dict = metadata[VERTIGO_MC_HEADER_CONTAINER]
                 else:
                     mc_dict = eval(metadata[VERTIGO_MC_HEADER_CONTAINER])
+
                 if mc == 'all':
                     mc_list = mc_dict[trigger]
                     mc_dict[trigger] = None
                     for mc_k in mc_list:
                         sysmeta_key = (SYSMETA_CONTAINER_HEADER + trigger + '-' + mc_k).title()
                         if sysmeta_key in metadata:
-                            del metadata[sysmeta_key]
+                            metadata[sysmeta_key] = ''
                 elif mc in mc_dict[trigger]:
                     mc_dict[trigger].remove(mc)
                     sysmeta_key = (SYSMETA_CONTAINER_HEADER + trigger + '-' + mc).title()
                     if sysmeta_key in metadata:
-                        del metadata[sysmeta_key]
+                        metadata[sysmeta_key] = ''
                 else:
                     raise
+
                 metadata[VERTIGO_MC_HEADER_CONTAINER] = mc_dict
-                metadata = clean_microcontroller_dict_object(metadata)
+                metadata = clean_microcontroller_dict_container(metadata)
             else:
                 raise
-        set_object_metadata(data_file, metadata)
-    except:
-        raise ValueError('Vertigo - Error: Microcontroller "' + mc + '" not'
-                         ' assigned to the "' + trigger + '" trigger.\n')
 
-    data_dir = get_data_dir(vertigo)
-    vertigo.logger.debug('Vertigo - Object path: ' + data_dir)
+        set_container_metadata(vertigo, metadata)
+    except:
+        pass
+        # raise ValueError('Vertigo - Error: Microcontroller "' + mc + '" not'
+        #                 ' assigned to the "' + trigger + '" trigger.\n')
 
 
 def set_microcontroller_object(vertigo, trigger, mc):
@@ -498,6 +500,26 @@ def clean_microcontroller_dict_object(metadata):
 
     if all(value is None for value in metadata[VERTIGO_MC_HEADER_OBJ].values()):
         del metadata[VERTIGO_MC_HEADER_OBJ]
+
+    return metadata
+
+
+def clean_microcontroller_dict_container(metadata):
+    """
+    Auxiliary function that cleans the microcontroller dictionary, deleting
+    empty lists for each trigger, and deleting all dictionary whether all
+    values are None.
+
+    :param microcontroller_dict: microcontroller dictionary
+    :returns microcontroller_dict: microcontroller dictionary
+    """
+    mc_dict = eval(metadata[VERTIGO_MC_HEADER_CONTAINER])
+    for trigger in mc_dict.keys():
+        if not mc_dict[trigger]:
+            mc_dict[trigger] = None
+
+    if all(value is None for value in mc_dict.values()):
+        metadata[VERTIGO_MC_HEADER_CONTAINER] = ''
 
     return metadata
 
