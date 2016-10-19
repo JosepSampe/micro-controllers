@@ -204,7 +204,9 @@ class VertigoBaseHandler(object):
         Determines if is a Vertigo valid request
         """
         return not any([self.is_copy_request, self.is_slo_get_request,
-                        self.is_mc_disabled, self.is_vertigo_container_request])
+                        self.is_mc_disabled, self.is_vertigo_container_request,
+                        not ((not self.obj and self.request.method == 'HEAD') or
+                             (self.obj))])
 
     @property
     def is_trigger_assignation(self):

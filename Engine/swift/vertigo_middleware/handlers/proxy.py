@@ -24,7 +24,7 @@ class VertigoProxyHandler(VertigoBaseHandler):
         self.memcache = cache_from_env(self.request.environ)
 
     def _parse_vaco(self):
-        return self.request.split_path(4, 4, rest_with_last=True)
+        return self.request.split_path(3, 4, rest_with_last=True)
 
     def _is_object_in_cache(self, obj):
         """
@@ -97,6 +97,31 @@ class VertigoProxyHandler(VertigoBaseHandler):
         else:
             return response
 
+    def _augment_object_list(self, obj_list):
+        """
+        Checks the object list and creates those pseudo-folders that are not in
+        the obj_list, but there are objects within them.
+         :param obj_list: object list
+        """
+        for obj in obj_list:
+            if '/' in obj:
+                obj_split = obj.rsplit('/', 1)
+                pseudo_folder = obj_split[0] + '/'
+                if pseudo_folder not in obj_list:
+                    path = os.path.join('/', self.api_version, self.account,
+                                        self.container, pseudo_folder)
+                    new_env = dict(self.request.environ)
+                    auth_token = self.request.headers.get('X-Auth-Token')
+                    sub_req = make_subrequest(new_env, 'PUT', path,
+                                              headers={'X-Auth-Token': auth_token,
+                                                       'Content-Length': 0},
+                                              swift_source='Vertigo')
+                    response = sub_req.get_response(self.app)
+                    if response.is_success:
+                        obj_list.append(pseudo_folder)
+                    else:
+                        raise ValueError("Vertigo - Error creating pseudo-folder")
+
     def _get_object_list(self, path):
         """
         Gets an object list of a specified path. The path may be '*', that means
@@ -127,6 +152,12 @@ class VertigoProxyHandler(VertigoBaseHandler):
         for obj in response.body.split('\n'):
             if obj != '':
                 obj_list.append(obj)
+
+        # TODO: Create pseudo-folder whether not exists
+        #       check obj_list and create all psuedo-folders
+        print obj_list
+        self._augment_object_list(obj_list)
+        print obj_list
 
         return obj_list
 
@@ -317,7 +348,6 @@ class VertigoProxyHandler(VertigoBaseHandler):
             mc_metadata = self._get_parent_vertigo_metadata()
             self.request.headers.update(mc_metadata)
             mc_list = get_microcontroller_list_object(mc_metadata, self.method)
-
             if mc_list:
                 # TODO: Execute MC on PUT
                 pass
@@ -349,8 +379,8 @@ class VertigoProxyHandler(VertigoBaseHandler):
         response = self.request.get_response(self.app)
         if self.conf['metadata_visibility']:
             for key in response.headers.keys():
-                if key.startswith('X-Object-Sysmeta-Vertigo-'):
-                    new_key = key.replace('X-Object-Sysmeta-', '')
+                if key.replace('Container', 'Object').startswith('X-Object-Sysmeta-Vertigo-'):
+                    new_key = key.replace('Container', 'Object').replace('X-Object-Sysmeta-', '')
                     response.headers[new_key] = response.headers[key]
 
             if 'Vertigo-Microcontroller' in response.headers:
@@ -360,27 +390,4 @@ class VertigoProxyHandler(VertigoBaseHandler):
                         del mc_dict[trigger]
                 response.headers['Vertigo-Microcontroller'] = mc_dict
 
-        return response
-
-    @public
-    def MOVE(self):
-        """
-        MOVE handler on Proxy
-        """
-        link_path = os.path.join(self.container, self.obj)
-        dest_path = self.request.headers['Destination']
-
-        if link_path != dest_path:
-            response = self._verify_access(self.container, self.obj)
-            if "X-Object-Sysmeta-Vertigo-Link-to" not in response.headers \
-                    and response.headers['Content-Type'] != 'vertigo/link':
-                self.request.method = 'COPY'
-                response = self.request.get_response(self.app)
-            if response.is_success:
-                response = create_link(self, link_path, dest_path)
-        else:
-            msg = ("Vertigo - Error: Link path and destination path"
-                   "are the same.\n")
-            response = Response(body=msg, headers={'etag': ''},
-                                request=self.request)
         return response
