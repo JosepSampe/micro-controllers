@@ -153,11 +153,7 @@ class VertigoProxyHandler(VertigoBaseHandler):
             if obj != '':
                 obj_list.append(obj)
 
-        # TODO: Create pseudo-folder whether not exists
-        #       check obj_list and create all psuedo-folders
-        print obj_list
         self._augment_object_list(obj_list)
-        print obj_list
 
         return obj_list
 
