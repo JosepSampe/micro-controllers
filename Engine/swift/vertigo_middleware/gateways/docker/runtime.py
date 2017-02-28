@@ -47,11 +47,34 @@ class RunTimeSandbox(object):
 
         return True
 
+    def _is_stopped(self, container_name):
+        """
+        Auxiliary function that checks whether the container is started.
+
+        :param docker_container_name : name of the container
+        :returns: whether exists
+        """
+        cmd = ("docker ps -f 'status=exited' | grep -v 'grep' | grep '" +
+               container_name + "' | awk '{print $1}'")
+        docker_id = os.popen(cmd).read()
+
+        if not docker_id:
+            return False
+
+        return True
+
+    def _delete(self, container_name):
+        cmd = ("docker rm -f " + container_name)
+        os.popen(cmd)
+
     def start(self):
         """
         Starts the docker container.
         """
         container_name = '%s_%s' % (self.docker_img_prefix, self.scope)
+
+        if self._is_stopped(container_name):
+            self._delete(container_name)
 
         if not self._is_started(container_name):
             docker_image_name = '%s/%s' % (self.docker_repo, self.scope)
@@ -77,16 +100,12 @@ class RunTimeSandbox(object):
             self.logger.info('Vertigo - Starting container ' +
                              container_name + ' ...')
 
-            print cmd
-
             p = subprocess.call(cmd, shell=True)
 
             if p == 0:
                 time.sleep(1)
                 self.logger.info('Vertigo - Container "' +
                                  container_name + '" started')
-
-            # TODO: if docker name is used by ended docker
         else:
             self.logger.info('Vertigo - Container "' +
                              container_name + '" is already started')
@@ -97,7 +116,7 @@ class MicroController(object):
     Microcontroller main class.
     """
 
-    def __init__(self, object_path, logger_path, name, main, dependencies):
+    def __init__(self, logger_path, name, main, dependencies):
         self.log_path = os.path.join(logger_path, main)
         self.log_name = name.replace('jar', 'log')
         self.full_log_path = os.path.join(self.log_path, self.log_name)
@@ -133,7 +152,7 @@ class MicroController(object):
 
 class VertigoInvocationProtocol(object):
 
-    def __init__(self, object_path, mc_pipe_path, mc_logger_path, req_headers,
+    def __init__(self, mc_pipe_path, mc_logger_path, req_headers,
                  object_headers, mc_list, mc_metadata, timeout, logger):
         self.logger = logger
         self.mc_pipe_path = mc_pipe_path
@@ -143,7 +162,6 @@ class VertigoInvocationProtocol(object):
         self.object_md = object_headers
         self.mc_list = mc_list  # Ordered microcontroller execution list
         self.mc_md = mc_metadata  # Microcontroller metadata
-        self.object_path = object_path  # Path of requested object
         self.microcontrollers = list()  # Microcontroller object list
 
         # remote side file descriptors and their metadata lists
@@ -229,7 +247,14 @@ class VertigoInvocationProtocol(object):
         for mc_name in self.mc_list:
             self._wait_for_read_with_timeout(self.response_read_fd)
             flat_json = os.read(self.response_read_fd, 1024)
-            mc_response[mc_name] = json.loads(flat_json)
+
+            if flat_json:
+                mc_response[mc_name] = json.loads(flat_json)
+            else:
+                mc_response[mc_name] = dict()
+                mc_response[mc_name]['command'] = 'CANCEL'
+                mc_response[mc_name]['message'] = ('Error running ' + mc_name +
+                                                   ': No response from microcontroller.')
 
         out_data = dict()
         for mc_name in self.mc_list:
@@ -237,6 +262,10 @@ class VertigoInvocationProtocol(object):
             if command == 'CANCEL':
                 out_data['command'] = command
                 out_data['message'] = mc_response[mc_name]['message']
+                break
+            if command == 'REWIRE':
+                out_data['command'] = command
+                out_data['object_id'] = mc_response[mc_name]['object_id']
                 break
             if command == 'STORLET':
                 out_data['command'] = command
@@ -253,8 +282,7 @@ class VertigoInvocationProtocol(object):
 
     def communicate(self):
         for mc_name in self.mc_list:
-            mc = MicroController(self.object_path,
-                                 self.mc_logger_path,
+            mc = MicroController(self.mc_logger_path,
                                  mc_name,
                                  self.mc_md[mc_name][MC_MAIN_HEADER],
                                  self.mc_md[mc_name][MC_DEP_HEADER])

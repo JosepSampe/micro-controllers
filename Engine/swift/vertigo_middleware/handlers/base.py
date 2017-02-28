@@ -63,12 +63,12 @@ class VertigoBaseHandler(object):
         self.method = self.request.method.lower()
         self.execution_server = conf["execution_server"]
 
-    def _setup_docker_gateway(self, response):
+    def _setup_docker_gateway(self, response=None):
         self.request.headers['X-Current-Server'] = self.execution_server
         self.request.headers['X-Method'] = self.method
         self.mc_docker_gateway = VertigoGatewayDocker(
-            self.request, response,
-            self.conf, self.logger, self.account)
+                                    self.request, response,
+                                    self.conf, self.logger, self.account)
 
     def _setup_storlet_gateway(self):
         self.storlet_gateway = VertigoGatewayStorlet(

@@ -1,7 +1,3 @@
-/*============================================================================
- 20-Oct-2015    josep.sampe	Initial implementation
- 18-Aug-2016	josep.sampe	New implementation
- ===========================================================================*/
 package com.urv.vertigo.mc.cbac;
 
 import com.urv.vertigo.api.Api;
@@ -14,8 +10,8 @@ public class CBACHandler implements IMicrocontroller {
 	 */
 	public void invoke(Api api) {
 		
-		api.logger.emitLog("*** Init CBAC Microcontroller ***");		
-		
+		api.logger.emitLog("Init CBAC Microcontroller");	
+
 		String requetRoles = api.request.roles;
 		String role = api.microcontroller.metadata.get("role").toString();
 		String allowed_cols = api.microcontroller.metadata.get("allowed_cols").toString();
@@ -31,8 +27,8 @@ public class CBACHandler implements IMicrocontroller {
 			api.logger.emitLog("--> Unallowed request");
 			api.request.cancel("ERROR: User not allowed");	
 		}
-		
-		api.logger.emitLog("--- End CBAC Microcontroller ---");
+
+		api.logger.emitLog("Ended CBAC Microcontroller");
 		
 	}
 

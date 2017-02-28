@@ -101,6 +101,13 @@ public class ApiRequest {
 		this.execute();
 	}
 	
+	@SuppressWarnings("unchecked")
+	public void rewire(String object_id){	
+		outMetadata.put("command", "REWIRE");
+		outMetadata.put("object_id", object_id);
+		this.execute();
+	}
+	
 	private void execute() {
 		try {
 			stream.write(outMetadata.toString().getBytes());

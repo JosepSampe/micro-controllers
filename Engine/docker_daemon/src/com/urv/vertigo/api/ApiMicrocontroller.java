@@ -31,6 +31,7 @@ public class ApiMicrocontroller {
 		for (String key: objectMetadata.keySet()){
 			if (key.toLowerCase().equals(metadataKey)){
 				String mcMetadata = objectMetadata.get(key);
+				// TODO: check if mcMetadata is null
 				try{
 					metadata = (JSONObject) new JSONParser().parse(mcMetadata);
 				} catch (ParseException e1) {

@@ -1,6 +1,3 @@
-/*============================================================================
- 18-Aug-2016    josep.sampe			Initial implementation.
- ===========================================================================*/
 package com.urv.vertigo.api;
 
 import java.io.FileDescriptor;
@@ -13,23 +10,25 @@ import org.slf4j.Logger;
 public class ApiStorlet {
 	private FileOutputStream stream;
 	private Logger logger_;
+	private Integer index;
 	private JSONObject outMetadata = new JSONObject();
 	private JSONObject storletList = new JSONObject();
 	
 	public ApiStorlet(FileDescriptor fd, Logger logger) {
 		stream = new FileOutputStream(fd);
 		logger_ = logger;
-		
+		index = 0;
 		logger_.trace("ApiStorlet created");
 	}
 
 	@SuppressWarnings("unchecked") 
-	public void set(int i, String storlet, String parameters, String server){
+	public void set(String storlet, String parameters){
 		JSONObject storletPack = new JSONObject();
 		storletPack.put("storlet",storlet);
 		storletPack.put("params",parameters);
-		storletPack.put("server",server);		
-		storletList.put(i,storletPack);
+		storletPack.put("server","object");		
+		storletList.put(index,storletPack);
+		index = index+1;
 	}
 	
 	@SuppressWarnings("unchecked") 

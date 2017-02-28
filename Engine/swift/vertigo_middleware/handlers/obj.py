@@ -54,11 +54,10 @@ class VertigoObjectHandler(VertigoBaseHandler):
         """
         response = self.request.get_response(self.app)
 
-        start = time.time()
+        # start = time.time()
 
         if self.obj.endswith('/'):
-            # is a pseudo-folder, for the moment the microcontrollers are
-            # not executed over a psudo-folder
+            # is a pseudo-folder
             mc_list = None
         else:
             mc_list = get_microcontroller_list_object(response.headers, self.method)
@@ -72,13 +71,9 @@ class VertigoObjectHandler(VertigoBaseHandler):
         else:
             self.logger.info('Vertigo - No microcontrollers to execute')
 
-        end = time.time() - start
-        self.logger.info('---')
-        self.logger.info('Total execution time: ' +
-                         str(int(round(end * 1000))) + 'ms')
-        self.logger.info('---')
-        # f = open('/home/lab144/josep/middleware_get_tstamp.log','a')
-        # f.write(str(end)+'\n') # python will convert \n to os.linesep
+        # end = time.time() - start
+        # f = open("/tmp/vertigo/vertigo_get_overhead.log", 'a')
+        # f.write(str(int(round(end * 1000)))+'\n')
         # f.close()
 
         return response

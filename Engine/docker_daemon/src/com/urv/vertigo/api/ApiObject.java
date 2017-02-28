@@ -34,14 +34,12 @@ public class ApiObject {
 		contentLength = objectMetadata.get("Content-Length");
 		backendTimestamp = objectMetadata.get("X-Backend-Timestamp");
 		contentType = objectMetadata.get("Content-Type");
+		
+		// TODO: Put object metadata into cache
 
 		logger_.trace("ApiObject created");
 	}
-	
-	public BufferedReader get(){
-		return swift.get(object);
-	}
-			
+				
 	public void copy(String dest){
 		swift.copy(object, dest);
 	}

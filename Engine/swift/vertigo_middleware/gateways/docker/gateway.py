@@ -1,4 +1,4 @@
-from vertigo_middleware.common.utils import make_swift_request, get_data_dir, \
+from vertigo_middleware.common.utils import make_swift_request, \
     set_object_metadata, get_object_metadata
 from vertigo_middleware.gateways.docker.runtime import RunTimeSandbox, \
     VertigoInvocationProtocol
@@ -33,7 +33,6 @@ class VertigoGatewayDocker():
         """
         Exeutes the microcontroller list.
          1. Starts the docker container (sandbox).
-         2. Starts the API.
          3. Gets the microcontrollers metadata.
          4. Executes the microcontroller list.
 
@@ -42,16 +41,13 @@ class VertigoGatewayDocker():
         """
         RunTimeSandbox(self.logger, self.conf, self.account).start()
 
-        # TODO: Execute microcontroller on proxy side
         mc_metadata = self._get_microcontroller_metadata(mc_list)
-        data_dir = get_data_dir(self)
-        self.logger.info('Vertigo - Object path: ' + data_dir)
+        object_headers = self._get_object_headers()
 
-        protocol = VertigoInvocationProtocol(data_dir,
-                                             self.mc_pipe_path,
+        protocol = VertigoInvocationProtocol(self.mc_pipe_path,
                                              self.logger_path,
                                              dict(self.request.headers),
-                                             self.response.headers,
+                                             object_headers,
                                              mc_list,
                                              mc_metadata,
                                              self.mc_timeout,
@@ -59,7 +55,25 @@ class VertigoGatewayDocker():
 
         return protocol.communicate()
 
-    def _update_cache(self, swift_container, object_name):
+    def _get_object_headers(self):
+        headers = dict()
+        if self.method == "get":
+            headers = self.response.headers
+        elif self.method == "put":
+            if 'Content-Length' in self.request.headers:
+                headers['Content-Length'] = self.request.headers['Content-Length']
+            if 'Content-Type' in self.request.headers:
+                headers['Content-Type'] = self.request.headers['Content-Type']
+            for header in self.request.headers:
+                if header.startswith('X-Object'):
+                    headers[header] = self.request.headers[header]
+
+            referer = self.request.method+' '+self.request.host_url+self.request.path_info
+            self.request.headers['Referer'] = referer  # Needed for the mc_engine
+
+        return headers
+
+    def _update_local_cache_from_swift(self, swift_container, object_name):
         """
         Updates the local cache of microcontrollers and dependencies
 
@@ -84,7 +98,8 @@ class VertigoGatewayDocker():
 
     def _is_avialable_in_cache(self, swift_container, obj_name):
         """
-        checks whether the microcontroler or the dependency is in cache.
+        checks whether the microcontroler or the dependency is in cache. If not,
+        brings it from swift.
 
         :param swift_container: container name (microcontroller or dependency)
         :param object_name: Name of the microcontroller or dependency
@@ -104,9 +119,9 @@ class VertigoGatewayDocker():
             #                 ' not found in cache.')
             self.logger.info('Vertigo - ' + swift_container +
                              '/' + obj_name + ' not found in cache.')
-            self._update_cache(swift_container, obj_name)
+            self._update_local_cache_from_swift(swift_container, obj_name)
         else:
-            # self._update_cache(swift_container, obj_name)  # DELETE! (Only for test purposes)
+            self._update_local_cache_from_swift(swift_container, obj_name)  # DELETE! (Only for test purposes)
             self.logger.info('Vertigo - ' + swift_container +
                              '/' + obj_name + ' in cache.')
 

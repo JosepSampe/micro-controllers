@@ -180,6 +180,7 @@ public class ApiSwift {
 		
 	}
 
+	/*
 	public BufferedReader get(String source){
 		BufferedReader reader = null;
 		HttpURLConnection conn = newConnection(source);
@@ -201,6 +202,7 @@ public class ApiSwift {
 		}
 		return reader;
 	}
+	*/
 
 	public void setMicrocontroller(String source, String mc, String method, String metadata){
 		HttpURLConnection conn = newConnection(source);
@@ -247,7 +249,7 @@ public class ApiSwift {
 		String id =  "AUTH_"+tenantId+"/"+source;
 		logger_.trace("Prefetching "+id);
 		String hash = MD5(id);
-		String data = null;
+		String data = "";
 		mc.set(hash, 600, data);
 	}	
 	

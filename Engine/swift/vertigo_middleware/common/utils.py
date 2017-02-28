@@ -3,7 +3,7 @@ from swift.common.exceptions import DiskFileXattrNotSupported, DiskFileNoSpace
 from swift.common.exceptions import DiskFileNotExist
 from swift.obj.diskfile import get_data_dir as df_data_dir, _get_filename
 from swift.common.request_helpers import get_name_and_placement
-from swift.common.utils import storage_directory, hash_path
+from swift.common.utils import storage_directory, hash_path, cache_from_env
 from swift.common.wsgi import make_subrequest
 import xattr
 import logging
@@ -133,11 +133,17 @@ def set_container_metadata(vertigo, metadata):
 
     :param metadata: metadata dictionary
     """
-    container = os.path.join('/', vertigo.api_version, vertigo.account, vertigo.container)
+    memcache = cache_from_env(vertigo.request.environ)
+    dest_path = os.path.join('/', vertigo.api_version, vertigo.account, vertigo.container)
+    for key in metadata.keys():
+        if not key.startswith(SYSMETA_CONTAINER_HEADER):
+            del metadata[key]
+    # We store the Vertigo metadata in the memcached server (only 10 minutes)
+    memcache.set("vertigo_"+dest_path, metadata, time=600)
     new_env = dict(vertigo.request.environ)
     auth_token = vertigo.request.headers.get('X-Auth-Token')
     metadata.update({'X-Auth-Token': auth_token})
-    sub_req = make_subrequest(new_env, 'POST', container,
+    sub_req = make_subrequest(new_env, 'POST', dest_path,
                               headers=metadata,
                               swift_source='Vertigo')
     sub_req.get_response(vertigo.app)

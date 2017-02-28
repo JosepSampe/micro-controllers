@@ -10,6 +10,7 @@ from swift.common.wsgi import make_subrequest
 import pickle
 import json
 import os
+import time
 
 
 class VertigoProxyHandler(VertigoBaseHandler):
@@ -125,8 +126,7 @@ class VertigoProxyHandler(VertigoBaseHandler):
     def _get_object_list(self, path):
         """
         Gets an object list of a specified path. The path may be '*', that means
-        it returns all objects inside the container or a pseudo-folder, that means
-        it only returns the objects inside the pseudo-folder.
+        it returns all objects inside the container or a pseudo-folder.
         :param path: pseudo-folder path (ended with *), or '*'
         :return: list of objects
         """
@@ -189,6 +189,21 @@ class VertigoProxyHandler(VertigoBaseHandler):
             mc_key = 'X-Container-Sysmeta-Vertigo-Microcontroller'
             dest_path = os.path.join('/', self.api_version, self.account, self.container)
 
+        # We first try to get the microcontroller execution list from the memcache
+        vertigo_metadata = self.memcache.get("vertigo_"+dest_path)
+
+        if vertigo_metadata:
+            for key in vertigo_metadata.keys():
+                if key.replace('Container', 'Object').startswith('X-Object-Sysmeta-Vertigo-'):
+                    if key == mc_key:
+                        mc = eval(vertigo_metadata.pop(key))
+                        vertigo_metadata[key.replace('Container', 'Object')] = mc
+                    else:
+                        vertigo_metadata[key.replace('Container', 'Object')] = vertigo_metadata.pop(key)
+
+            return vertigo_metadata
+
+        # If the microcontroller execution list is not in memcache, we get it from Swift
         new_env = dict(self.request.environ)
         auth_token = self.request.headers.get('X-Auth-Token')
         sub_req = make_subrequest(new_env, 'HEAD', dest_path,
@@ -200,8 +215,8 @@ class VertigoProxyHandler(VertigoBaseHandler):
         if response.is_success:
             for key in response.headers:
                 if key.replace('Container', 'Object').startswith('X-Object-Sysmeta-Vertigo-'):
-                    if key.replace('Container', 'Object').startswith('X-Object-Sysmeta-Vertigo-Onput'):
-                        continue
+                    # if key.replace('Container', 'Object').startswith('X-Object-Sysmeta-Vertigo-Onput'):
+                    #    continue
                     if key == mc_key:
                         mc = eval(response.headers[key])
                         # del mc['onput']
@@ -252,13 +267,11 @@ class VertigoProxyHandler(VertigoBaseHandler):
 
             response = self.request.get_response(self.app)
 
-            print response.body
-
         return response
 
     def _process_object_move_and_link(self):
         """
-        Moves an object to the destination path and leaves a soft link to
+        Moves an object to the destination path and leaves a soft link in
         the original path.
         """
         link_path = os.path.join(self.container, self.obj)
@@ -292,13 +305,30 @@ class VertigoProxyHandler(VertigoBaseHandler):
                 self.logger.info('Vertigo - Microcontroller execution disabled'
                                  ': Request from microcontroller')
 
+    def _process_mc_data(self, mc_data):
+        """
+        Processes the data returned from the microcontroller
+        """
+        if mc_data['command'] == 'CONTINUE':
+            return self.request.get_response(self.app)
+
+        elif mc_data['command'] == 'STORLET':
+            slist = mc_data['list']
+            self.logger.info('Vertigo - Go to execute Storlets: ' + str(slist))
+            return self.apply_storlet_on_put(self.request, slist)
+
+        elif mc_data['command'] == 'CANCEL':
+            msg = mc_data['message']
+            return Response(body=msg + '\n', headers={'etag': ''},
+                            request=self.request)
+
     @public
     def GET(self):
         """
         GET handler on Proxy
         """
         obj = os.path.join(self.account, self.container, self.obj)
-        self._check_microcntroller_execution(obj)
+        # self._check_microcntroller_execution(obj)
 
         if self._is_object_in_cache(obj):
             response = self._get_cached_object(obj)
@@ -341,13 +371,22 @@ class VertigoProxyHandler(VertigoBaseHandler):
             # When a users puts an object, the microcontrollers assigned to the
             # parent container or pseudo-folder are assigned by default to
             # the new object. Onput microcontrollers are executed here.
+            # start = time.time()
             mc_metadata = self._get_parent_vertigo_metadata()
             self.request.headers.update(mc_metadata)
             mc_list = get_microcontroller_list_object(mc_metadata, self.method)
             if mc_list:
-                # TODO: Execute MC on PUT
-                pass
-            response = self.request.get_response(self.app)
+                self.logger.info('Vertigo - There are microcontrollers' +
+                                 ' to execute: ' + str(mc_list))
+                self._setup_docker_gateway()
+                mc_data = self.mc_docker_gateway.execute_microcontrollers(mc_list)
+                # end = time.time() - start
+                response = self._process_mc_data(mc_data)
+                # f = open("/tmp/vertigo/vertigo_put_overhead.log", 'a')
+                # f.write(str(int(round(end * 1000)))+'\n')
+                # f.close()
+            else:
+                response = self.request.get_response(self.app)
 
         return response
 
