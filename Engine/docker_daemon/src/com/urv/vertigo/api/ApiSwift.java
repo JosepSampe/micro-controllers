@@ -57,11 +57,12 @@ public class ApiSwift {
 		redis.select(redisDefaultDatabase);
 		metadata = new Metadata();
 
+		/*
 		try {
 			mc = new MemcachedClient(new InetSocketAddress(memcachedHost, memcachedPort));
 		} catch (IOException e) {
 			logger_.trace("Failed to create Memcached client");
-		}
+		}*/
 		
 		logger_.trace("ApiSwift created");
 	}
@@ -247,10 +248,10 @@ public class ApiSwift {
 	
 	public void prefetch(String source){
 		String id =  "AUTH_"+tenantId+"/"+source;
-		logger_.trace("Prefetching "+id);
+		//logger_.trace("Prefetching "+id);
 		String hash = MD5(id);
 		String data = "";
-		mc.set(hash, 600, data);
+		//mc.set(hash, 600, data);
 	}	
 	
 	public void delete(String source){

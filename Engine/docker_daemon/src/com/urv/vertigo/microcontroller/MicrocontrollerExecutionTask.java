@@ -1,42 +1,33 @@
-/*============================================================================
- 21-Oct-2015    josep.sampe       	Initial implementation.
- 17-Aug-2016	josep.sampe			Refactor
- ===========================================================================*/
 package com.urv.vertigo.microcontroller;
 
+import com.ibm.storlet.sbus.SBusDatagram;
 import com.urv.vertigo.api.Api;
+
+import org.json.simple.JSONObject;
+import org.json.simple.parser.JSONParser;
+import org.json.simple.parser.ParseException;
 import org.slf4j.Logger;
+
+import java.io.FileDescriptor;
 import java.util.HashMap;
-import java.util.ArrayList;
-import java.util.concurrent.Future;
+import java.util.Map;
 
 
 public class MicrocontrollerExecutionTask implements Runnable {
 	private Logger logger_ = null;
-	private ArrayList<Microcontroller> mcManager_ = null;
-	private String taskId_ = null;
-	private HashMap<String, Future> taskIdToTask_ = null;
+	private SBusDatagram dtg = null;
 
 	/*------------------------------------------------------------------------
 	 * CTOR
 	 * */
-	public MicrocontrollerExecutionTask(ArrayList<Microcontroller> mcManager, Logger logger) {
+	public MicrocontrollerExecutionTask(SBusDatagram dtg, Logger logger) {
 		this.logger_ = logger;
-		this.mcManager_ = mcManager;
+		//this.mc_ = mc;
+		//this.api_ = api;
+		
+		this.dtg = dtg;
 		
 		logger_.trace("Microcontroller execution task created");
-	}
-
-
-	/*------------------------------------------------------------------------
-	 * setters
-	 * */
-	public void setTaskId(String taskId) {
-		taskId_ = taskId;
-	}
-
-	public void setTaskIdToTask(HashMap<String, Future> taskIdToTask) {
-		taskIdToTask_ = taskIdToTask;
 	}
 
 	/*------------------------------------------------------------------------
@@ -44,22 +35,64 @@ public class MicrocontrollerExecutionTask implements Runnable {
 	 * 
 	 * Actual microcontroller invocation
 	 * */
-	@Override
+	@SuppressWarnings("unchecked")
 	public void run() {
+		
+		int nFiles = dtg.getNFiles();
 
-			logger_.trace("About to invoke microcontroller");
+		FileDescriptor toSwift = null;
+		FileDescriptor logFd  = null;
+		
+		Map<String, String> object_md = null;
+		Map<String, String> req_md = null;
+		
+		String mcName, mcMainClass, mcDependencies = null;
+		Api api = null;
+		Microcontroller mc = null;
+		HashMap<String, FileDescriptor> mcLog = new HashMap<String,FileDescriptor>();
+
+		
+		HashMap<String, String>[] FilesMD = dtg.getFilesMetadata();
+		logger_.trace("Got " + nFiles + " fds");
+
+		for (int i = 0; i < nFiles; ++i) {	
+			String strFDtype = FilesMD[i].get("type");
 			
-			for (Microcontroller mc_obj : mcManager_) {
-				IMicrocontroller microcontroller = mc_obj.getMicrocontroller();
-				Api api = mc_obj.getApi();				
+			if (strFDtype.equals("SBUS_FD_OUTPUT_OBJECT")) {
+				toSwift = dtg.getFiles()[i];
+				logger_.trace("Got Microcontroller output fd");
+				
+			} else if (strFDtype.equals("SBUS_FD_INPUT_OBJECT")){
+				//Isn't need to get fd
+				JSONObject jsonMetadata;
+				try {
+					jsonMetadata = (JSONObject)new JSONParser().parse(FilesMD[i].get("json_md"));
+					object_md = (Map<String, String>) jsonMetadata.get("object_md");
+					req_md = (Map<String, String>) jsonMetadata.get("req_md");
+				} catch (ParseException e) {
+					e.printStackTrace();
+				}
+				logger_.trace("Got object and request metadata");
+	
+			} else if (strFDtype.equals("SBUS_FD_LOGGER")){
+				logFd = dtg.getFiles()[i];
+				mcName = FilesMD[i].get("microcontroller");
+				mcLog.put(mcName, logFd);
+				mcMainClass = FilesMD[i].get("main");
+				mcDependencies = FilesMD[i].get("dependencies");
+				logger_.trace("Got logger microcontroller fd for "+mcName);
+				
+				api = new Api(mcName, mcLog.get(mcName), toSwift, object_md, req_md, logger_);
+				mc = new Microcontroller(mcName, mcMainClass, mcDependencies, logger_);
+
+				logger_.trace("Microcontroller '"+mcName+"' loaded");
+				IMicrocontroller microcontroller = mc.getMicrocontroller();				
 				microcontroller.invoke(api);
-				api.logger.flush();
+				
+				mc = null;
+				api = null;
+				microcontroller = null;
 			}
-			
-			logger_.trace("Microcontroller invocation done");
-
-			synchronized (taskIdToTask_) {
-				taskIdToTask_.remove(taskId_);
-			}
+		}					
 	}
 }

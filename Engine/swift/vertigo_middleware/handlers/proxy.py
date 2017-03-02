@@ -34,7 +34,9 @@ class VertigoProxyHandler(VertigoBaseHandler):
         :return: True/False
         """
         self.logger.info('Vertigo - Checking in cache: ' + obj)
-        self.cached_object = self.memcache.get(obj)
+        # self.cached_object = self.memcache.get(obj)
+
+        self.cached_object = None
 
         return self.cached_object is not None
 
@@ -200,7 +202,6 @@ class VertigoProxyHandler(VertigoBaseHandler):
                         vertigo_metadata[key.replace('Container', 'Object')] = mc
                     else:
                         vertigo_metadata[key.replace('Container', 'Object')] = vertigo_metadata.pop(key)
-
             return vertigo_metadata
 
         # If the microcontroller execution list is not in memcache, we get it from Swift
@@ -223,7 +224,7 @@ class VertigoProxyHandler(VertigoBaseHandler):
                         vertigo_metadata[key.replace('Container', 'Object')] = mc
                     else:
                         vertigo_metadata[key.replace('Container', 'Object')] = response.headers[key]
-
+        self.memcache.set("vertigo_"+dest_path, vertigo_metadata)
         return vertigo_metadata
 
     def _process_trigger_assignation_deletion_request(self):

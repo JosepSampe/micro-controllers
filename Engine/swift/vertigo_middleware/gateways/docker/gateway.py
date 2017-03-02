@@ -52,7 +52,6 @@ class VertigoGatewayDocker():
                                              mc_metadata,
                                              self.mc_timeout,
                                              self.logger)
-
         return protocol.communicate()
 
     def _get_object_headers(self):
@@ -88,8 +87,7 @@ class VertigoGatewayDocker():
         if not os.path.exists(cache_target_path):
             os.makedirs(cache_target_path, 0o777)
 
-        resp = make_swift_request(
-            "GET", self.account, swift_container, object_name)
+        resp = make_swift_request("GET", self.account, swift_container, object_name)
 
         with open(cache_target_obj, 'w') as fn:
             fn.write(resp.body)

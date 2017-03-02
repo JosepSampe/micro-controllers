@@ -22,6 +22,7 @@ public class PrefetchingHandler implements IMicrocontroller {
 			List<String> staticResources = Arrays.asList(resources.split(","));
 	
 			for (String resource : staticResources){
+				api.logger.emitLog(resource);
 				api.swift.prefetch(resource);
 			}
 		}

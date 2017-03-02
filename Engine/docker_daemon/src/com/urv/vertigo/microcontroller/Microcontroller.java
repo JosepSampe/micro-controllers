@@ -1,11 +1,5 @@
-/*============================================================================
- 19-Oct-2015    josep.sampe		Initial implementation.
- 03-Feb-2016	josep.sampe		Added bus to Internal Client
- 17-Aug-2016	josep.sampe		Refactor
- ===========================================================================*/
 package com.urv.vertigo.microcontroller;
 
-import com.urv.vertigo.api.Api;
 import org.slf4j.Logger;
 import java.util.List;
 import java.util.Arrays;
@@ -17,7 +11,6 @@ import java.net.URLClassLoader;
 public class Microcontroller {
 
 	private Logger logger_;
-	private Api api_;
 	private String strName_;
 	private String strMainClass_;
 	private String strDependencies_;
@@ -53,21 +46,17 @@ public class Microcontroller {
 		return microcontroller;
 	}
 
-	public Microcontroller(String name, String mainClass, String dependencies, Api api, Logger logger) {
-		logger_ = logger;
-		strName_ = name;
-		strMainClass_ = mainClass;
-		strDependencies_ = dependencies;
-		api_ = api; 
+	public Microcontroller(String name, String mainClass, String dependencies, Logger logger) {
+		this.logger_ = logger;
+		this.strName_ = name;
+		this.strMainClass_ = mainClass;
+		this.strDependencies_ = dependencies;
 		
-		microcontroller_ = loadMicrocontroller();
+		this.microcontroller_ = loadMicrocontroller();
 	}
 	
 	public IMicrocontroller getMicrocontroller() {
-		return microcontroller_;
+		return this.microcontroller_;
 	}
-	
-	public Api getApi(){
-		return api_;	
-	}
+
 }
