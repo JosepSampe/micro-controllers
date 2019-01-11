@@ -26,7 +26,7 @@ class VertigoGatewayStorlet():
 
         self.storlet_container = conf.get('storlet_container', 'storlet')
         self.storlet_dependency = conf.get('storlet_dependency', 'dependency')
-        self.log_container = conf.get('storlet_logcontainer')
+        self.log_container = conf.get('storlet_logcontainer', 'storletlog')
         self.client_conf_file = '/etc/swift/storlet-proxy-server.conf'
 
     def _setup_gateway(self):

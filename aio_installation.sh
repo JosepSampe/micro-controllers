@@ -423,8 +423,9 @@ update_vertigo(){
 	
 	printf "Updating Micro-controlers\t ... \t90%%"
 	git clone https://github.com/JosepSampe/micro-controllers  >> $LOG 2>&1;
-    pip install micro-controllers/Engine/swift  >> $LOG 2>&1;
+    pip install -U micro-controllers/Engine/swift  >> $LOG 2>&1;
 	rm -r micro-controllers  >> $LOG 2>&1;
+	printf "\tDone!\n"
 	
 	printf "Updating Micro-controllers AiO\t ... \t100%%\tCompleted!\n\n"
 }
