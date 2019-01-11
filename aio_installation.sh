@@ -250,7 +250,7 @@ install_microcontrollers(){
 	execution_server = object
 	EOF
 	
-		
+
 	sed -i '/^pipeline =/ d' /etc/swift/proxy-server.conf
 	sed -i '/\[pipeline:main\]/a pipeline = catch_errors gatekeeper healthcheck proxy-logging cache container_sync bulk tempurl ratelimit authtoken keystoneauth copy container-quotas account-quotas vertigo_handler storlet_handler slo dlo versioned_writes proxy-logging proxy-server' /etc/swift/proxy-server.conf
 	
@@ -326,7 +326,7 @@ install_storlets(){
 	storlet_gateway_module = docker
 	storlet_gateway_conf = /etc/swift/storlet_docker_gateway.conf
 	execution_server = proxy
-	EOF	
+	EOF
 	
 	cat <<-EOF >> /etc/swift/object-server.conf
 	
