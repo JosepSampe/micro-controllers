@@ -263,6 +263,13 @@ install_microcontrollers(){
 
 ##### Install Storlets #####
 install_storlets(){
+    add-apt-repository -y ppa:webupd8team/java
+    apt update
+    apt install openjdk-8-jdk openjdk-8-jre -y
+    #echo debconf shared/accepted-oracle-license-v1-1 select true | sudo debconf-set-selections
+    #echo debconf shared/accepted-oracle-license-v1-1 seen true | sudo debconf-set-selections
+    #apt install oracle-java8-installer -y
+    
 	# Install Docker
 	curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
 	sudo add-apt-repository "deb [arch=amd64] https://download.docker.com/linux/ubuntu xenial stable"
