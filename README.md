@@ -21,3 +21,11 @@ sudo ./aio_installation.sh install
 ```
 
 The script first installs Keystone, Swift and Horizon (Pike release), then it proceeds to install the micor-controllers framework package (Vertigo). Note that the script uses weak passwords for the installed services, so if you want more secure services, please change them at the top of the script.
+
+By default, the script has low verbosity. To see the full installation log, run the following command in another terminal:
+
+```bash
+tail -f /tmp/vertigo_aio_installation.log
+```
+
+The script takes long to complete (it depends of the network connection). Once completed, you can access to the dashboard by typing the following URL in the web browser: `http://<node-ip>/horizon`.

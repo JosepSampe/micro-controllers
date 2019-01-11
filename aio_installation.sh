@@ -9,7 +9,7 @@ KEYSTONE_ADMIN_PASSWD=keystone
 VERTIGO_TENANT_PASSWD=vertigo
 ###############################
 
-LOG=/tmp/crystal_aio_installation.log
+LOG=/tmp/vertigo_aio_installation.log
 
 ###### Upgrade System ######
 upgrade_system(){
@@ -351,7 +351,7 @@ restart_services(){
 }
 
 
-install_crystal(){
+install_vertigo(){
 	printf "\nStarting Installation. The script takes long to complete, be patient!\n"
 	printf "See the full log at $LOG\n\n"
 	
@@ -367,55 +367,40 @@ install_crystal(){
 	
 	printf "Installing OpenStack Keystone\t ... \t10%%"
 	install_openstack_keystone >> $LOG 2>&1; printf "\tDone!\n"
-	printf "Installing OpenStack Horizon\t ... \t20%%"
+	printf "Installing OpenStack Horizon\t ... \t30%%"
 	install_openstack_horizon >> $LOG 2>&1; printf "\tDone!\n"
-	printf "Installing OpenStack Swift\t ... \t30%%"
+	printf "Installing OpenStack Swift\t ... \t50%%"
 	install_openstack_swift >> $LOG 2>&1; printf "\tDone!\n"
 	
 	printf "Installing Micro-controllers\t ... \t70%%"
 	install_microcontrollers >> $LOG 2>&1; printf "\tDone!\n"
 	printf "Installing Storlets\t\t ... \t90%%"
 	install_storlets >> $LOG 2>&1; printf "\tDone!\n"
-	printf "Initializing Crystal\t\t ... \t95%%"
+	printf "Initializing Test Tenant\t\t ... \t95%%"
 	initialize_tenant >> $LOG 2>&1; printf "\tDone!\n"
 	
 	restart_services >> $LOG 2>&1;
 	printf "Micro-controllers installation\t ... \t100%%\tCompleted!\n\n"
 	printf "Access the Dashboard with the following URL: http://$IP_ADRESS/horizon\n"
-	printf "Login with user: manager | password: $CRYSTAL_MANAGER_PASSWD\n\n"
+	printf "Login with user: vertigo | password: $VERTIGO_TENANT_PASSWD\n\n"
 }
 
 
-update_crystal(){
-	printf "\nUpdating Crystal Installation. The script takes long to complete, be patient!\n"
+update_vertigo(){
+	printf "\nUpdating Micro-controllers Installation.\n"
 	printf "See the full log at $LOG\n\n"
 	
-	printf "Updating Crystal Controller\t ... \t10%%"
-	install_crystal_controller >> $LOG 2>&1; printf "\tDone!\n"
-	printf "Updating Crystal Dashboard\t ... \t30%%"
-	install_crystal_dashboard >> $LOG 2>&1; printf "\tDone!\n"
+	printf "Updating Micro-controlers\t ... \t90%%"
+	git clone https://github.com/JosepSampe/micro-controllers  >> $LOG 2>&1;
+    pip install micro-controllers/Engine/swift  >> $LOG 2>&1;
+	rm -r micro-controllers  >> $LOG 2>&1;
 	
-	printf "Updating ACL Middleware\t ... \t50%%"
-	git clone https://github.com/Crystal-SDS/acl-middleware  >> $LOG 2>&1;
-	pip install acl-middleware/  >> $LOG 2>&1;
-	rm -r acl-middleware  >> $LOG 2>&1;
-	
-	printf "Updating Filter Middleware\t ... \t75%%"
-	git clone https://github.com/Crystal-SDS/filter-middleware  >> $LOG 2>&1;
-	pip install filter-middleware/  >> $LOG 2>&1;
-	rm -r filter-middleware  >> $LOG 2>&1;
-	
-	printf "Updating Metric Middleware\t ... \t90%%"
-	git clone https://github.com/Crystal-SDS/metric-middleware  >> $LOG 2>&1;
-	pip install metric-middleware/  >> $LOG 2>&1;
-	rm -r metric-middleware  >> $LOG 2>&1;
-	
-	printf "Updating Crystal AiO\t ... \t100%%\tCompleted!\n\n"
+	printf "Updating Micro-controllers AiO\t ... \t100%%\tCompleted!\n\n"
 }
 
 
 usage(){
-    echo "Usage: sudo ./crystal_aio.sh install|update"
+    echo "Usage: sudo ./aio_installation.sh install|update"
     exit 1
 }
 
@@ -426,14 +411,15 @@ main(){
 	then
 		case $COMMAND in
 		  "install" )
-		    install_crystal
+		    install_vertigo
 		    ;;
-		
+		  
 		  "update" )
-		    update_crystal
-		    ;;
+            update_vertigo
+            ;;
+
 		  * )
-		    install_crystal
+		    install_vertigo
 		esac
 	fi
 }
