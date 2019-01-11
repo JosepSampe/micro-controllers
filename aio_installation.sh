@@ -315,7 +315,31 @@ install_storlets(){
 	ansible-playbook -s -i storlets_dynamic_inventory.py docker_cluster.yml --connection=local
 	docker rmi ubuntu_16.04_jre8 ubuntu:16.04 ubuntu_16.04 -f
 	cd ~
+
+	cat <<-EOF >> /etc/swift/proxy-server.conf	
 	
+	[filter:storlet_handler]
+	use = egg:storlets#storlet_handler
+	storlet_container = storlet
+	storlet_logcontainer = storletlog
+	storlet_execute_on_proxy_only = false
+	storlet_gateway_module = docker
+	storlet_gateway_conf = /etc/swift/storlet_docker_gateway.conf
+	execution_server = proxy
+	EOF	
+
+	cat <<-EOF >> /etc/swift/object-server.conf
+	
+	[filter:storlet_handler]
+	use = egg:storlets#storlet_handler
+	storlet_container = storlet
+	storlet_gateway_module = docker
+	storlet_gateway_conf = /etc/swift/storlet_docker_gateway.conf
+	storlet_execute_on_proxy_only = false
+	execution_server = object
+	storlet_daemon_thread_pool_size = 4
+	EOF
+
 	cat <<-EOF >> /etc/swift/storlet_docker_gateway.conf
 	[DEFAULT]
 	lxc_root = /home/docker_device/scopes
@@ -332,7 +356,7 @@ install_storlets(){
 	cp /etc/swift/proxy-server.conf /etc/swift/storlet-proxy-server.conf
 	sed -i '/^pipeline =/ d' /etc/swift/storlet-proxy-server.conf
 	sed -i '/\[pipeline:main\]/a pipeline = proxy-logging cache slo proxy-logging proxy-server' /etc/swift/storlet-proxy-server.conf
-	rm -r storlets
+	rm -r storlets	
 }
 
 
@@ -344,8 +368,8 @@ initialize_tenant(){
 	docker tag ubuntu_16.04_jre8_storlets ${PROJECT_ID:0:13}
 	swift-init main restart
 
-	swift post .storlet
-	swift post .microcontroller
+	swift post storlet
+	swift post microcontroller
 
 	swift post -H "X-account-meta-storlet-enabled:True"
 }

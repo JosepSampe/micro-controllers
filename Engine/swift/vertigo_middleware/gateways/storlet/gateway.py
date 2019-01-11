@@ -1,6 +1,6 @@
 from swift.common.swob import Request, HTTPUnauthorized
 from swift.common.utils import config_true_value
-from storlet_middleware.handlers.base import SwiftFileManager
+from storlets.swift_middleware.handlers.base import SwiftFileManager
 import json
 
 from vertigo_middleware.common.utils import make_swift_request
@@ -24,8 +24,8 @@ class VertigoGatewayStorlet():
         self.gateway_class = self.conf['storlets_gateway_module']
         self.sreq_class = self.gateway_class.request_class
 
-        self.storlet_container = conf.get('storlet_container')
-        self.storlet_dependency = conf.get('storlet_dependency')
+        self.storlet_container = conf.get('storlet_container', 'storlet')
+        self.storlet_dependency = conf.get('storlet_dependency', 'dependency')
         self.log_container = conf.get('storlet_logcontainer')
         self.client_conf_file = '/etc/swift/storlet-proxy-server.conf'
 
