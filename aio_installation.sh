@@ -26,7 +26,7 @@ upgrade_system(){
 
 	DEBIAN_FRONTEND=noninteractive apt -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" dist-upgrade
 	unset DEBIAN_FRONTEND
-	apt install python-openstackclient -y
+	apt install python-pip python-openstackclient -y
 }
 
 
@@ -265,7 +265,7 @@ install_microcontrollers(){
 install_storlets(){
     add-apt-repository -y ppa:webupd8team/java
     apt update
-    apt install openjdk-8-jdk openjdk-8-jre -y
+    apt install gcc openjdk-8-jdk openjdk-8-jre -y
     #echo debconf shared/accepted-oracle-license-v1-1 select true | sudo debconf-set-selections
     #echo debconf shared/accepted-oracle-license-v1-1 seen true | sudo debconf-set-selections
     #apt install oracle-java8-installer -y
