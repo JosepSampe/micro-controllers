@@ -17,9 +17,17 @@ import static org.grep4j.core.Grep4j.regularExpression;
 
 import static org.grep4j.core.fluent.Dictionary.on;
 
+/**
+ * 
+ * @author Josep Sampe
+ *
+ */
 
 public class GrepStorlet implements IStorlet {
-		
+	
+	/***
+	 * Storlet invoke method
+	 */
     public void invoke(ArrayList<StorletInputStream> inStreams, ArrayList<StorletOutputStream> outStreams, Map<String, String> parameters, StorletLogger logger) throws StorletException {
         
     	// CALCULATE TIME ------------

@@ -42,7 +42,10 @@ public class AdultStorlet implements IStorlet {
         	header_.put(header[i], i);
 
     }
-
+    
+	/***
+	 * Storlet invoke method
+	 */
     public void invoke(ArrayList<StorletInputStream> inStreams, ArrayList<StorletOutputStream> outStreams, 
     				  Map<String, String> parameters, StorletLogger logger) throws StorletException {
         

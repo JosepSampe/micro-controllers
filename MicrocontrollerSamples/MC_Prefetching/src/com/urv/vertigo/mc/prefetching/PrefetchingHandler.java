@@ -5,6 +5,12 @@ import java.util.List;
 import com.urv.vertigo.api.Api;
 import com.urv.vertigo.microcontroller.IMicrocontroller;
 
+/**
+ * 
+ * @author Josep Sampe
+ * 
+ */
+
 public class PrefetchingHandler implements IMicrocontroller {
 	
 	/***

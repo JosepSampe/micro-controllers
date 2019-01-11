@@ -25,7 +25,7 @@ public class CompressStorlet implements IStorlet {
 	private static final String DEFAULT_COMPRESSION = "gz";
 	
 	/***
-	 * Storlet invoke method. 
+	 * Storlet invoke method
 	 */
 	@Override
 	public void invoke(ArrayList<StorletInputStream> inStreams,

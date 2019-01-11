@@ -32,6 +32,9 @@ import com.ibm.storlet.common.*;
 @SuppressWarnings("unchecked")
 public class ScanHtml implements IStorlet {
 	
+	/***
+	 * Storlet invoke method
+	 */
     public void invoke(ArrayList<StorletInputStream> inStreams, ArrayList<StorletOutputStream> outStreams, 
     				  Map<String, String> parameters, StorletLogger logger) throws StorletException {
         

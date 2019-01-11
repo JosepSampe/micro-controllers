@@ -17,8 +17,9 @@ import java.util.HashMap;
  */
 
 public class AdaptativeStorlet implements IStorlet {
+	
 	/***
-	 * Storlet invoke method. 
+	 * Storlet invoke method
 	 */
 	@Override
 	public void invoke(ArrayList<StorletInputStream> inStreams,

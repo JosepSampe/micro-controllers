@@ -3,6 +3,12 @@ package com.urv.vertigo.mc.cbac;
 import com.urv.vertigo.api.Api;
 import com.urv.vertigo.microcontroller.IMicrocontroller;
 
+/**
+ * 
+ * @author Josep Sampe
+ * 
+ */
+
 public class CBACHandler implements IMicrocontroller {
 	
 	/***

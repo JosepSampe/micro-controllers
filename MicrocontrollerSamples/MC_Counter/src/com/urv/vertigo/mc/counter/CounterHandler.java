@@ -4,6 +4,12 @@ import java.text.SimpleDateFormat;
 import com.urv.vertigo.api.Api;
 import com.urv.vertigo.microcontroller.IMicrocontroller;
 
+/**
+ * 
+ * @author Josep Sampe
+ * 
+ */
+
 public class CounterHandler implements IMicrocontroller {
 	
 	/***
