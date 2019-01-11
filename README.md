@@ -12,7 +12,7 @@ This implementation of micro-controllers is designed for OpenStack Swift. This f
 
 ### All-In-One Machine
 For testing purposes, it is possible to install an All-In-One (AiO) machine with all the Crystal components and requirements.
-We prepared a script for automating this task. The requirements of the machine are a clean installation of **Ubuntu Server 16.04**, and at least **2GB** of RAM due to the quantity of services the AiO Crystal installation contains. It is preferable to upgrade your system to the latest version with `apt update && apt dist-upgrade` before starting the installation, and set the server name as `controller` in the `/etc/hostname` file. Then, download the `aio_installation.sh` script and run it as sudo:
+We prepared a script for automating this task. The requirements of the machine are a clean installation of **Ubuntu Server 16.04**, and at least **2GB** of RAM. It is preferable to upgrade the system to the latest versions of the packages with `apt update && apt dist-upgrade` before starting the installation, and set the server name as `controller` in the `/etc/hostname` file. Then, download the `aio_installation.sh` script and run it as sudo:
 
 ```bash
 wget https://raw.githubusercontent.com/JosepSampe/micro-controllers/master/aio_installation.sh

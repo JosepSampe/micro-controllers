@@ -4,7 +4,7 @@ from ConfigParser import RawConfigParser
 from vertigo_middleware.handlers import VertigoProxyHandler
 from vertigo_middleware.handlers import VertigoObjectHandler
 from vertigo_middleware.handlers.base import NotVertigoRequest
-
+from storlets.gateway.loader import load_gateway
 
 class VertigoHandlerMiddleware(object):
 
@@ -82,7 +82,8 @@ def filter_factory(global_conf, **local_conf):
     storlet_parameters = configParser.items('filter:storlet_handler')
     for key, val in storlet_parameters:
         vertigo_conf[key] = val
-
+    
+    """ Load Storlets Gateway configuration """
     configParser = RawConfigParser()
     configParser.read(vertigo_conf['storlet_gateway_conf'])
     additional_items = configParser.items("DEFAULT")
@@ -90,12 +91,9 @@ def filter_factory(global_conf, **local_conf):
         vertigo_conf[key] = val
 
     """ Load Storlets Gateway class """
-    module_name = vertigo_conf['storlet_gateway_module']
-    mo = module_name[:module_name.rfind(':')]
-    cl = module_name[module_name.rfind(':') + 1:]
-    module = __import__(mo, fromlist=[cl])
-    the_class = getattr(module, cl)
-    vertigo_conf["storlets_gateway_module"] = the_class
+    module_name = conf.get('storlet_gateway_module', 'stub')
+    gateway_class = load_gateway(module_name)
+    vertigo_conf['storlets_gateway_module'] = gateway_class
 
     def swift_vertigo(app):
         return VertigoHandlerMiddleware(app, global_conf, vertigo_conf)

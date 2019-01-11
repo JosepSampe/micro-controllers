@@ -327,7 +327,7 @@ install_storlets(){
 	storlet_gateway_conf = /etc/swift/storlet_docker_gateway.conf
 	execution_server = proxy
 	EOF	
-
+	
 	cat <<-EOF >> /etc/swift/object-server.conf
 	
 	[filter:storlet_handler]
@@ -339,7 +339,7 @@ install_storlets(){
 	execution_server = object
 	storlet_daemon_thread_pool_size = 4
 	EOF
-
+	
 	cat <<-EOF >> /etc/swift/storlet_docker_gateway.conf
 	[DEFAULT]
 	lxc_root = /home/docker_device/scopes
