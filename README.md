@@ -33,6 +33,7 @@ The script takes long to complete (~10 minutes) (it depends of the network conne
 ## Verify
 ### Test Swift
 To verify the correct operation of the Swift installation, follow these steps:
+
 1- Load credentials:
 ```bash
 source vertigo-openrc
@@ -69,5 +70,14 @@ gunzip test.gz
 ```
 
 ### Test Micro-controllers
-
+1- Assign the No-operation micro-controller to the .json file upon GET requests:
+```bash
+curl -H "X-Auth-Token:$TOKEN" $STORAGE_URL/data/test.json -X POST -H "X-Vertigo-onGet:noop-1.0.jar"
+```
+2- Download the .json file that will put into execution the micro-controller:
+```bash
+swift download data test.json
+or
+curl -H "X-Auth-Token:$TOKEN" $STORAGE_URL/data/test.json -o test.json
+```
  

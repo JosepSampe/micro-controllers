@@ -79,18 +79,17 @@ put_storlet_dependency(url, token, path+'/Storlet_Grep/lib', 'commons-compress-1
 put_storlet_dependency(url, token, path+'/Storlet_Grep/lib', 'grep4j-1.8.7.jar')
 
 # HTML parser Storlet
-put_storlet_object(url, token, path+'/Storlet_ScanHtml/bin', 'ScanHtml-1.0.jar', 'com.urv.storlet.scanhtml.ScanHtml', 'commons-compress-1.6.jar,json_simple-1.1.jar,jsoup-1.8.3.jar')
-put_storlet_dependency(url, token, path+'/Storlet_ScanHtml/lib', 'json_simple-1.1.jar')
+put_storlet_object(url, token, path+'/Storlet_ScanHtml/bin', 'ScanHtml-1.0.jar', 'com.urv.storlet.scanhtml.ScanHtml', 'commons-compress-1.6.jar,jsoup-1.8.3.jar')
 put_storlet_dependency(url, token, path+'/Storlet_ScanHtml/lib', 'jsoup-1.8.3.jar')
 
 # Blurfaces Storlet
 # put_storlet_object(url, token, path+'/Storlet_BlurFaces/bin', 'blurfaces-1.0.jar', 'com.ibm.storlet.blurfaces.BlurFacesStorlet', 'commons-compress-1.2.jar,blur_faces_all.tar.gz')
-# put_storlet_dependency(url, token, path+'/Storlet_BlurFaces/lib', 'commons-compress-1.2.jar')
+# put_storlet_dependency(url, token, path+'/Storlet_BlurFaces/lib', 'commons-compress-1.6.jar')
 # put_storlet_dependency(url, token, path+'/Storlet_BlurFaces/lib', 'blur_faces_all.tar.gz')
 
 # Watermark Storlet
 # put_storlet_object(url, token, path+'/Storlet_Watermark/bin', 'watermark-1.0.jar', 'it.rai.crit.activemediastore.storlets.WatermarkStorlet', 'commons-compress-1.2.jar,commons-io-1.3.2.jar,ffmpeg')
-# put_storlet_dependency(url, token,'commons-compress-1.2.jar','/home/josep/Josep/workspace/Storlet_Watermark/lib')
+# put_storlet_dependency(url, token,'commons-compress-1.6.jar','/home/josep/Josep/workspace/Storlet_Watermark/lib')
 # put_storlet_dependency(url, token,'commons-io-1.3.2.jar','/home/josep/Josep/workspace/Storlet_Watermark/lib')
 # put_storlet_dependency(url, token,'ffmpeg','/home/josep/Josep/workspace/Storlet_Watermark/lib')
 

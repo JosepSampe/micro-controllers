@@ -9,7 +9,7 @@ class Bus(object):
     '''@summary: This class wraps low level C-API for SBus functionality
               to be used with Python
     '''
-    SBUS_SO_NAME = '/usr/local/lib/python2.7/dist-packages/sbus.so'
+    SBUS_SO_NAME = '/opt/vertigo/sbus.so'
 
     def __init__(self):
         '''@summary:             CTOR

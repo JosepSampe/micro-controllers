@@ -77,7 +77,10 @@ class RunTimeSandbox(object):
             self._delete(container_name)
 
         if not self._is_started(container_name):
-            docker_image_name = '%s/%s' % (self.docker_repo, self.scope)
+            if self.docker_repo:
+                docker_image_name = '%s/%s' % (self.docker_repo, self.scope)
+            else:
+                docker_image_name = self.scope
 
             host_pipe_prefix = self.conf["pipes_dir"] + "/" + self.scope
             sandbox_pipe_prefix = "/mnt/channels"
@@ -99,6 +102,7 @@ class RunTimeSandbox(object):
 
             self.logger.info('Vertigo - Starting container ' +
                              container_name + ' ...')
+            self.logger.info(cmd)
 
             p = subprocess.call(cmd, shell=True)
 

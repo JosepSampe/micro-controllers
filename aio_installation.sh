@@ -358,6 +358,9 @@ install_microcontrollers(){
 	sed -i '/^pipeline =/ d' /etc/swift/object-server.conf
 	sed -i '/\[pipeline:main\]/a pipeline = healthcheck recon vertigo_handler storlet_handler object-server' /etc/swift/object-server.conf
 	
+
+	mkdir /opt/vertigo
+	
 	rm -r micro-controllers
 }
 
@@ -375,6 +378,10 @@ initialize_tenant(){
 	swift post dependency
 
 	swift post -H "X-account-meta-storlet-enabled:True"
+	
+	mkdir -p /home/docker_device/vertigo/scopes/$PROJECT_ID/
+	cp /opt/vertigo/* /home/docker_device/vertigo/scopes/$PROJECT_ID/
+	chown swift:swift /home/docker_device/vertigo/scopes/$PROJECT_ID/*
 }
 
 
