@@ -1,0 +1,31 @@
+<project>
+
+	<target name="common">
+		<mkdir dir="bin" />
+	</target>
+		
+	<target name="crypto">
+		<javac srcdir="src/com/urv/storlet/crypto" destdir="bin" includeantruntime="false">
+			<classpath>
+		        <pathelement 
+		        	path="lib/SCommon.jar"/>
+			</classpath>
+		</javac>
+
+	     <jar destfile="bin/crypto-1.0.jar" 
+	          basedir="bin"
+	     	  includes="com/urv/storlet/crypto/*">
+	     </jar>
+	</target>
+	
+	<target name="clean">
+		<delete dir="bin" />
+	</target>
+	
+	<target name="cleancom">
+			<delete dir="bin/com" />
+	</target>
+	
+	<target name="build" depends="clean, common, crypto, cleancom"/>
+
+</project>

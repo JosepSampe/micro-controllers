@@ -12,7 +12,7 @@ This implementation of micro-controllers is designed for OpenStack Swift. This f
 
 ### All-In-One Machine
 For testing purposes, it is possible to install an All-In-One (AiO) machine with all the Crystal components and requirements.
-We prepared a script for automating this task. The requirements of the machine are a clean installation of **Ubuntu Server 16.04**, and at least **2GB** of RAM. It is preferable to upgrade the system to the latest versions of the packages with `apt update && apt dist-upgrade` before starting the installation, and set the server name as `controller` in the `/etc/hostname` file. Then, download the `aio_installation.sh` script and run it as sudo:
+We prepared a script for automating this task. The requirements of the machine are a clean installation of **Ubuntu Server 16.04**, at least **2GB** of RAM, and a **fixed IP address**. It is preferable to upgrade the system to the latest versions of the packages with `apt update && apt dist-upgrade` before starting the installation, and set the server name as `controller` in the `/etc/hostname` file. Then, download the `aio_installation.sh` script and run it as sudo:
 
 ```bash
 wget https://raw.githubusercontent.com/JosepSampe/micro-controllers/master/aio_installation.sh
@@ -28,6 +28,46 @@ By default, the script has low verbosity. To see the full installation log, run 
 tail -f /tmp/vertigo_aio_installation.log
 ```
 
-The script takes long to complete (it depends of the network connection). Once completed, you can access to the dashboard by typing the following URL in the web browser: `http://<node-ip>/horizon`.
+The script takes long to complete (~10 minutes) (it depends of the network connection). Once completed, you can access to the dashboard by typing the following URL in the web browser: `http://<node-ip>/horizon`.
 
-## Usage
+## Verify
+### Test Swift
+To verify the correct operation of the Swift installation, follow these steps:
+1- Load credentials:
+```bash
+source vertigo-openrc
+```
+
+2- Create data bucket:
+```bash
+swift post data
+```
+
+3- Create new .json file and upload it to data bucket:
+```bash
+vi test.json
+swift upload data test.json
+```
+
+4- Test if you can download the .json file:
+```bash
+swift download data test.json
+or
+curl -H "X-Auth-Token:$TOKEN" $STORAGE_URL/data/test.json -o test.json
+```
+
+### Test Storlets
+1- Download the .json file, running the No-operation Storlet:
+```bash
+swift download data test.json -H "X-Run-Storlet:noop-1.0.jar"
+```
+
+2- Download the .json file, running the Compression Storlet:
+```bash
+curl -H "X-Auth-Token:$TOKEN" $STORAGE_URL/data/test.json -H "X-Run-Storlet:compress-1.0.jar" -o test.gz
+gunzip test.gz
+```
+
+### Test Micro-controllers
+
+ 

@@ -10,7 +10,6 @@ from swift.common.wsgi import make_subrequest
 import pickle
 import json
 import os
-import time
 
 
 class VertigoProxyHandler(VertigoBaseHandler):

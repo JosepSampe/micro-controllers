@@ -580,7 +580,7 @@ def get_microcontroller_list_object(headers, method):
     :param method: current method
     :returns: microcontroller list associated to the type of the request
     """
-    if headers[VERTIGO_MC_HEADER_OBJ]:
+    if VERTIGO_MC_HEADER_OBJ in headers:
         if isinstance(headers[VERTIGO_MC_HEADER_OBJ], dict):
             microcontroller_dict = headers[VERTIGO_MC_HEADER_OBJ]
         else:

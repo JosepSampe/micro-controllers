@@ -7,14 +7,12 @@ import java.util.*;
 
 import org.apache.commons.compress.utils.IOUtils;
 
-
 import org.grep4j.core.model.Profile;
 import org.grep4j.core.model.ProfileBuilder;
 import org.grep4j.core.result.GrepResults;
 
 import static org.grep4j.core.Grep4j.grep;
 import static org.grep4j.core.Grep4j.regularExpression;
-
 import static org.grep4j.core.fluent.Dictionary.on;
 
 /**

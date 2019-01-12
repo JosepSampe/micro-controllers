@@ -10,9 +10,7 @@
 		        <pathelement 
 		        	path="lib/SCommon.jar"/>
 				<pathelement 
-					path="lib/json-simple-1.1.1.jar"/>
-				<pathelement 
-					path="lib/commons-compress-1.6.jar"/>
+					path="lib/json_simple-1.1.jar"/>
 				<pathelement 
 					path="lib/jsoup-1.8.3.jar"/>
 			</classpath>

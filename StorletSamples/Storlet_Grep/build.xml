@@ -10,8 +10,6 @@
 		        <pathelement 
 		        	path="lib/SCommon.jar"/>
 				<pathelement 
-					path="lib/json-simple-1.1.1.jar"/>
-				<pathelement 
 					path="lib/commons-compress-1.6.jar"/>
 				<pathelement 
 					path="lib/grep4j-1.8.7.jar"/>

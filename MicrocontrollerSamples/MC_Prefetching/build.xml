@@ -23,6 +23,10 @@
 		<delete dir="bin" />
 	</target>
 	
-	<target name="build" depends="clean, common, prefetching"/>
+	<target name="cleancom">
+			<delete dir="bin/com" />
+	</target>
+	
+	<target name="build" depends="clean, common, prefetching, cleancom"/>
 	
 </project>

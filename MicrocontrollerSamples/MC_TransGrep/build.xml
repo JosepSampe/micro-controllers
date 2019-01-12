@@ -21,5 +21,9 @@
 		<delete dir="bin" />
 	</target>
 	
-	<target name="build" depends="clean, common, transgrep"/>
+	<target name="cleancom">
+			<delete dir="bin/com" />
+	</target>
+	
+	<target name="build" depends="clean, common, transgrep, cleancom"/>
 </project>

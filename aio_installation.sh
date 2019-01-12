@@ -10,13 +10,13 @@ VERTIGO_TENANT_PASSWD=vertigo
 ###############################
 
 LOG=/tmp/vertigo_aio_installation.log
+IP_ADDRESS=$(hostname -I | tr -d '[:space:]')
 
 ###### Upgrade System ######
 upgrade_system(){
 	echo controller > /etc/hostname
 	echo -e "127.0.0.1 \t localhost" > /etc/hosts
-	IP_ADRESS=$(hostname -I | tr -d '[:space:]')
-	echo -e "$IP_ADRESS \t controller" >> /etc/hosts
+	echo -e "$IP_ADDRESS \t controller" >> /etc/hosts
 	#ln -sf /run/systemd/resolve/resolv.conf /etc/resolv.conf
 
 	add-apt-repository universe
@@ -91,7 +91,7 @@ install_openstack_keystone(){
 	su -s /bin/sh -c "keystone-manage db_sync" keystone
 	keystone-manage fernet_setup --keystone-user keystone --keystone-group keystone
 	keystone-manage credential_setup --keystone-user keystone --keystone-group keystone
-	keystone-manage bootstrap --bootstrap-password $KEYSTONE_ADMIN_PASSWD --bootstrap-admin-url http://controller:35357/v3/ --bootstrap-internal-url http://controller:5000/v3/ --bootstrap-public-url http://controller:5000/v3/ --bootstrap-region-id RegionOne
+	keystone-manage bootstrap --bootstrap-password $KEYSTONE_ADMIN_PASSWD --bootstrap-admin-url http://controller:35357/v3/ --bootstrap-internal-url http://controller:5000/v3/ --bootstrap-public-url http://$IP_ADDRESS:5000/v3/ --bootstrap-region-id RegionOne
 	
 	echo "ServerName controller" >> /etc/apache2/apache2.conf
 	rm -f /var/lib/keystone/keystone.db
@@ -128,6 +128,8 @@ install_openstack_keystone(){
 	export OS_PROJECT_DOMAIN_NAME=Default
 	export OS_AUTH_URL=http://controller:5000/v3
 	export OS_IDENTITY_API_VERSION=3
+	export STORAGE_URL=http://$IP_ADDRESS:8080/v1/AUTH_97936da8b6b54cc9a6de59a5ae2a749e
+	export TOKEN=\$(openstack token issue | grep -w id | awk '{print $4}')
 	EOF
 }
 
@@ -156,7 +158,7 @@ install_openstack_swift(){
 	openstack role add --project service --user swift admin
 	openstack service create --name swift --description "OpenStack Object Storage" object-store
 	
-	openstack endpoint create --region RegionOne object-store public http://controller:8080/v1/AUTH_%\(tenant_id\)s
+	openstack endpoint create --region RegionOne object-store public http://$IP_ADDRESS:8080/v1/AUTH_%\(tenant_id\)s
 	openstack endpoint create --region RegionOne object-store internal http://controller:8080/v1/AUTH_%\(tenant_id\)s
 	openstack endpoint create --region RegionOne object-store admin http://controller:8080/v1
 	
@@ -370,6 +372,7 @@ initialize_tenant(){
 
 	swift post storlet
 	swift post microcontroller
+	swift post dependency
 
 	swift post -H "X-account-meta-storlet-enabled:True"
 }
@@ -412,7 +415,7 @@ install_vertigo(){
 	
 	restart_services >> $LOG 2>&1;
 	printf "Micro-controllers installation\t ... \t100%%\tCompleted!\n\n"
-	printf "Access the Dashboard with the following URL: http://$IP_ADRESS/horizon\n"
+	printf "Access the Dashboard with the following URL: http://$IP_ADDRESS/horizon\n"
 	printf "Login with user: vertigo | password: $VERTIGO_TENANT_PASSWD\n\n"
 }
 
