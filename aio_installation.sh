@@ -231,44 +231,14 @@ install_openstack_swift(){
 	
 }
 
-#### Install micro-controllers #####
-install_microcontrollers(){
-	git clone https://github.com/JosepSampe/micro-controllers
-	pip install micro-controllers/Engine/swift
-	
-	cat <<-EOF >> /etc/swift/proxy-server.conf
-	
-	[filter:vertigo_handler]
-	use = egg:swift-vertigo#vertigo_handler
-	execution_server = proxy
-	EOF
-	
-	cat <<-EOF >> /etc/swift/object-server.conf
-	
-	[filter:vertigo_handler]
-	use = egg:swift-vertigo#vertigo_handler
-	execution_server = object
-	EOF
-	
-
-	sed -i '/^pipeline =/ d' /etc/swift/proxy-server.conf
-	sed -i '/\[pipeline:main\]/a pipeline = catch_errors gatekeeper healthcheck proxy-logging cache container_sync bulk tempurl ratelimit authtoken keystoneauth copy container-quotas account-quotas vertigo_handler storlet_handler slo dlo versioned_writes proxy-logging proxy-server' /etc/swift/proxy-server.conf
-	
-	sed -i '/^pipeline =/ d' /etc/swift/object-server.conf
-	sed -i '/\[pipeline:main\]/a pipeline = healthcheck recon vertigo_handler storlet_handler object-server' /etc/swift/object-server.conf
-	
-	rm -r micro-controllers
-}
-
-
 ##### Install Storlets #####
 install_storlets(){
-    add-apt-repository -y ppa:webupd8team/java
-    apt update
-    apt install gcc openjdk-8-jdk openjdk-8-jre -y
-    #echo debconf shared/accepted-oracle-license-v1-1 select true | sudo debconf-set-selections
-    #echo debconf shared/accepted-oracle-license-v1-1 seen true | sudo debconf-set-selections
-    #apt install oracle-java8-installer -y
+	add-apt-repository -y ppa:webupd8team/java
+	apt update
+	apt install gcc openjdk-8-jdk openjdk-8-jre -y
+	#echo debconf shared/accepted-oracle-license-v1-1 select true | sudo debconf-set-selections
+	#echo debconf shared/accepted-oracle-license-v1-1 seen true | sudo debconf-set-selections
+	#apt install oracle-java8-installer -y
     
 	# Install Docker
 	curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
@@ -360,6 +330,36 @@ install_storlets(){
 }
 
 
+#### Install micro-controllers #####
+install_microcontrollers(){
+	git clone https://github.com/JosepSampe/micro-controllers
+	pip install micro-controllers/Engine/swift
+	
+	cat <<-EOF >> /etc/swift/proxy-server.conf
+	
+	[filter:vertigo_handler]
+	use = egg:swift-vertigo#vertigo_handler
+	execution_server = proxy
+	EOF
+	
+	cat <<-EOF >> /etc/swift/object-server.conf
+	
+	[filter:vertigo_handler]
+	use = egg:swift-vertigo#vertigo_handler
+	execution_server = object
+	EOF
+	
+
+	sed -i '/^pipeline =/ d' /etc/swift/proxy-server.conf
+	sed -i '/\[pipeline:main\]/a pipeline = catch_errors gatekeeper healthcheck proxy-logging cache container_sync bulk tempurl ratelimit authtoken keystoneauth copy container-quotas account-quotas vertigo_handler storlet_handler slo dlo versioned_writes proxy-logging proxy-server' /etc/swift/proxy-server.conf
+	
+	sed -i '/^pipeline =/ d' /etc/swift/object-server.conf
+	sed -i '/\[pipeline:main\]/a pipeline = healthcheck recon vertigo_handler storlet_handler object-server' /etc/swift/object-server.conf
+	
+	rm -r micro-controllers
+}
+
+
 ##### Initialize tenant #####
 initialize_tenant(){
 	# Initialize Vertigo test tenant
@@ -403,11 +403,11 @@ install_vertigo(){
 	printf "Installing OpenStack Swift\t ... \t50%%"
 	install_openstack_swift >> $LOG 2>&1; printf "\tDone!\n"
 	
-	printf "Installing Micro-controllers\t ... \t70%%"
-	install_microcontrollers >> $LOG 2>&1; printf "\tDone!\n"
-	printf "Installing Storlets\t\t ... \t90%%"
+	printf "Installing Storlets\t\t ... \t70%%"
 	install_storlets >> $LOG 2>&1; printf "\tDone!\n"
-	printf "Initializing Test Tenant\t\t ... \t95%%"
+	printf "Installing Micro-controllers\t ... \t85%%"
+	install_microcontrollers >> $LOG 2>&1; printf "\tDone!\n"
+	printf "Initializing Test Tenant\t ... \t95%%"
 	initialize_tenant >> $LOG 2>&1; printf "\tDone!\n"
 	
 	restart_services >> $LOG 2>&1;
@@ -423,7 +423,7 @@ update_vertigo(){
 	
 	printf "Updating Micro-controlers\t ... \t90%%"
 	git clone https://github.com/JosepSampe/micro-controllers  >> $LOG 2>&1;
-    pip install -U micro-controllers/Engine/swift  >> $LOG 2>&1;
+	pip install -U micro-controllers/Engine/swift  >> $LOG 2>&1;
 	rm -r micro-controllers  >> $LOG 2>&1;
 	printf "\tDone!\n"
 	
@@ -447,8 +447,8 @@ main(){
 		    ;;
 		  
 		  "update" )
-            update_vertigo
-            ;;
+		    update_vertigo
+		    ;;
 
 		  * )
 		    install_vertigo

@@ -29,3 +29,5 @@ tail -f /tmp/vertigo_aio_installation.log
 ```
 
 The script takes long to complete (it depends of the network connection). Once completed, you can access to the dashboard by typing the following URL in the web browser: `http://<node-ip>/horizon`.
+
+## Usage
