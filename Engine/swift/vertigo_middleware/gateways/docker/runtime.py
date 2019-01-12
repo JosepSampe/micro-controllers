@@ -105,7 +105,7 @@ class RunTimeSandbox(object):
             p = subprocess.call(cmd, shell=True)
 
             if p == 0:
-                time.sleep(1)
+                time.sleep(5)
                 self.logger.info('Vertigo - Container "' +
                                  container_name + '" started')
         else:

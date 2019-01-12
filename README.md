@@ -15,7 +15,7 @@ For testing purposes, it is possible to install an All-In-One (AiO) machine with
 We prepared a script for automating this task. The requirements of the machine are a clean installation of **Ubuntu Server 16.04**, at least **2GB** of RAM, and a **fixed IP address**. It is preferable to upgrade the system to the latest versions of the packages with `apt update && apt dist-upgrade` before starting the installation, and set the server name as `controller` in the `/etc/hostname` file. Then, download the `aio_installation.sh` script and run it as sudo:
 
 ```bash
-wget https://raw.githubusercontent.com/JosepSampe/micro-controllers/master/aio_installation.sh
+wget -N https://raw.githubusercontent.com/JosepSampe/micro-controllers/master/aio_installation.sh
 chmod 777 aio_installation.sh
 sudo ./aio_installation.sh install
 ```
