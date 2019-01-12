@@ -3,6 +3,9 @@
  ===========================================================================*/
 package com.urv.vertigo.api;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.InputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -22,6 +25,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Properties;
 
 import redis.clients.jedis.Jedis;
 import net.spy.memcached.MemcachedClient;
@@ -35,25 +39,51 @@ public class ApiSwift {
 	private String tenantId;
 	private List<String> unnecessaryHeaders = Arrays.asList(null, "Connection", "X-Trans-Id", "Date");
 	
-	private String swiftBackend = "http://10.30.223.31:8080/v1/"; // TODO: get from cofig file
-	private String redisHost = "10.30.223.31"; // TODO: get from cofig file
-	private int redisPort = 6379; // TODO: get from cofig file
-	private int redisDefaultDatabase = 5; // TODO: get from cofig file
-	private String memcachedHost = "10.30.223.31"; // TODO: get from cofig file
-	private int memcachedPort = 11211; // TODO: get from cofig file
+	private static String configFile = "/home/swift/docker_daemon.config";
+	private Properties config;
+	private String swiftIp = "127.0.0.1";
+	private int swiftPort = 8080;
+	private String redisIp = "127.0.0.1";
+	private int redisPort = 6379;
+	private int redisDefaultDatabase = 5;
+	private String memcachedHost = "127.0.0.1";
+	private int memcachedPort = 11211;
 	
 	private Jedis redis = null;
 	private MemcachedClient mc = null;
 	public Metadata metadata;
 
 
-	public ApiSwift(String strToken, String projectId, Logger logger) {
+	public ApiSwift(String strToken, String projectId, Logger logger){
+		
+		logger.trace("Creating ApiSwift");
+
+		try {
+			logger.trace("Loading configuration file "+configFile);
+			config = new Properties();
+			InputStream is = new FileInputStream(configFile);
+			config.load(is);
+			
+			swiftIp = config.getProperty("swift_ip");
+			swiftPort = Integer.parseInt(config.getProperty("swift_port"));
+			redisIp = config.getProperty("redis_ip");
+			redisPort = Integer.parseInt(config.getProperty("redis_port"));
+			redisDefaultDatabase = Integer.parseInt(config.getProperty("redis_db"));
+		} catch (FileNotFoundException e) {
+			logger.trace("Config file not found"+configFile);
+		} catch (IOException e) {
+			logger.trace("Failed to load config file");
+		}
+
 		token = strToken;
 		tenantId = projectId;
-		storageUrl = swiftBackend+"AUTH_"+projectId+"/";
+		storageUrl = "http://"+swiftIp+":"+swiftPort+"/v1/AUTH_"+projectId+"/";
 		logger_ = logger;
+		
+		//logger.trace("Swift URL: "+storageUrl);
+		//logger.trace("Redis URL: "+redisIp+":"+redisPort+"/"+redisDefaultDatabase);
 
-		redis = new Jedis(redisHost,redisPort);
+		redis = new Jedis(redisIp,redisPort);
 		redis.select(redisDefaultDatabase);
 		metadata = new Metadata();
 

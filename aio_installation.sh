@@ -10,7 +10,7 @@ VERTIGO_TENANT_PASSWD=vertigo
 ###############################
 
 LOG=/tmp/vertigo_aio_installation.log
-IP_ADDRESS=$(hostname -I | tr -d '[:space:]')
+IP_ADDRESS=$(hostname -I | cut -d ' ' -f1)
 
 ###### Upgrade System ######
 upgrade_system(){
@@ -272,7 +272,6 @@ install_storlets(){
 	chmod 04755 /home/docker_device/scripts/*
 	
 	# Create Storlet docker runtime
-	usermod -aG docker $(whoami)
 	sed -i "/ansible-playbook \-s \-i deploy\/prepare_host prepare_storlets_install.yml/c\ansible-playbook \-s \-i deploy\/prepare_host prepare_storlets_install.yml --connection=local" install/storlets/prepare_storlets_install.sh
 	install/storlets/prepare_storlets_install.sh dev host
 	
@@ -369,11 +368,14 @@ install_microcontrollers(){
 	cp micro-controllers/Engine/SBus/SBusJavaFacade/bin/libjsbus.so /opt/vertigo
 	cp micro-controllers/Engine/SBus/SBusTransportLayer/bin/sbus.so /opt/vertigo
 	cp micro-controllers/Engine/docker_daemon/lib/jedis-2.9.0.jar /opt/vertigo
-	cp micro-controllers/Engine/docker_daemon/start_daemon.sh /opt/vertigo
-	cp micro-controllers/Engine/docker_daemon/logback.xml /opt/vertigo
-	chown -R $USER:$USER /opt/vertigo
-
-	rm -r micro-controllers
+	cp micro-controllers/Engine/docker_daemon/utils/start_daemon.sh /opt/vertigo
+	cp micro-controllers/Engine/docker_daemon/utils/logback.xml /opt/vertigo
+	cp micro-controllers/Engine/docker_daemon/utils/docker_daemon.config /opt/vertigo
+	
+	sed -i '/swift_ip=/c\swift_ip=$IP_ADDRESS' /opt/vertigo/docker_daemon.config
+	sed -i '/redis_ip=/c\redis_ip=$IP_ADDRESS' /opt/vertigo/docker_daemon.config
+	
+	swift-init main restart
 }
 
 
@@ -383,7 +385,6 @@ initialize_tenant(){
 	. vertigo-openrc
 	PROJECT_ID=$(openstack token issue | grep -w project_id | awk '{print $4}')
 	docker tag ubuntu_16.04_jre8_storlets ${PROJECT_ID:0:13}
-	swift-init main restart
 
 	swift post storlet
 	swift post microcontroller
@@ -400,6 +401,8 @@ initialize_tenant(){
 	export STORAGE_URL=http://$IP_ADDRESS:8080/v1/AUTH_$PROJECT_ID
 	export TOKEN=\$(openstack token issue | grep -w id | awk '{print \$4}')
 	EOF
+
+	rm -r micro-controllers	
 }
 
 
@@ -456,16 +459,25 @@ update_vertigo(){
 	cp micro-controllers/Engine/docker_daemon/bin/DockerDaemon.jar /opt/vertigo
 	cp micro-controllers/Engine/docker_daemon/lib/SBusJavaFacade.jar /opt/vertigo
 	cp micro-controllers/Engine/docker_daemon/lib/spymemcached-2.12.1.jar /opt/vertigo
+	cp micro-controllers/Engine/docker_daemon/lib/jedis-2.9.0.jar /opt/vertigo
 	cp micro-controllers/Engine/SBus/SBusJavaFacade/bin/libjsbus.so /opt/vertigo
 	cp micro-controllers/Engine/SBus/SBusTransportLayer/bin/sbus.so /opt/vertigo
-	cp micro-controllers/Engine/docker_daemon/lib/jedis-2.9.0.jar /opt/vertigo
-	cp micro-controllers/Engine/docker_daemon/start_daemon.sh /opt/vertigo
-	cp micro-controllers/Engine/docker_daemon/logback.xml /opt/vertigo
-	chown -R $USER:$USER /opt/vertigo
-	
+	cp micro-controllers/Engine/docker_daemon/utils/start_daemon.sh /opt/vertigo
+	cp micro-controllers/Engine/docker_daemon/utils/logback.xml /opt/vertigo
+	cp micro-controllers/Engine/docker_daemon/utils/docker_daemon.config /opt/vertigo
 	rm -rf micro-controllers
+
+	sed -i '/swift_ip=/c\swift_ip=$IP_ADDRESS' /opt/vertigo/docker_daemon.config
+	sed -i '/redis_ip=/c\redis_ip=$IP_ADDRESS' /opt/vertigo/docker_daemon.config
+
+	. vertigo-openrc
+	PROJECT_ID=$(openstack token issue | grep -w project_id | awk '{print $4}')
+	mkdir -p /home/docker_device/vertigo/scopes/${PROJECT_ID:0:13}/
+	cp /opt/vertigo/* /home/docker_device/vertigo/scopes/${PROJECT_ID:0:13}/
+	chown -R swift:swift /home/docker_device/vertigo/scopes/
+
+	restart_services >> $LOG 2>&1;
 	printf "\tDone!\n"
-	
 	printf "Updating Micro-controllers AiO\t ... \t100%%\tCompleted!\n\n"
 }
 

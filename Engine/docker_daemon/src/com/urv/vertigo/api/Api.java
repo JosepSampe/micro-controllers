@@ -22,12 +22,14 @@ public class Api {
 	public Api(String mcName, FileDescriptor log, FileDescriptor toSwift, Map<String, String> objectMd, 
 			   Map<String, String> reqMd, Logger localLog) 
 	{	
+		logger_ = localLog;
+		logger_.trace("- Creating API module");
+		
 		String tenantId = reqMd.get("X-Tenant-Id");
 		String currentObject = reqMd.get("Referer").split("/",6)[5];
 		String token = reqMd.get("X-Auth-Token");
 		String method = reqMd.get("X-Method");
-		
-		logger_ = localLog;
+
 		swift = new ApiSwift(token, tenantId, logger_);
 		logger = new ApiLogger(log, logger_);
 		microcontroller = new ApiMicrocontroller(objectMd, mcName, currentObject, method, swift, logger_);
@@ -35,7 +37,7 @@ public class Api {
 		storlet = new ApiStorlet(toSwift, logger_);
 		object = new ApiObject(objectMd, currentObject, swift, logger_);
 		
-		logger_.trace("Full API created");
+		logger_.trace("- Full API created");
 	}
 	
 }

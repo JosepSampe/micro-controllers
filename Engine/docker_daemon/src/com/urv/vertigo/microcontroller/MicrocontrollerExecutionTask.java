@@ -77,12 +77,14 @@ public class MicrocontrollerExecutionTask implements Runnable {
 			} else if (strFDtype.equals("SBUS_FD_LOGGER")){
 				logFd = dtg.getFiles()[i];
 				mcName = FilesMD[i].get("microcontroller");
+				logger_.trace("Got logger microcontroller fd for "+mcName);
 				mcLog.put(mcName, logFd);
 				mcMainClass = FilesMD[i].get("main");
 				mcDependencies = FilesMD[i].get("dependencies");
-				logger_.trace("Got logger microcontroller fd for "+mcName);
 				
+				logger_.trace("Going to create API");
 				api = new Api(mcName, mcLog.get(mcName), toSwift, object_md, req_md, logger_);
+				logger_.trace("Going to create Microcontroller");
 				mc = new Microcontroller(mcName, mcMainClass, mcDependencies, logger_);
 
 				logger_.trace("Microcontroller '"+mcName+"' loaded");
