@@ -35,11 +35,11 @@ public class ApiSwift {
 	private String tenantId;
 	private List<String> unnecessaryHeaders = Arrays.asList(null, "Connection", "X-Trans-Id", "Date");
 	
-	private String swiftBackend = "http://192.168.2.1:8080/v1/"; // TODO: get from cofig file
-	private String redisHost = "192.168.2.1"; // TODO: get from cofig file
+	private String swiftBackend = "http://10.30.223.31:8080/v1/"; // TODO: get from cofig file
+	private String redisHost = "10.30.223.31"; // TODO: get from cofig file
 	private int redisPort = 6379; // TODO: get from cofig file
 	private int redisDefaultDatabase = 5; // TODO: get from cofig file
-	private String memcachedHost = "192.168.2.1"; // TODO: get from cofig file
+	private String memcachedHost = "10.30.223.31"; // TODO: get from cofig file
 	private int memcachedPort = 11211; // TODO: get from cofig file
 	
 	private Jedis redis = null;

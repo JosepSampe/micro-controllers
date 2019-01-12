@@ -136,8 +136,7 @@ class VertigoGatewayDocker():
         # if enter to this method means that the objects exist in cache
         cached_target_obj = os.path.join(self.conf["cache_dir"], self.scope,
                                          'vertigo', swift_container, obj_name)
-        docker_target_dir = os.path.join(
-            self.conf["mc_dir"], self.scope, mc_main)
+        docker_target_dir = os.path.join(self.conf["mc_dir"], self.scope, mc_main)
         docker_target_obj = os.path.join(docker_target_dir, obj_name)
         update_from_cache = False
 

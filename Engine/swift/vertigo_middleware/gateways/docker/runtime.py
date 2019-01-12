@@ -98,8 +98,6 @@ class RunTimeSandbox(object):
                   " -v " + mc_mount + " -i -t " + docker_image_name + \
                   " debug /home/swift/start_daemon.sh"
 
-            self.logger.info(cmd)
-
             self.logger.info('Vertigo - Starting container ' +
                              container_name + ' ...')
             self.logger.info(cmd)

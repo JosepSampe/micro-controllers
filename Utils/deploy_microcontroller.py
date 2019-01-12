@@ -4,10 +4,10 @@ import os
 
 def put_mc_object(url, token, mc_path, mc_name, main_class, dependency=''):
 
-    metadata = {'X-Object-Meta-Function-Language': 'Java',
-                'X-Object-Meta-Function-Interface-Version': '1.0',
-                'X-Object-Meta-Function-Library-Dependency': dependency,
-                'X-Object-Meta-Function-Main': main_class}
+    metadata = {'X-Object-Meta-Microcontroller-Language': 'Java',
+                'X-Object-Meta-Microcontroller-Interface-Version': '1.0',
+                'X-Object-Meta-Microcontroller-Library-Dependency': dependency,
+                'X-Object-Meta-Microcontroller-Main': main_class}
     f = open('%s/%s' % (mc_path, mc_name), 'r')
     content_length = os.stat(mc_path+'/'+mc_name).st_size
     response = dict()

@@ -334,6 +334,11 @@ install_storlets(){
 
 #### Install micro-controllers #####
 install_microcontrollers(){
+	
+	apt install redis-server -y
+	sed -i '/bind 127.0.0.1/c\bind 0.0.0.0' /etc/redis/redis.conf
+	service redis restart
+	
 	git clone https://github.com/JosepSampe/micro-controllers
 	pip install micro-controllers/Engine/swift
 	
@@ -359,8 +364,17 @@ install_microcontrollers(){
 	sed -i '/\[pipeline:main\]/a pipeline = healthcheck recon vertigo_handler storlet_handler object-server' /etc/swift/object-server.conf
 	
 
-	mkdir /opt/vertigo
-	
+	mkdir -p /opt/vertigo
+	cp micro-controllers/Engine/docker_daemon/bin/DockerDaemon.jar /opt/vertigo
+	cp micro-controllers/Engine/docker_daemon/lib/SBusJavaFacade.jar /opt/vertigo
+	cp micro-controllers/Engine/docker_daemon/lib/spymemcached-2.12.1.jar /opt/vertigo
+	cp micro-controllers/Engine/SBus/SBusJavaFacade/bin/libjsbus.so /opt/vertigo
+	cp micro-controllers/Engine/SBus/SBusTransportLayer/bin/sbus.so /opt/vertigo
+	cp micro-controllers/Engine/docker_daemon/lib/jedis-2.9.0.jar /opt/vertigo
+	cp micro-controllers/Engine/docker_daemon/start_daemon.sh /opt/vertigo
+	cp micro-controllers/Engine/docker_daemon/logback.xml /opt/vertigo
+	chown -R $USER:$USER /opt/vertigo
+
 	rm -r micro-controllers
 }
 
@@ -381,7 +395,10 @@ initialize_tenant(){
 	
 	mkdir -p /home/docker_device/vertigo/scopes/$PROJECT_ID/
 	cp /opt/vertigo/* /home/docker_device/vertigo/scopes/$PROJECT_ID/
-	chown swift:swift /home/docker_device/vertigo/scopes/$PROJECT_ID/*
+	chown -R swift:swift /home/docker_device/vertigo/scopes/
+	
+	usermod -aG docker $USER
+	usermod -aG docker swift
 }
 
 
@@ -430,11 +447,22 @@ install_vertigo(){
 update_vertigo(){
 	printf "\nUpdating Micro-controllers Installation.\n"
 	printf "See the full log at $LOG\n\n"
-	
-	printf "Updating Micro-controlers\t ... \t90%%"
+
 	git clone https://github.com/JosepSampe/micro-controllers  >> $LOG 2>&1;
 	pip install -U micro-controllers/Engine/swift  >> $LOG 2>&1;
-	rm -r micro-controllers  >> $LOG 2>&1;
+	
+	mkdir -p /opt/vertigo
+	cp micro-controllers/Engine/docker_daemon/bin/DockerDaemon.jar /opt/vertigo
+	cp micro-controllers/Engine/docker_daemon/lib/SBusJavaFacade.jar /opt/vertigo
+	cp micro-controllers/Engine/docker_daemon/lib/spymemcached-2.12.1.jar /opt/vertigo
+	cp micro-controllers/Engine/SBus/SBusJavaFacade/bin/libjsbus.so /opt/vertigo
+	cp micro-controllers/Engine/SBus/SBusTransportLayer/bin/sbus.so /opt/vertigo
+	cp micro-controllers/Engine/docker_daemon/lib/jedis-2.9.0.jar /opt/vertigo
+	cp micro-controllers/Engine/docker_daemon/start_daemon.sh /opt/vertigo
+	cp micro-controllers/Engine/docker_daemon/logback.xml /opt/vertigo
+	chown -R $USER:$USER /opt/vertigo
+	
+	rm -rf micro-controllers
 	printf "\tDone!\n"
 	
 	printf "Updating Micro-controllers AiO\t ... \t100%%\tCompleted!\n\n"
