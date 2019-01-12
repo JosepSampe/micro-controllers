@@ -12,7 +12,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import com.ibm.storlet.common.*;
+import org.openstack.storlet.common.*;
 
 
 /**

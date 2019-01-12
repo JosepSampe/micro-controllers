@@ -2,7 +2,7 @@ package com.urv.storlet.grep;
 
 import java.io.*;
 
-import com.ibm.storlet.common.*;
+import org.openstack.storlet.common.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;

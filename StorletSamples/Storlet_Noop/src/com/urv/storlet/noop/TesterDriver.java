@@ -1,18 +1,8 @@
-/*
-Licensed Materials - Property of IBM
-
-Copyright IBM Corp. 2014, 2014 All Rights Reserved
-
-US Government Users Restricted Rights - Use, duplication or
-disclosure restricted by GSA ADP Schedule Contract with
-IBM Corp.
-*/
-
 package com.urv.storlet.noop;
 
 import java.io.*;
 
-import com.ibm.storlet.common.*;
+import org.openstack.storlet.common.*;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -48,12 +38,7 @@ public class TesterDriver {
 			Map<String, String> parameters = new HashMap<String, String>();	
 
 			
-			System.out.println("before storlet");
-			
-			
-			
-			
-			
+			System.out.println("before storlet");			
 			storlet.invoke(inputStreams, outStreams, parameters, logger);
 			System.out.println("after storlet");
 			

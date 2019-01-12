@@ -22,6 +22,10 @@
 		<delete dir="bin" />
 	</target>
 	
-	<target name="build" depends="clean, common, uonetrace"/>
+	<target name="cleancom">
+			<delete dir="bin/com" />
+	</target>
+	
+	<target name="build" depends="clean, common, uonetrace, cleancom"/>
 
 </project>

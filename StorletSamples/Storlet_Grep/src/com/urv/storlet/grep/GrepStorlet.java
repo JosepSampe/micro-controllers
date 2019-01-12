@@ -1,6 +1,6 @@
 package com.urv.storlet.grep;
 
-import com.ibm.storlet.common.*;
+import org.openstack.storlet.common.*;
 
 import java.io.*;
 import java.util.*;

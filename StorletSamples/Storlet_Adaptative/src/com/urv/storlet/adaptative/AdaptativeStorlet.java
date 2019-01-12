@@ -1,6 +1,6 @@
 package com.urv.storlet.adaptative;
 
-import com.ibm.storlet.common.*;
+import org.openstack.storlet.common.*;
 
 import java.io.IOException;
 import java.io.InputStream;
