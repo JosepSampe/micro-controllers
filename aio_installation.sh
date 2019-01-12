@@ -449,12 +449,15 @@ install_vertigo(){
 
 
 update_vertigo(){
-	printf "\nUpdating Micro-controllers Installation.\n"
+	printf "Updating Micro-controllers Installation.\n"
 	printf "See the full log at $LOG\n\n"
 
+	printf "Installing Swift middleware\t ... \t20%%"
 	git clone https://github.com/JosepSampe/micro-controllers  >> $LOG 2>&1;
 	pip install -U micro-controllers/Engine/swift  >> $LOG 2>&1;
+	printf "\tDone!\n"
 	
+	printf "Installing Libraries\t\t ... \t85%%"
 	mkdir -p /opt/vertigo
 	cp micro-controllers/Engine/docker_daemon/bin/DockerDaemon.jar /opt/vertigo
 	cp micro-controllers/Engine/docker_daemon/lib/SBusJavaFacade.jar /opt/vertigo
@@ -467,17 +470,18 @@ update_vertigo(){
 	cp micro-controllers/Engine/docker_daemon/utils/docker_daemon.config /opt/vertigo
 	rm -rf micro-controllers
 
-	sed -i '/swift_ip=/c\swift_ip=$IP_ADDRESS' /opt/vertigo/docker_daemon.config
-	sed -i '/redis_ip=/c\redis_ip=$IP_ADDRESS' /opt/vertigo/docker_daemon.config
+	sed -i '/swift_ip=/c\swift_ip='$IP_ADDRESS /opt/vertigo/docker_daemon.config
+	sed -i '/redis_ip=/c\redis_ip='$IP_ADDRESS /opt/vertigo/docker_daemon.config
 
 	. vertigo-openrc
 	PROJECT_ID=$(openstack token issue | grep -w project_id | awk '{print $4}')
 	mkdir -p /home/docker_device/vertigo/scopes/${PROJECT_ID:0:13}/
 	cp /opt/vertigo/* /home/docker_device/vertigo/scopes/${PROJECT_ID:0:13}/
 	chown -R swift:swift /home/docker_device/vertigo/scopes/
-
-	restart_services >> $LOG 2>&1;
 	printf "\tDone!\n"
+
+	printf "Restarting services\t\t ... \t98%%"
+	restart_services >> $LOG 2>&1; printf "\tDone!\n"
 	printf "Updating Micro-controllers AiO\t ... \t100%%\tCompleted!\n\n"
 }
 
