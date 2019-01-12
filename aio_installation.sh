@@ -128,8 +128,6 @@ install_openstack_keystone(){
 	export OS_PROJECT_DOMAIN_NAME=Default
 	export OS_AUTH_URL=http://controller:5000/v3
 	export OS_IDENTITY_API_VERSION=3
-	export STORAGE_URL=http://$IP_ADDRESS:8080/v1/AUTH_97936da8b6b54cc9a6de59a5ae2a749e
-	export TOKEN=\$(openstack token issue | grep -w id | awk '{print $4}')
 	EOF
 }
 
@@ -393,12 +391,15 @@ initialize_tenant(){
 
 	swift post -H "X-account-meta-storlet-enabled:True"
 	
-	mkdir -p /home/docker_device/vertigo/scopes/$PROJECT_ID/
-	cp /opt/vertigo/* /home/docker_device/vertigo/scopes/$PROJECT_ID/
+	mkdir -p /home/docker_device/vertigo/scopes/${PROJECT_ID:0:13}/
+	cp /opt/vertigo/* /home/docker_device/vertigo/scopes/${PROJECT_ID:0:13}/
 	chown -R swift:swift /home/docker_device/vertigo/scopes/
-	
-	usermod -aG docker $USER
 	usermod -aG docker swift
+	
+	cat <<-EOF >> vertigo-openrc
+	export STORAGE_URL=http://$IP_ADDRESS:8080/v1/AUTH_$PROJECT_ID
+	export TOKEN=\$(openstack token issue | grep -w id | awk '{print \$4}')
+	EOF
 }
 
 

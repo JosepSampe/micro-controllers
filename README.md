@@ -54,7 +54,7 @@ swift upload data test.json
 ```bash
 swift download data test.json
 or
-curl -H "X-Auth-Token:$TOKEN" $STORAGE_URL/data/test.json -o test.json
+curl -H "X-Auth-Token:$TOKEN" $STORAGE_URL/data/test.json
 ```
 
 ### Test Storlets
