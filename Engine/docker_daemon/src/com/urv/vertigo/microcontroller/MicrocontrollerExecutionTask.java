@@ -2,6 +2,7 @@ package com.urv.vertigo.microcontroller;
 
 import com.ibm.storlet.sbus.SBusDatagram;
 import com.urv.vertigo.api.Api;
+import com.urv.vertigo.context.Context;
 
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
@@ -27,7 +28,7 @@ public class MicrocontrollerExecutionTask implements Runnable {
 		
 		this.dtg = dtg;
 		
-		logger_.trace("Microcontroller execution task created");
+		logger_.trace("Micro-controller execution task created");
 	}
 
 	/*------------------------------------------------------------------------
@@ -48,6 +49,7 @@ public class MicrocontrollerExecutionTask implements Runnable {
 		
 		String mcName, mcMainClass, mcDependencies = null;
 		Api api = null;
+		Context ctx = null;
 		Microcontroller mc = null;
 		HashMap<String, FileDescriptor> mcLog = new HashMap<String,FileDescriptor>();
 
@@ -60,7 +62,7 @@ public class MicrocontrollerExecutionTask implements Runnable {
 			
 			if (strFDtype.equals("SBUS_FD_OUTPUT_OBJECT")) {
 				toSwift = dtg.getFiles()[i];
-				logger_.trace("Got Microcontroller output fd");
+				logger_.trace("Got Micro-controller output fd");
 				
 			} else if (strFDtype.equals("SBUS_FD_INPUT_OBJECT")){
 				//Isn't need to get fd
@@ -77,23 +79,27 @@ public class MicrocontrollerExecutionTask implements Runnable {
 			} else if (strFDtype.equals("SBUS_FD_LOGGER")){
 				logFd = dtg.getFiles()[i];
 				mcName = FilesMD[i].get("microcontroller");
-				logger_.trace("Got logger microcontroller fd for "+mcName);
+				logger_.trace("Got logger micro-controller fd for: "+mcName);
 				mcLog.put(mcName, logFd);
 				mcMainClass = FilesMD[i].get("main");
 				mcDependencies = FilesMD[i].get("dependencies");
 				
 				logger_.trace("Going to create API");
-				api = new Api(mcName, mcLog.get(mcName), toSwift, object_md, req_md, logger_);
-				logger_.trace("Going to create Microcontroller");
+				api = new Api(toSwift, req_md, logger_);
+				logger_.trace("Going to create Context");
+				ctx = new Context(api.swift, mcName, mcLog.get(mcName), toSwift, object_md, req_md, logger_);
+				logger_.trace("Going to create Micro-controller");
 				mc = new Microcontroller(mcName, mcMainClass, mcDependencies, logger_);
-
-				logger_.trace("Microcontroller '"+mcName+"' loaded");
-				IMicrocontroller microcontroller = mc.getMicrocontroller();				
-				microcontroller.invoke(api);
+				IMicrocontroller microcontroller = mc.getMicrocontroller();	
+				
+				logger_.trace("Going to execute Micro-controller: "+mcName);
+				microcontroller.invoke(ctx, api);
 				
 				mc = null;
+				ctx = null;
 				api = null;
 				microcontroller = null;
+				logger_.trace("Execution done!");
 			}
 		}					
 	}

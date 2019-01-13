@@ -5,7 +5,8 @@
 package com.urv.vertigo.microcontroller;
 
 import com.urv.vertigo.api.Api;
+import com.urv.vertigo.context.Context;
 
 public interface IMicrocontroller {
-	public void invoke(Api api);
+	public void invoke(Context ctx, Api api);
 }

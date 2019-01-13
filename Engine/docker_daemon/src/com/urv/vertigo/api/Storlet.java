@@ -7,14 +7,14 @@ import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 
 
-public class ApiStorlet {
+public class Storlet {
 	private FileOutputStream stream;
 	private Logger logger_;
 	private Integer index;
 	private JSONObject outMetadata = new JSONObject();
 	private JSONObject storletList = new JSONObject();
 	
-	public ApiStorlet(FileDescriptor fd, Logger logger) {
+	public Storlet(FileDescriptor fd, Logger logger) {
 		stream = new FileOutputStream(fd);
 		logger_ = logger;
 		index = 0;

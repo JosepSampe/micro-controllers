@@ -1,16 +1,17 @@
 /*============================================================================
  18-Aug-2016    josep.sampe			Initial implementation.
  ===========================================================================*/
-package com.urv.vertigo.api;
+package com.urv.vertigo.context;
 
-import java.io.BufferedReader;
 import java.util.Map;
 import org.slf4j.Logger;
 
+import com.urv.vertigo.api.Swift;
 
-public class ApiObject {
+
+public class Object {
 	private String object;
-	private ApiSwift swift;
+	private Swift swift;
 	private Logger logger_;	
 	public Metadata metadata;
 	public String timestamp;
@@ -20,7 +21,7 @@ public class ApiObject {
 	public String backendTimestamp;
 	public String contentType;
 	
-	public ApiObject(Map<String, String> objectMetadata, String currentObject, ApiSwift apiSwift, Logger logger) {
+	public Object(Map<String, String> objectMetadata, String currentObject, Swift apiSwift, Logger logger) {
 		object = currentObject;
 		swift = apiSwift;
 		logger_ = logger;

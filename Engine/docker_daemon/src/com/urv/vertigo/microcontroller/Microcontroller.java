@@ -23,7 +23,7 @@ public class Microcontroller {
 		Integer index = 0;	
 
 		try {	
-			//logger_.info("/home/swift/"+strHandlerClassName_+"/"+strHandlerName_);
+			logger_.info("Micro-controller .jar: /home/swift/"+strMainClass_+"/"+strName_);
 			
 			searchPath[index++] = new File("/home/swift/"+strMainClass_+"/"+strName_).toURI().toURL();
 			for (String dependency : dependencies) {
@@ -35,7 +35,7 @@ public class Microcontroller {
 			Class<?> c = Class.forName(strMainClass_, true, cl);
 
 			microcontroller = (IMicrocontroller) c.newInstance();
-			logger_.info("MICROCONTROLLER LOADED: "+strName_+" with dependencies: "+strDependencies_);
+			logger_.info("Micro-controller loaded: "+strName_+" with dependencies: "+strDependencies_);
 
 		} catch (Exception e) {
 			logger_.error(strName_ + ": Failed to load handler class "

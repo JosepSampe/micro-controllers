@@ -1,6 +1,7 @@
 package com.urv.vertigo.mc.transgrep;
 
 import com.urv.vertigo.api.Api;
+import com.urv.vertigo.context.Context;
 import com.urv.vertigo.microcontroller.IMicrocontroller;
 
 /**
@@ -14,14 +15,14 @@ public class TransGrepHandler implements IMicrocontroller {
 	/***
 	 * MicroController invoke method. 
 	 */
-	public void invoke(Api api) {
-		api.logger.emitLog("Init TransGrep MicroController");
+	public void invoke(Context ctx, Api api) {
+		ctx.logger.emitLog("Init TransGrep MicroController");
 
 		api.storlet.set("transcoder-1.0.jar", null);
 		api.storlet.set("grep-1.0.jar","regexp=*^a*");
 		api.storlet.run();
 
-		api.logger.emitLog("Ended TransGrep MicroController");
+		ctx.logger.emitLog("Ended TransGrep MicroController");
 	}
 	
 }

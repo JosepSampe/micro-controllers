@@ -103,4 +103,6 @@ curl -H "X-Auth-Token:$TOKEN" $STORAGE_URL/data/test.json
 ```bash
 swift stat data test.json
 ```
+
+### Usage
  

@@ -1,7 +1,7 @@
 /*============================================================================
  18-Aug-2016    josep.sampe       Initial implementation.
  ===========================================================================*/
-package com.urv.vertigo.api;
+package com.urv.vertigo.context;
 
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
@@ -9,11 +9,11 @@ import java.io.IOException;
 
 import org.slf4j.Logger;
 
-public class ApiLogger {
+public class Log {
 	private Logger logger_;
 	private FileOutputStream stream;
 
-	public ApiLogger(FileDescriptor fd, Logger logger) {
+	public Log(FileDescriptor fd, Logger logger) {
 		stream = new FileOutputStream(fd);
 		logger_ = logger;
 		

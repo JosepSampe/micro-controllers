@@ -1,7 +1,7 @@
 /*============================================================================
  18-Aug-2016    josep.sampe			Initial implementation.
  ===========================================================================*/
-package com.urv.vertigo.api;
+package com.urv.vertigo.context;
 
 import java.io.FileDescriptor;
 import java.io.FileOutputStream;
@@ -12,7 +12,7 @@ import org.json.simple.JSONObject;
 import org.slf4j.Logger;
 
 
-public class ApiRequest {
+public class Request {
 	private FileOutputStream stream;
 	private JSONObject outMetadata = new JSONObject();
 	private Logger logger_;
@@ -47,7 +47,7 @@ public class ApiRequest {
 	public String isAdminProject;
 	public String userName;
 
-	public ApiRequest(FileDescriptor fd, Map<String, String> requestMetadata, Logger logger) {
+	public Request(FileDescriptor fd, Map<String, String> requestMetadata, Logger logger) {
 		stream = new FileOutputStream(fd);
 		metadata = requestMetadata;
 		logger_ = logger;

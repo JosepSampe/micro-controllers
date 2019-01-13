@@ -2,6 +2,7 @@ package com.urv.vertigo.mc.counter;
 
 import java.text.SimpleDateFormat;
 import com.urv.vertigo.api.Api;
+import com.urv.vertigo.context.Context;
 import com.urv.vertigo.microcontroller.IMicrocontroller;
 
 /**
@@ -15,9 +16,9 @@ public class CounterHandler implements IMicrocontroller {
 	/***
 	 * Microcontroller invoke method. 
 	 */
-	public void invoke(Api api) {
+	public void invoke(Context ctx, Api api) {
 
-		api.logger.emitLog("*** Init Counter Microcontroller ***");
+		ctx.logger.emitLog("*** Init Counter Microcontroller ***");
 		
 		java.util.Date date = new java.util.Date();
 		SimpleDateFormat formater = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zz");
@@ -25,8 +26,8 @@ public class CounterHandler implements IMicrocontroller {
 		
 		//long before = System.nanoTime();
 		// Object Metadata (X-Object-Meta)
-		Long accessed = api.object.metadata.incr("Accessed");
-		api.object.metadata.set("Last-Access", strDate);
+		Long accessed = ctx.object.metadata.incr("Accessed");
+		ctx.object.metadata.set("Last-Access", strDate);
 
 		// api.logger.emitLog(api.microcontroller.metadata.toString());
 		
@@ -36,19 +37,19 @@ public class CounterHandler implements IMicrocontroller {
 		// api.microcontroller.updateMetadata();
 		
 		if (accessed > 100){
-			api.request.cancel("Error: maximum reads reached.");
-			api.object.delete();
+			ctx.request.cancel("Error: maximum reads reached.");
+			ctx.object.delete();
 		} else
-			api.request.forward();
+			ctx.request.forward();
 
 		// long after = System.nanoTime();
 		// api.logger.emitLog("Counter MC -- Elapsed [ms]: "+((after-before)/1000000.0f));
-		api.logger.emitLog("---------- NEW INFORMATION ----------");
-		api.logger.emitLog("Accessed: " + Long.toString(accessed));
-		api.logger.emitLog("Last access: " + strDate);
-		api.logger.emitLog("-------------------------------------");
+		ctx.logger.emitLog("---------- NEW INFORMATION ----------");
+		ctx.logger.emitLog("Accessed: " + Long.toString(accessed));
+		ctx.logger.emitLog("Last access: " + strDate);
+		ctx.logger.emitLog("-------------------------------------");
 		
-		api.logger.emitLog("Ended Counter Microcontroller");
+		ctx.logger.emitLog("Ended Counter Microcontroller");
 
 	}
 	

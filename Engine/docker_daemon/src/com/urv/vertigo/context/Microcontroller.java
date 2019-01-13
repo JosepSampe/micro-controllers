@@ -1,7 +1,7 @@
 /*============================================================================
  18-Aug-2016    josep.sampe			Initial implementation.
  ===========================================================================*/
-package com.urv.vertigo.api;
+package com.urv.vertigo.context;
 
 import java.util.Map;
 import org.json.simple.JSONObject;
@@ -9,18 +9,20 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.slf4j.Logger;
 
+import com.urv.vertigo.api.Swift;
 
-public class ApiMicrocontroller {
+
+public class Microcontroller {
 	private String name;
 	private String method;
 	private Logger logger_;
 	private String object;
-	private ApiSwift swift;
+	private Swift swift;
 	
-	public JSONObject metadata = null;
+	public JSONObject parameters = null;
 
-	public ApiMicrocontroller(Map<String, String> objectMetadata, String mcName, String currentObject, 
-							  String requestMethod, ApiSwift apiSwift, Logger logger) {
+	public Microcontroller(Map<String, String> objectMetadata, String mcName, String currentObject, 
+							  String requestMethod, Swift apiSwift, Logger logger) {
 		name = mcName;
 		method = requestMethod;
 		logger_ = logger;
@@ -33,7 +35,7 @@ public class ApiMicrocontroller {
 				String mcMetadata = objectMetadata.get(key);
 				// TODO: check if mcMetadata is null
 				try{
-					metadata = (JSONObject) new JSONParser().parse(mcMetadata);
+					parameters = (JSONObject) new JSONParser().parse(mcMetadata);
 				} catch (ParseException e1) {
 					e1.printStackTrace();
 				}
@@ -43,8 +45,8 @@ public class ApiMicrocontroller {
 		logger_.trace("ApiMicrocontroller created");
 	}
 	
-	public void updateMetadata(){
+	public void updateParameters(){
 		logger_.trace("Updating microcontroller metadata");
-		swift.setMicrocontroller(object, name, method, metadata.toString());
+		swift.setMicrocontroller(object, name, method, parameters.toString());
 	}
 }

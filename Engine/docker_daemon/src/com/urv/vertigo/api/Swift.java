@@ -32,7 +32,7 @@ import net.spy.memcached.MemcachedClient;
 import org.slf4j.Logger;
 
 
-public class ApiSwift {
+public class Swift {
 	private Logger logger_;	
 	private String token;
 	private String storageUrl;
@@ -54,7 +54,7 @@ public class ApiSwift {
 	public Metadata metadata;
 
 
-	public ApiSwift(String strToken, String projectId, Logger logger){
+	public Swift(String strToken, String projectId, Logger logger){
 		
 		logger.trace("Creating ApiSwift");
 
