@@ -18,7 +18,7 @@ public class PrefetchingHandler implements IMicrocontroller {
 	 * Microcontroller invoke method. 
 	 */
 	public void invoke(Context ctx, Api api) {
-		ctx.logger.emitLog("Init Prefetching Microcontroller");
+		ctx.logger.emitLog("Init Prefetching Micro-controller");
 
 		ctx.request.forward(); // Return request to the user; the rest of code will be executed asynchronously
 
@@ -34,6 +34,6 @@ public class PrefetchingHandler implements IMicrocontroller {
 			}
 		}
 		
-		ctx.logger.emitLog("Ended Prefetching Microcontroller");
+		ctx.logger.emitLog("Ended Prefetching Micro-controller");
 	}
 }

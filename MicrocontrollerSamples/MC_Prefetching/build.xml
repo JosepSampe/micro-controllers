@@ -9,9 +9,8 @@
 			<classpath>
 		        <pathelement 
 		        	path="lib/DockerDaemon.jar"/>
-				<pathelement 
-					path="lib/json-simple-1.1.1.jar"/>
-			</classpath>		</javac>
+			</classpath>		
+		</javac>
 
 	     <jar destfile="bin/prefetching-1.0.jar" 
 	          basedir="bin"
