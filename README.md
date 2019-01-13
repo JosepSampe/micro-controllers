@@ -74,10 +74,33 @@ gunzip test.gz
 ```bash
 curl -H "X-Auth-Token:$TOKEN" $STORAGE_URL/data/test.json -X POST -H "X-Vertigo-onGet:noop-1.0.jar"
 ```
+
 2- Download the .json file that will put into execution the micro-controller:
 ```bash
 swift download data test.json
 or
 curl -H "X-Auth-Token:$TOKEN" $STORAGE_URL/data/test.json
+```
+
+3- Delete the No-operation micro-controller:
+```bash
+curl -H "X-Auth-Token:$TOKEN" $STORAGE_URL/data/test.json -X POST -H "X-Vertigo-onGet-Delete:noop-1.0.jar"
+```
+
+4- Assign the Counter micro-controller to the .json file upon GET requests:
+```bash
+curl -H "X-Auth-Token:$TOKEN" $STORAGE_URL/data/test.json -X POST -H "X-Vertigo-onGet:counter-1.0.jar"
+```
+
+5- Download the .json file that will put into execution the micro-controller:
+```bash
+swift download data test.json
+or
+curl -H "X-Auth-Token:$TOKEN" $STORAGE_URL/data/test.json
+```
+
+6- The Counter micro-controller adds into the object metadata an access counter and the last access timestamt. Verify the correct execution of the micro-controller by running the following command:
+```bash
+swift stat data test.json
 ```
  
