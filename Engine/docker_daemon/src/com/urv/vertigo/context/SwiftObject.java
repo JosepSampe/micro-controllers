@@ -14,6 +14,7 @@ public class SwiftObject {
 	private Swift swift;
 	private Logger logger_;	
 	public Metadata metadata;
+	public String name;
 	public String timestamp;
 	public String etag;
 	public String lastModified;
@@ -23,6 +24,7 @@ public class SwiftObject {
 	
 	public SwiftObject(Map<String, String> objectMetadata, String currentObject, Swift apiSwift, Logger logger) {
 		object = currentObject;
+		name = currentObject;
 		swift = apiSwift;
 		logger_ = logger;
 		//objectMetadata.entrySet().removeIf(entry -> entry.getKey().startsWith("X-Object-Sysmeta-Vertigo"));
