@@ -55,11 +55,11 @@ public class Swift {
 
 
 	public Swift(String strToken, String projectId, Logger logger){
-		
-		logger.trace("Creating ApiSwift");
+		logger_ = logger;
+		logger_.trace("Creating ApiSwift");
 
 		try {
-			logger.trace("Loading configuration file "+configFile);
+			logger_.trace("Loading configuration file "+configFile);
 			config = new Properties();
 			InputStream is = new FileInputStream(configFile);
 			config.load(is);
@@ -70,16 +70,15 @@ public class Swift {
 			redisPort = Integer.parseInt(config.getProperty("redis_port"));
 			redisDefaultDatabase = Integer.parseInt(config.getProperty("redis_db"));
 		} catch (FileNotFoundException e) {
-			logger.trace("Config file not found"+configFile);
+			logger_.trace("Config file not found"+configFile);
 		} catch (IOException e) {
-			logger.trace("Failed to load config file");
+			logger_.trace("Failed to load config file");
 		}
 
 		token = strToken;
 		tenantId = projectId;
 		storageUrl = "http://"+swiftIp+":"+swiftPort+"/v1/AUTH_"+projectId+"/";
-		logger_ = logger;
-		
+
 		//logger.trace("Swift URL: "+storageUrl);
 		//logger.trace("Redis URL: "+redisIp+":"+redisPort+"/"+redisDefaultDatabase);
 
@@ -210,31 +209,7 @@ public class Swift {
 		}
 		
 	}
-
-	/*
-	public BufferedReader get(String source){
-		BufferedReader reader = null;
-		HttpURLConnection conn = newConnection(source);
-		conn.setDoOutput(false);
-		conn.setDoInput(true);
-
-		String tok = UUID.randomUUID().toString();
-		String key = "VERTIGO_TOKEN_"+tok.split("-")[0]+"_AUTH_"+tenantId+"/"+source;
-		mc.set(MD5(key), 10, tok);
-		
-		try {
-			conn.setRequestProperty("X-Vertigo-Token", tok);
-			conn.setRequestMethod("GET");
-			reader = new BufferedReader(new InputStreamReader(conn.getInputStream()));
-		} catch (ProtocolException pe) {
-			logger_.trace("Error: Bad Protocol");
-		} catch (IOException ioe) {
-			logger_.trace("Error: Can't get Input Stream");
-		}
-		return reader;
-	}
-	*/
-
+	
 	public void setMicrocontroller(String source, String mc, String method, String metadata){
 		HttpURLConnection conn = newConnection(source);
 		conn.setRequestProperty("X-Vertigo-on"+method, mc);
@@ -246,6 +221,28 @@ public class Swift {
 		sendMcMetadata(conn, metadata);
 	}
 	
+	/*
+	 * Public method for getting an object without headers 
+	 */
+	public HttpURLConnection get(String source){
+		HttpURLConnection conn = newConnection(source);
+
+		return getObject(conn);
+	}
+	
+	/*
+	 * Public method for getting an object with headers 
+	 */
+	public HttpURLConnection get(String source, Map<String, String> headers){
+		HttpURLConnection conn = newConnection(source);
+		
+		for (Map.Entry<String, String> entry : headers.entrySet()){
+			conn.setRequestProperty(entry.getKey(), entry.getValue());
+		}
+		
+		return getObject(conn);
+	}
+		
 	public void copy(String source, String dest){
 		if (!source.equals(dest)){
 			HttpURLConnection conn = newConnection(dest);
@@ -292,6 +289,18 @@ public class Swift {
 			logger_.trace("Error: Bad Protocol");
 		}
 		sendRequest(conn);
+	}
+	
+	private HttpURLConnection getObject(HttpURLConnection conn){
+		conn.setDoOutput(false);
+		conn.setDoInput(true);
+		
+		try {
+			conn.setRequestMethod("GET");
+		} catch (ProtocolException pe) {
+			logger_.error("API Swift: Bad Protocol");
+		} 
+		return conn;	
 	}
 		
 	private HttpURLConnection newConnection(String source){
