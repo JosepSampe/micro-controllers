@@ -20,7 +20,7 @@ public class Api {
 	public Api(FileDescriptor toSwift, Map<String, String> reqMd, Logger localLog) 
 	{	
 		logger_ = localLog;
-		logger_.trace("- Creating API module");
+		logger_.trace("# Creating API module");
 		
 		String tenantId = reqMd.get("X-Tenant-Id");
 		String token = reqMd.get("X-Auth-Token");
@@ -29,7 +29,7 @@ public class Api {
 		storlet = new Storlet(toSwift, logger_);
 		redis = new Redis(logger_).getClient();
 		
-		logger_.trace("- Full API created");
+		logger_.trace("# Full API created");
 	}
 	
 }

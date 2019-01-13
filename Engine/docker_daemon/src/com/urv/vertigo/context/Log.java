@@ -17,7 +17,7 @@ public class Log {
 		stream = new FileOutputStream(fd);
 		logger_ = logger;
 		
-		logger_.trace("ApiLogger created");
+		logger_.trace("Context Log created");
 	}
 
 	public void emitLog(String message) {

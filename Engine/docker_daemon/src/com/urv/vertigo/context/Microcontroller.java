@@ -3,12 +3,12 @@
  ===========================================================================*/
 package com.urv.vertigo.context;
 
+import java.util.HashMap;
 import java.util.Map;
 import org.json.simple.JSONObject;
 import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 import org.slf4j.Logger;
-
 import com.urv.vertigo.api.Swift;
 
 
@@ -19,7 +19,8 @@ public class Microcontroller {
 	private String object;
 	private Swift swift;
 	
-	public JSONObject parameters = null;
+	private JSONObject jsonparameters = null;
+	public Map<String, String> parameters = new HashMap<String, String>();
 
 	public Microcontroller(Map<String, String> objectMetadata, String mcName, String currentObject, 
 							  String requestMethod, Swift apiSwift, Logger logger) {
@@ -35,18 +36,25 @@ public class Microcontroller {
 				String mcMetadata = objectMetadata.get(key);
 				// TODO: check if mcMetadata is null
 				try{
-					parameters = (JSONObject) new JSONParser().parse(mcMetadata);
+					jsonparameters = (JSONObject) new JSONParser().parse(mcMetadata);
+
+					for (Object pkey : jsonparameters.keySet()) {
+				        String keyStr = (String) pkey;
+				        String keyvalue = (String) jsonparameters.get(keyStr);
+				        parameters.put(keyStr, keyvalue);
+				    }
+					
 				} catch (ParseException e1) {
-					e1.printStackTrace();
+					logger_.trace("Failed parsing micro-controller parameters");
 				}
 			}
 		}
 		
-		logger_.trace("ApiMicrocontroller created");
+		logger_.trace("Context Micro-controller created");
 	}
 	
 	public void updateParameters(){
-		logger_.trace("Updating microcontroller metadata");
+		logger_.trace("Updating micro-controller metadata");
 		swift.setMicrocontroller(object, name, method, parameters.toString());
 	}
 }

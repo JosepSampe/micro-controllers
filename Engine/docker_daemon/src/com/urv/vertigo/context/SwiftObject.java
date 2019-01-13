@@ -9,7 +9,7 @@ import org.slf4j.Logger;
 import com.urv.vertigo.api.Swift;
 
 
-public class Object {
+public class SwiftObject {
 	private String object;
 	private Swift swift;
 	private Logger logger_;	
@@ -21,7 +21,7 @@ public class Object {
 	public String backendTimestamp;
 	public String contentType;
 	
-	public Object(Map<String, String> objectMetadata, String currentObject, Swift apiSwift, Logger logger) {
+	public SwiftObject(Map<String, String> objectMetadata, String currentObject, Swift apiSwift, Logger logger) {
 		object = currentObject;
 		swift = apiSwift;
 		logger_ = logger;
@@ -38,7 +38,7 @@ public class Object {
 		
 		// TODO: Put object metadata into cache
 
-		logger_.trace("ApiObject created");
+		logger_.trace("Context SwiftObject created");
 	}
 				
 	public void copy(String dest){

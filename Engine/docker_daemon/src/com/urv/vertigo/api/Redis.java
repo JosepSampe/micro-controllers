@@ -25,7 +25,7 @@ public class Redis {
 	
 	public Redis(Logger logger){
 		logger_ = logger;
-		logger_.trace("Creating ApiRedis");
+		logger_.trace("Creating Api Redis");
 
 		try {
 			logger_.trace("Loading configuration file "+configFile);
@@ -45,7 +45,7 @@ public class Redis {
 		redis = new Jedis(redisIp,redisPort);
 		redis.select(redisDefaultDatabase+1);
 		
-		logger_.trace("ApiRedis created");
+		logger_.trace("Api Redis created");
 	}
 
 	public Jedis getClient(){

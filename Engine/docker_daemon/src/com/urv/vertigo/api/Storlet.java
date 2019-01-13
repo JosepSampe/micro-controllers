@@ -18,7 +18,7 @@ public class Storlet {
 		stream = new FileOutputStream(fd);
 		logger_ = logger;
 		index = 0;
-		logger_.trace("ApiStorlet created");
+		logger_.trace("Api Storlet created");
 	}
 
 	@SuppressWarnings("unchecked") 

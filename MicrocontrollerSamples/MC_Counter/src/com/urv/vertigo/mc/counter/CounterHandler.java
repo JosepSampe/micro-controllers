@@ -18,7 +18,7 @@ public class CounterHandler implements IMicrocontroller {
 	 */
 	public void invoke(Context ctx, Api api) {
 
-		ctx.logger.emitLog("*** Init Counter Microcontroller ***");
+		ctx.logger.emitLog("*** Init Counter Micro-controller ***");
 		
 		java.util.Date date = new java.util.Date();
 		SimpleDateFormat formater = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zz");
@@ -31,10 +31,10 @@ public class CounterHandler implements IMicrocontroller {
 
 		// api.logger.emitLog(api.microcontroller.metadata.toString());
 		
-		// Microcontroller specific metadata
-		// api.microcontroller.metadata.put("accessed", accessed);
-		// api.microcontroller.metadata.put("last_access", strDate);
-		// api.microcontroller.updateMetadata();
+		// Micro-controller specific parameters
+		// api.microcontroller.parameters.put("accessed", accessed);
+		// api.microcontroller.parameters.put("last_access", strDate);
+		// api.microcontroller.updateParameters();
 		
 		if (accessed > 100){
 			ctx.request.cancel("Error: maximum reads reached.");
@@ -49,7 +49,7 @@ public class CounterHandler implements IMicrocontroller {
 		ctx.logger.emitLog("Last access: " + strDate);
 		ctx.logger.emitLog("-------------------------------------");
 		
-		ctx.logger.emitLog("Ended Counter Microcontroller");
+		ctx.logger.emitLog("Ended Counter Micro-controller");
 
 	}
 	

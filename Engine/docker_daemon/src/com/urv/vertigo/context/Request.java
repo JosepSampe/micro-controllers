@@ -53,7 +53,7 @@ public class Request {
 		logger_ = logger;
 		this.mapKeys();
 		
-		logger_.trace("ApiRequest created");
+		logger_.trace("Context Request created");
 	}
 
 	private void mapKeys(){
@@ -113,7 +113,7 @@ public class Request {
 			stream.write(outMetadata.toString().getBytes());
 			this.flush();
 		} catch (IOException e) {
-			logger_.trace("Error sending command on ApiRequest");
+			logger_.trace("Error sending command on Context Request");
 		}
 	}
 	
@@ -121,7 +121,7 @@ public class Request {
 		try {
 			stream.flush();
 		} catch (IOException e) {
-			logger_.trace("Error flushing command on ApiRequest");
+			logger_.trace("Error flushing command on Context Request");
 		}
 	}
 }

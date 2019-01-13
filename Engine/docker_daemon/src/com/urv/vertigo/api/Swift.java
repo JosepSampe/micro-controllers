@@ -56,7 +56,7 @@ public class Swift {
 
 	public Swift(String strToken, String projectId, Logger logger){
 		logger_ = logger;
-		logger_.trace("Creating ApiSwift");
+		logger_.trace("Creating Api Swift");
 
 		try {
 			logger_.trace("Loading configuration file "+configFile);
@@ -93,7 +93,7 @@ public class Swift {
 			logger_.trace("Failed to create Memcached client");
 		}*/
 		
-		logger_.trace("ApiSwift created");
+		logger_.trace("Api Swift created");
 	}
 
 	public class Metadata { 

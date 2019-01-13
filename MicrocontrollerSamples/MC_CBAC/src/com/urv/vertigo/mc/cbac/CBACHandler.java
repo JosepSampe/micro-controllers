@@ -20,8 +20,8 @@ public class CBACHandler implements IMicrocontroller {
 		ctx.logger.emitLog("Init CBAC Microcontroller");	
 
 		String requetRoles = ctx.request.roles;
-		String role = ctx.microcontroller.parameters.get("role").toString();
-		String allowed_cols = ctx.microcontroller.parameters.get("allowed_cols").toString();
+		String role = ctx.microcontroller.parameters.get("role");
+		String allowed_cols = ctx.microcontroller.parameters.get("allowed_cols");
 		
 		ctx.logger.emitLog("User roles: "+requetRoles);
 		ctx.logger.emitLog("Role: "+role+", Allowed columns: "+allowed_cols); 
