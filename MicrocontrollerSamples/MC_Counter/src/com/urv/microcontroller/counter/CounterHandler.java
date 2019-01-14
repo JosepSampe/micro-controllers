@@ -18,7 +18,7 @@ public class CounterHandler implements IMicrocontroller {
 	 */
 	public void invoke(Context ctx, Api api) {
 
-		ctx.logger.emitLog("*** Init Counter Micro-controller ***");
+		ctx.logger.emitLog("Init Counter Micro-controller");
 		
 		java.util.Date date = new java.util.Date();
 		SimpleDateFormat formater = new SimpleDateFormat("EEE, dd MMM yyyy HH:mm:ss zz");

@@ -41,7 +41,8 @@ def put_storlet_dependency(url, token, local_path_to_dep, dep_name):
     assert (status == 200 or status == 201)
 
 
-keystone_url = "http://10.30.223.31:5000/v3"
+keystone_ip = '10.30.223.31'
+keystone_url = 'http://{}:5000/v3'.format(keystone_ip)
 ACCOUNT = 'vertigo'
 USER_NAME = 'vertigo'
 PASSWORD = 'vertigo'

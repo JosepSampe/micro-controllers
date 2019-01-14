@@ -271,8 +271,8 @@ class VertigoProxyHandler(VertigoBaseHandler):
 
     def _process_object_move_and_link(self):
         """
-        Moves an object to the destination path and leaves a soft link in
-        the original path.
+        Moves an object to the destination path and leaves a soft-link in
+        the original location.
         """
         link_path = os.path.join(self.container, self.obj)
         dest_path = self.request.headers['X-Vertigo-Link-To']
@@ -287,7 +287,7 @@ class VertigoProxyHandler(VertigoBaseHandler):
             if response.is_success:
                 response = create_link(self, link_path, dest_path, headers)
         else:
-            msg = ("Vertigo - Error: Link path and destination path "
+            msg = ("Vertigo - Error: Source path and destination path "
                    "cannot be the same.\n")
             response = Response(body=msg, headers={'etag': ''},
                                 request=self.request)
@@ -363,8 +363,6 @@ class VertigoProxyHandler(VertigoBaseHandler):
         """
         if self.is_trigger_assignation or self.is_trigger_deletion:
             response = self._process_trigger_assignation_deletion_request()
-        elif self.is_object_grouping:
-            pass
         elif self.is_object_move:
             response = self._process_object_move_and_link()
         else:
@@ -397,8 +395,6 @@ class VertigoProxyHandler(VertigoBaseHandler):
         """
         if self.is_trigger_assignation or self.is_trigger_deletion:
             response = self._process_trigger_assignation_deletion_request()
-        elif self.is_object_grouping:
-            pass
         elif self.is_object_move:
             response = self._process_object_move_and_link()
         else:

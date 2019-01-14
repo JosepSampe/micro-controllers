@@ -40,6 +40,9 @@ class VertigoGatewayStorlet():
         parameters = storlet_data["params"]
         server = storlet_data["server"]
 
+        if not parameters:
+            parameters = {}
+
         return storlet, parameters, server
 
     def _get_storlet_invocation_options(self, req):
@@ -76,8 +79,11 @@ class VertigoGatewayStorlet():
         is forwarded to the data node (GET case)
         :param params: paramegers to be augmented to request
         """
-        for key, val in self.storlet_metadata.iteritems():
-            req.headers['X-Storlet-' + key] = val
+        req.headers['X-Storlet-Language'] = self.storlet_metadata['Language']
+        req.headers['X-Storlet-Main'] = self.storlet_metadata['Main']
+        req.headers['X-Storlet-Dependency'] = self.storlet_metadata['Dependency']
+        req.headers['X-Storlet-Content-Length'] = self.storlet_metadata['Content-Length']
+        req.headers['X-Storlet-X-Timestamp'] = self.storlet_metadata['X-Timestamp']
 
     def _parse_storlet_params(self, headers):
         """
@@ -121,17 +127,15 @@ class VertigoGatewayStorlet():
         new_env = dict(req_resp.environ)
         req = Request.blank(new_env['PATH_INFO'], new_env)
 
-        req.environ['QUERY_STRING'] = params
-        req.headers['X-Run-Storlet'] = self.storlet_name
         self._augment_storlet_request(req)
         options = self._get_storlet_invocation_options(req)
 
         if hasattr(data_iter, '_fp'):
-            sreq = self.sreq_class(storlet_id, req.params, dict(),
+            sreq = self.sreq_class(storlet_id, params, dict(),
                                    data_fd=data_iter._fp.fileno(),
                                    options=options)
         else:
-            sreq = self.sreq_class(storlet_id, req.params, dict(),
+            sreq = self.sreq_class(storlet_id, params, dict(),
                                    data_iter, options=options)
 
         return sreq
@@ -151,8 +155,8 @@ class VertigoGatewayStorlet():
 
             if server == self.server:
                 self._setup_gateway()
-                self.logger.info('Vertigo - Go to execute ' + storlet +
-                                 ' storlet with parameters "' + params + '"')
+                self.logger.info('Vertigo - Going to execute ' + storlet +
+                                 ' storlet with parameters: "' + str(params) + '"')
 
                 if not self._verify_access_to_storlet(storlet):
                     return HTTPUnauthorized('Vertigo - Storlet ' + storlet +

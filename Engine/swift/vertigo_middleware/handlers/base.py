@@ -219,10 +219,6 @@ class VertigoBaseHandler(object):
                     if x in self.request.headers.keys()))
 
     @property
-    def is_object_grouping(self):
-        return 'X-Vertigo-Group' in self.request.headers
-
-    @property
     def is_object_move(self):
         return 'X-Vertigo-Link-To' in self.request.headers
 

@@ -4,7 +4,6 @@ from vertigo_middleware.handlers import VertigoBaseHandler
 from vertigo_middleware.common.utils import get_microcontroller_list_object
 from vertigo_middleware.common.utils import set_microcontroller_object
 from vertigo_middleware.common.utils import delete_microcontroller_object
-import time
 
 
 class VertigoObjectHandler(VertigoBaseHandler):
@@ -32,14 +31,14 @@ class VertigoObjectHandler(VertigoBaseHandler):
 
     def _process_mc_data(self, response, mc_data):
         """
-        Processes the data returned from the microcontroller
+        Processes the data returned from the micro-controller
         """
         if mc_data['command'] == 'CONTINUE':
             return response
 
         elif mc_data['command'] == 'STORLET':
             slist = mc_data['list']
-            self.logger.info('Vertigo - Go to execute Storlets: ' + str(slist))
+            self.logger.info('Vertigo - Going to execute Storlets: ' + str(slist))
             return self.apply_storlet_on_get(response, slist)
 
         elif mc_data['command'] == 'CANCEL':
@@ -63,13 +62,13 @@ class VertigoObjectHandler(VertigoBaseHandler):
             mc_list = get_microcontroller_list_object(response.headers, self.method)
 
         if mc_list:
-            self.logger.info('Vertigo - There are microcontrollers' +
+            self.logger.info('Vertigo - There are micro-controllers' +
                              ' to execute: ' + str(mc_list))
             self._setup_docker_gateway(response)
             mc_data = self.mc_docker_gateway.execute_microcontrollers(mc_list)
             response = self._process_mc_data(response, mc_data)
         else:
-            self.logger.info('Vertigo - No microcontrollers to execute')
+            self.logger.info('Vertigo - No micro-controllers to execute')
 
         # end = time.time() - start
         # f = open("/tmp/vertigo/vertigo_get_overhead.log", 'a')
@@ -88,7 +87,7 @@ class VertigoObjectHandler(VertigoBaseHandler):
 
             try:
                 set_microcontroller_object(self, trigger, micro_controller)
-                msg = 'Vertigo - Microcontroller "' + micro_controller + \
+                msg = 'Vertigo - Micro-controller "' + micro_controller + \
                     '" correctly assigned to the "' + trigger + '" trigger.\n'
             except ValueError as e:
                 msg = e.args[0]
@@ -102,7 +101,7 @@ class VertigoObjectHandler(VertigoBaseHandler):
 
             try:
                 delete_microcontroller_object(self, trigger, micro_controller)
-                msg = 'Vertigo - Microcontroller "' + micro_controller +\
+                msg = 'Vertigo - Micro-controller "' + micro_controller +\
                     '" correctly removed from the "' + trigger + '" trigger.\n'
             except ValueError as e:
                 msg = e.args[0]

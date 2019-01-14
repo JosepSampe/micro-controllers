@@ -17,7 +17,7 @@ public class CBACHandler implements IMicrocontroller {
 	 */
 	public void invoke(Context ctx, Api api) {
 		
-		ctx.logger.emitLog("Init CBAC Microcontroller");	
+		ctx.logger.emitLog("Init CBAC Micro-controller");	
 
 		String requetRoles = ctx.request.roles;
 		String role = ctx.microcontroller.parameters.get("role");
@@ -35,7 +35,7 @@ public class CBACHandler implements IMicrocontroller {
 			ctx.request.cancel("ERROR: User not allowed");	
 		}
 
-		ctx.logger.emitLog("Ended CBAC Microcontroller");
+		ctx.logger.emitLog("Ended CBAC Micro-controller");
 		
 	}
 

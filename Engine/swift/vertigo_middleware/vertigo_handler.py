@@ -82,7 +82,7 @@ def filter_factory(global_conf, **local_conf):
     storlet_parameters = configParser.items('filter:storlet_handler')
     for key, val in storlet_parameters:
         vertigo_conf[key] = val
-    
+
     """ Load Storlets Gateway configuration """
     configParser = RawConfigParser()
     configParser.read(vertigo_conf['storlet_gateway_conf'])
@@ -91,7 +91,7 @@ def filter_factory(global_conf, **local_conf):
         vertigo_conf[key] = val
 
     """ Load Storlets Gateway class """
-    module_name = conf.get('storlet_gateway_module', 'stub')
+    module_name = vertigo_conf.get('storlet_gateway_module', 'stub')
     gateway_class = load_gateway(module_name)
     vertigo_conf['storlets_gateway_module'] = gateway_class
 

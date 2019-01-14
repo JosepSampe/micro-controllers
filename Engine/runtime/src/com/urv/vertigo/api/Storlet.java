@@ -22,6 +22,16 @@ public class Storlet {
 	}
 
 	@SuppressWarnings("unchecked") 
+	public void set(String storlet){
+		JSONObject storletPack = new JSONObject();
+		storletPack.put("storlet",storlet);
+		storletPack.put("params",null);
+		storletPack.put("server","object");		
+		storletList.put(index,storletPack);
+		index = index+1;
+	}
+
+	@SuppressWarnings("unchecked") 
 	public void set(String storlet, String parameters){
 		JSONObject storletPack = new JSONObject();
 		storletPack.put("storlet",storlet);

@@ -16,7 +16,7 @@ public class NoopHandler implements IMicrocontroller {
 	 * Microcontroller invoke method. 
 	 */
 	public void invoke(Context ctx, Api api) {
-		ctx.logger.emitLog("*** Init Noop Microcontroller ***");
+		ctx.logger.emitLog("Init Noop Microcontroller");
 		ctx.request.forward();
 		ctx.logger.emitLog("Ended Noop Microcontroller");
 	}
