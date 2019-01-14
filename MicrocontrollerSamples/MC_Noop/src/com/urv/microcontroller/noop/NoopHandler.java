@@ -1,4 +1,4 @@
-package com.urv.vertigo.mc.noop;
+package com.urv.microcontroller.noop;
 
 import com.urv.vertigo.api.Api;
 import com.urv.vertigo.context.Context;

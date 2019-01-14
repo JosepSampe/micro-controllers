@@ -4,17 +4,17 @@
 		<mkdir dir="bin" />
 	</target>
 
-	<target name="prefetching">
-		<javac srcdir="src/com/urv/microcontroller/prefetching/" destdir="bin" includeantruntime="false">
+	<target name="noopstorlet">
+		<javac srcdir="src/com/urv/microcontroller/noopstorlet/" destdir="bin" includeantruntime="false">
 			<classpath>
 		        <pathelement 
 		        	path="lib/DockerDaemon.jar"/>
-			</classpath>		
+			</classpath>
 		</javac>
 
-	     <jar destfile="bin/prefetching-1.0.jar" 
+	     <jar destfile="bin/noopstorlet-1.0.jar" 
 	          basedir="bin"
-	     	  includes="com/urv/microcontroller/prefetching/*">
+	     	  includes="com/urv/microcontroller/noopstorlet/*">
 	     </jar>
 	</target>
 	
@@ -26,6 +26,6 @@
 			<delete dir="bin/com" />
 	</target>
 	
-	<target name="build" depends="clean, common, prefetching, cleancom"/>
-	
+	<target name="build" depends="clean, common, noopstorlet, cleancom"/>
+
 </project>

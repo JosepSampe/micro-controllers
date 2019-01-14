@@ -5,7 +5,7 @@
 	</target>
 
 	<target name="noop">
-		<javac srcdir="src/com/urv/vertigo/mc/noop/" destdir="bin" includeantruntime="false">
+		<javac srcdir="src/com/urv/microcontroller/noop/" destdir="bin" includeantruntime="false">
 			<classpath>
 		        <pathelement 
 		        	path="lib/DockerDaemon.jar"/>
@@ -14,7 +14,7 @@
 
 	     <jar destfile="bin/noop-1.0.jar" 
 	          basedir="bin"
-	     	  includes="com/urv/vertigo/mc/noop/*">
+	     	  includes="com/urv/microcontroller/noop/*">
 	     </jar>
 	</target>
 	

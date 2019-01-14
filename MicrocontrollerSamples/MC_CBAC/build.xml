@@ -5,7 +5,7 @@
 	</target>
 
 	<target name="cbac">
-		<javac srcdir="src/com/urv/vertigo/mc/cbac/" destdir="bin" includeantruntime="false">
+		<javac srcdir="src/com/urv/microcontroller/cbac/" destdir="bin" includeantruntime="false">
 			<classpath>
 		        <pathelement 
 		        	path="lib/DockerDaemon.jar"/>
@@ -14,7 +14,7 @@
 
 	     <jar destfile="bin/cbac-1.0.jar" 
 	          basedir="bin"
-	     	  includes="com/urv/vertigo/mc/cbac/*">
+	     	  includes="com/urv/microcontroller/cbac/*">
 	     </jar>
 	</target>
 	

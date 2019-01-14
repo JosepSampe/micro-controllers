@@ -5,7 +5,7 @@
 	</target>
 
 	<target name="transgrep">
-		<javac srcdir="src/com/urv/vertigo/mc/transgrep/" destdir="bin" includeantruntime="false">
+		<javac srcdir="src/com/urv/microcontroller/transgrep/" destdir="bin" includeantruntime="false">
 			<classpath>
 		        <pathelement 
 		        	path="lib/DockerDaemon.jar"/>
@@ -14,7 +14,7 @@
 
 	     <jar destfile="bin/transgrep-1.0.jar" 
 	          basedir="bin"
-	     	  includes="com/urv/vertigo/mc/transgrep/*">
+	     	  includes="com/urv/microcontroller/transgrep/*">
 	     </jar>
 	</target>
 	

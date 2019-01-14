@@ -1,4 +1,4 @@
-package com.urv.vertigo.mc.counter;
+package com.urv.microcontroller.counter;
 
 import java.text.SimpleDateFormat;
 import com.urv.vertigo.api.Api;
