@@ -108,4 +108,42 @@ swift stat data test.json
 ```
 
 ### Usage
- 
+Next we describe the base micro-controller skeleton:
+
+```java
+package com.urv.microcontroller.default;
+
+import com.urv.vertigo.api.Api;
+import com.urv.vertigo.context.Context;
+import com.urv.vertigo.microcontroller.IMicrocontroller;
+
+public class DefaultHandler implements IMicrocontroller {
+
+	public void invoke(Context ctx, Api api) {
+		# Micro-controller code
+	}
+
+}
+```
+
+The `invoke` method is the entry point of the micro-controller. It has 2 main parameters: The `Context ctx` and the `Api api`.
+
+**Context ctx** class contains these subclasses:
+
+|Class|Description|
+|---|---|
+|ctx.logger| Access to the log.|
+|ctx.microcontroller| Access to the micro-controller parameters |
+|ctx.request| Access to the request metadata |
+|ctx.object| Access to the object metadata |
+
+
+**Api api** class contains these subclasses:
+
+|Class|Description|
+|---|---|
+|api.storlet| Set and run a list of Storlets |
+|api.swift| Access to the Swift cluster |
+|api.redis| Jedis client instance |
+
+
