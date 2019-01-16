@@ -1,11 +1,11 @@
-package com.ibm.storlet.sbus;
+package com.urv.vertigo.bus;
 
 /*----------------------------------------------------------------------------
  * This class encapsulates OS level file descriptor used 
  * in Transport Layer APIs. 
  * */
 
-public class SBusHandler 
+public class Handler 
 {
 	private int nFD_;
 
@@ -13,7 +13,7 @@ public class SBusHandler
 	 * CTOR
 	 * No default value
 	 * */
-	public SBusHandler( int nFD )
+	public Handler( int nFD )
 	{
 		nFD_ = nFD;
 	}

@@ -395,6 +395,8 @@ initialize_tenant(){
 	mkdir -p /home/docker_device/vertigo/scopes/${PROJECT_ID:0:13}/
 	cp /opt/vertigo/* /home/docker_device/vertigo/scopes/${PROJECT_ID:0:13}/
 	chown -R swift:swift /home/docker_device/vertigo/scopes/
+	
+	gpasswd -a "$(whoami)" docker
 	usermod -aG docker swift
 	
 	cat <<-EOF >> vertigo-openrc

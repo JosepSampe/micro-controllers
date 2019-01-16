@@ -1,27 +1,27 @@
-package com.ibm.storlet.sbus;
+package com.urv.vertigo.bus;
 
 import java.io.IOException;
-import com.ibm.storlet.sbus.SBusBackend.eLogLevel;
+import com.urv.vertigo.bus.Backend.eLogLevel;
 
 /*----------------------------------------------------------------------------
  * SBus
  * 
- * The front end Java class for SBus functionality.
+ * The front end Java class for Bus functionality.
  * */
-public class SBus 
+public class Bus 
 {
-    private SBusHandler hServerSideSBus_;
-    private SBusBackend SBusBack_;
+    private Handler hServerSideBus_;
+    private Backend BusBack_;
     
     /*------------------------------------------------------------------------
      * CTOR
      * 
      * Instantiate the SBusBackend object. Start logging
      * */
-    public SBus( final String contId ) throws IOException
+    public Bus( final String contId ) throws IOException
     {
-        SBusBack_ = new SBusBackend();
-        SBusBack_.startLogger( eLogLevel.SBUS_LOG_DEBUG, contId );
+        BusBack_ = new Backend();
+        BusBack_.startLogger( eLogLevel.BUS_LOG_DEBUG, contId );
     }
 
     /*------------------------------------------------------------------------
@@ -31,7 +31,7 @@ public class SBus
      * */
     public void create( final String strPath ) throws IOException 
     {
-        hServerSideSBus_ = SBusBack_.createSBus( strPath );
+        hServerSideBus_ = BusBack_.createBus( strPath );
     }
 
     /*------------------------------------------------------------------------
@@ -41,28 +41,28 @@ public class SBus
      * */
     public void listen() throws IOException 
     {
-        SBusBack_.listenSBus(hServerSideSBus_);
+        BusBack_.listenBus(hServerSideBus_);
     }
 
     /*------------------------------------------------------------------------
      * receive
      * */
-    public SBusDatagram receive() throws IOException 
+    public Datagram receive() throws IOException 
     {
-        SBusRawMessage Msg = SBusBack_.receiveRawMessage( hServerSideSBus_ );
-        SBusDatagram Dtg = new SBusDatagram( Msg );
+        RawMessage Msg = BusBack_.receiveRawMessage( hServerSideBus_ );
+        Datagram Dtg = new Datagram( Msg );
         return Dtg;
     }
     
     /*------------------------------------------------------------------------
      * send
      * */
-    public void send( final String       strSBusPath,
-                      final SBusDatagram Dtg         ) throws IOException 
+    public void send( final String       strBusPath,
+                      final Datagram Dtg         ) throws IOException 
     {
         
-        SBusRawMessage Msg = Dtg.toRawMessage();
-        SBusBack_.sendRawMessage(strSBusPath, Msg);
+        RawMessage Msg = Dtg.toRawMessage();
+        BusBack_.sendRawMessage(strBusPath, Msg);
     }
 
     /*------------------------------------------------------------------------
@@ -72,6 +72,6 @@ public class SBus
      * */
     public void finalize()
     {
-        SBusBack_.stopLogger();
+        BusBack_.stopLogger();
     }
 }

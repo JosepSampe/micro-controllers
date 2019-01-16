@@ -4,8 +4,8 @@
 #include <syslog.h>
 #include <string.h>
 
-#include "com_ibm_storlet_sbus_SBusJNI.h"
-#include "sbus.h"
+#include "com_urv_vertigo_bus_JNI.h"
+#include "bus.h"
 
 
 static int 	g_JavaAccessorsInitialized = 0;
@@ -34,10 +34,10 @@ int init_java_accessors( JNIEnv* env )
     //    return 0;
 
     /*------------------------------------------------------------------------
-     * Reflecting SBusRawMessage
+     * Reflecting RawMessage
      * */
 	g_ClassRawMessage =
-			(*env)->FindClass( env, "com/ibm/storlet/sbus/SBusRawMessage" );
+			(*env)->FindClass( env, "com/urv/vertigo/bus/RawMessage" );
     if( NULL == g_ClassRawMessage )
         return -1;
 
@@ -93,7 +93,7 @@ int init_java_accessors( JNIEnv* env )
  *
  * */
 JNIEXPORT void JNICALL
-Java_com_ibm_storlet_sbus_SBusJNI_startLogger( 	JNIEnv* env,
+Java_com_urv_vertigo_bus_JNI_startLogger( 	JNIEnv* env,
 												jobject obj,
 												jstring jLevel,
 												jstring jContId )
@@ -105,7 +105,7 @@ Java_com_ibm_storlet_sbus_SBusJNI_startLogger( 	JNIEnv* env,
         if( NULL == pContId )
                 return;
 
-	sbus_start_logger( pLogLevel, pContId);
+	bus_start_logger( pLogLevel, pContId);
 
 	(*env)->ReleaseStringUTFChars( env, jLevel, pLogLevel );
 }
@@ -114,17 +114,17 @@ Java_com_ibm_storlet_sbus_SBusJNI_startLogger( 	JNIEnv* env,
  *
  * */
 JNIEXPORT void JNICALL
-Java_com_ibm_storlet_sbus_SBusJNI_stopLogger( 	JNIEnv* env,
+Java_com_urv_vertigo_bus_JNI_stopLogger( 	JNIEnv* env,
 												jobject obj )
 {
-	sbus_stop_logger();
+	bus_stop_logger();
 }
 
 /*----------------------------------------------------------------------------
  *
  * */
 JNIEXPORT jint JNICALL
-Java_com_ibm_storlet_sbus_SBusJNI_createSBus( 	JNIEnv* env,
+Java_com_urv_vertigo_bus_JNI_createBus( 	JNIEnv* env,
 												jobject obj,
 												jstring jstrPath )
 {
@@ -133,7 +133,7 @@ Java_com_ibm_storlet_sbus_SBusJNI_createSBus( 	JNIEnv* env,
 	if( NULL == pPath )
 		return -1;
 
-	nBus = sbus_create( pPath);
+	nBus = bus_create( pPath);
 
 	(*env)->ReleaseStringUTFChars( env, jstrPath, pPath );
 	return nBus;
@@ -143,18 +143,18 @@ Java_com_ibm_storlet_sbus_SBusJNI_createSBus( 	JNIEnv* env,
  *
  * */
 JNIEXPORT jint JNICALL
-Java_com_ibm_storlet_sbus_SBusJNI_listenSBus( 	JNIEnv* env,
+Java_com_urv_vertigo_bus_JNI_listenBus( 	JNIEnv* env,
 												jobject obj,
 												jint    jnBus )
 {
-	return sbus_listen( jnBus );
+	return bus_listen( jnBus );
 }
 
 /*----------------------------------------------------------------------------
  *
  * */
 JNIEXPORT jint JNICALL
-Java_com_ibm_storlet_sbus_SBusJNI_sendRawMessage( 	JNIEnv* env,
+Java_com_urv_vertigo_bus_JNI_sendRawMessage( 	JNIEnv* env,
 													jobject obj,
 													jstring jstrPath,
 													jobject jMsg )
@@ -207,10 +207,10 @@ Java_com_ibm_storlet_sbus_SBusJNI_sendRawMessage( 	JNIEnv* env,
 		nParamsLen = strlen( strParams );
 	}
 
-	nStatus = sbus_send_msg(	strSBusPath,
-								pFiles, nFiles,
-								strMetadata, nMetadataLen,
-								strParams, nParamsLen );
+	nStatus = bus_send_msg(	strSBusPath,
+							pFiles, nFiles,
+							strMetadata, nMetadataLen,
+							strParams, nParamsLen );
 
 	if( NULL != jstrMetadata )
 		(*env)->ReleaseStringUTFChars( env, jstrMetadata, 	strMetadata );
@@ -227,7 +227,7 @@ Java_com_ibm_storlet_sbus_SBusJNI_sendRawMessage( 	JNIEnv* env,
  *
  * */
 JNIEXPORT jobject JNICALL
-Java_com_ibm_storlet_sbus_SBusJNI_receiveRawMessage( 	JNIEnv* env,
+Java_com_urv_vertigo_bus_JNI_receiveRawMessage( 	JNIEnv* env,
 														jobject obj,
 														jint    jnBus )
 {
@@ -247,12 +247,12 @@ Java_com_ibm_storlet_sbus_SBusJNI_receiveRawMessage( 	JNIEnv* env,
 	int 	nFiles			= 0;
 
 
-	nStatus = sbus_recv_msg(	jnBus,
-								&pFiles, &nFiles,
-								&strMetadata, &nMetadataLen,
-								&strParams, &nParamsLen );
+	nStatus = bus_recv_msg(	jnBus,
+							&pFiles, &nFiles,
+							&strMetadata, &nMetadataLen,
+							&strParams, &nParamsLen );
 
-	syslog( LOG_DEBUG, "JNI: sbus_recv_msg = %d, "
+	syslog( LOG_DEBUG, "JNI: bus_recv_msg = %d, "
 			           "nFiles = %d, "
 			           "nMetadataLen = %d, "
 			           "nParamsLen = %d",
@@ -312,5 +312,3 @@ Java_com_ibm_storlet_sbus_SBusJNI_receiveRawMessage( 	JNIEnv* env,
 
 	return RawMsgObj;
 }
-
-/*============================== END OF FILE ===============================*/

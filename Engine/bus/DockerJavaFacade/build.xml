@@ -2,7 +2,7 @@
 
 	<target name="clean">
 		<delete dir="bin" />
-		<delete file="com_ibm_storlet_sbus_SBusJNI.h"/>
+		<delete file="com_urv_vertigo_bus_JNI.h"/>
 	</target>
 
 	<target name="java">
@@ -10,37 +10,41 @@
 		<javac 
 		    srcdir="src" 
 		    destdir="bin"
-		    classpath="../../dependencies/json_simple-1.1.jar"
+		    classpath="lib/json_simple-1.1.jar"
 			includeantruntime="false"/>
 	</target>
 
 	<target name="h" depends="java">
 		<javah destdir="." force="yes" classpath="bin">
-			<class name="com.ibm.storlet.sbus.SBusJNI" />
+			<class name="com.urv.vertigo.bus.JNI" />
 		</javah>
 	</target>
 
 	<target name="so" depends="h">
 		<exec dir="." executable="gcc">
-			<arg line="-shared -o bin/libjsbus.so -fPIC" />
+			<arg line="-shared -o bin/libjbus.so -fPIC" />
 			<arg line="-I/usr/lib/jvm/java-8-oracle/include" />
 			<arg line="-I/usr/lib/jvm/java-8-oracle/include/linux/" />
-			<arg line="-I../SBusTransportLayer" />
-			<arg line="SBusJNI.c ../SBusTransportLayer/sbus.c" />
+			<arg line="-I../TransportLayer" />
+			<arg line="BusJNI.c ../TransportLayer/bus.c" />
 		</exec>
 	</target>
 
 	<target name="jar" depends="so">
-		<jar destfile="SBusJavaFacade.jar" basedir="bin">
+		<jar destfile="BusDockerJavaFacade.jar" basedir="bin">
 			<manifest>
 				<attribute name="Main-Class" 
-					       value="com.ibm.storlet.sbus.SBus" />
+					       value="com.urv.vertigo.bus.Bus" />
 			</manifest>
 		</jar>
-		<move file="SBusJavaFacade.jar" todir="bin/"/>
+		<move file="BusDockerJavaFacade.jar" todir="bin/"/>
 	</target>
 	
-    <target name="build" depends="clean, jar">
+	<target name="cleancom">
+			<delete dir="bin/com" />
+	</target>
+	
+    <target name="build" depends="clean, jar, cleancom">
     </target>
 	
 </project>

@@ -6,22 +6,22 @@
 /*----------------------------------------------------------------------------
  * start/halt logging
  */
-extern void sbus_start_logger( const char* str_log_level,  const char* container_id);
-extern void sbus_stop_logger(  void );
+extern void bus_start_logger( const char* str_log_level,  const char* container_id);
+extern void bus_stop_logger(  void );
 
 /*----------------------------------------------------------------------------
  * sbus_create
  * create an instance of SBus object
  * returns -1 on error, SBus handler on success
  */
-extern int sbus_create( const char* str_sbus_path );
+extern int bus_create( const char* str_bus_path );
 
 /*----------------------------------------------------------------------------
  * sbus_listen
  * Suspend the
  * returns -1 on error, 0 on success
  */
-extern int sbus_listen( int n_sbus_handle );
+extern int bus_listen( int n_bus_handle );
 
 /*----------------------------------------------------------------------------
  * sbus_recv_msg
@@ -30,13 +30,13 @@ extern int sbus_listen( int n_sbus_handle );
  *
  * Caller shall clean up the buffers to avoid memory leaks
  */
-extern int sbus_recv_msg( int    n_sbus_handler,
-                          int**  pp_files,
-                          int*   pn_files,
-                          char** pstr_files_metadata,
-                          int*   pn_files_metadata_len,
-                          char** pstr_msg_data,
-                          int*   pn_msg_len );
+extern int bus_recv_msg( int    n_bus_handler,
+                         int**  pp_files,
+                         int*   pn_files,
+                         char** pstr_files_metadata,
+                         int*   pn_files_metadata_len,
+                         char** pstr_msg_data,
+                         int*   pn_msg_len );
 
 /*----------------------------------------------------------------------------
  * sbus_send_msg
@@ -52,13 +52,12 @@ extern int sbus_recv_msg( int    n_sbus_handler,
  * str_msg_data         - the message, JSON-encoded string
  * n_msg_len            - length of the above
  */
-extern int sbus_send_msg( const char* str_sbus_path,
-                          const int*  p_files,
-                          int         n_files,
-                          const char* str_files_metadata,
-                          int         n_files_metadata_len,
-                          const char* str_msg_data,
-                          int         n_msg_len );
+extern int bus_send_msg( const char* str_bus_path,
+                         const int*  p_files,
+                         int         n_files,
+                         const char* str_files_metadata,
+                         int         n_files_metadata_len,
+                         const char* str_msg_data,
+                         int         n_msg_len );
 
 #endif
-/*========================= END OF FILE ======================================*/

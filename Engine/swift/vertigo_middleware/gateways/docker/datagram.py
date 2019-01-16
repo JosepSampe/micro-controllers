@@ -2,13 +2,13 @@ import json
 import os
 import syslog
 
-SBUS_FD_OUTPUT_OBJECT = 1
-SBUS_CMD_NOP = 9
+BUS_FD_OUTPUT_OBJECT = 1
+BUS_CMD_NOP = 9
 
 
 class Datagram(object):
     '''@summary: This class aggregates data to be transferred
-              using SBus functionality.
+              using Bus functionality.
     '''
 
     command_dict_key_name_ = 'command'
@@ -16,8 +16,8 @@ class Datagram(object):
 
     def __init__(self):
         '''@summary:              CTOR
-        @ivar e_command_ :     A command to Storlet Daemon.
-        @type e_command_ :     Integer. SBusStorletCommand enumerated value.
+        @ivar e_command_ :     A command to DockerDaemon.
+        @type e_command_ :     Integer. Command enumerated value.
         @ivar h_files_:        List of open file descriptors.
         @type h_files_:        List of integers.
         @ivar n_files_:        Quantity of file descriptors.
@@ -29,7 +29,7 @@ class Datagram(object):
         @invariant:            Quantity of entries in files_metadata_ list
                                is the same as in h_files_, i.e. n_files_.
         '''
-        self.e_command_ = SBUS_CMD_NOP
+        self.e_command_ = BUS_CMD_NOP
         self.task_id_ = None
         self.h_files_ = None
         self.n_files_ = 0
@@ -44,7 +44,7 @@ class Datagram(object):
                           {PING, START/STOP/STATUS-DAEMON}
                         - single output file descriptor
         @param command: Command to send
-        @type  command: SBusStorletCommand
+        @type  command: BusCommand
         @param outfd:   Output stream for command execution results
         @type  outfd:   File descriptor or Integer
         @return:        A datagram with the required data
@@ -53,7 +53,7 @@ class Datagram(object):
         dtg = Datagram()
         dtg.set_command(command)
         meta = {}
-        meta[0] = {'type': SBUS_FD_OUTPUT_OBJECT}
+        meta[0] = {'type': BUS_FD_OUTPUT_OBJECT}
         files = []
         if isinstance(outfd, file):
             files.append(outfd.fileno())
@@ -111,7 +111,7 @@ class Datagram(object):
             self.task_id_ = ext_params[tid]
             ext_params.pop(tid, None)
         else:
-            self.e_command_ = SBUS_CMD_NOP
+            self.e_command_ = BUS_CMD_NOP
         b_exec_params_is_not_empty = len(ext_params.keys()) > 0
         if b_exec_params_is_not_empty:
             self.exec_params_ = ext_params.copy()
@@ -194,7 +194,7 @@ class Datagram(object):
         '''@summary:         Iterate through file list and metadata.
                           Find the first file with the required type
         @param file_type: The file type to look for
-        @type  file_type: Integer, SBusFileDescription enumerator
+        @type  file_type: Integer, FileDescription enumerator
         @return:          File descriptor or None if not found
         @rtype:           File
         '''
@@ -263,14 +263,14 @@ class Datagram(object):
 
     def get_command(self):
         '''@summary: Getter.
-        @return:  The Storlet Daemon command.
+        @return:  The DockerDaemon command.
         @rtype:   SBusStorletCommand
         '''
         return self.e_command_
 
     def set_command(self, cmd):
         '''@summary:   Setter.
-                    Assign Storlet Daemon command.
+                    Assign DockerDaemon command.
         @param cmd: Command to assign
         @type  cmd: SBusStorletCommand enumerator
         @rtype:     void

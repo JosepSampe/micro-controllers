@@ -1,29 +1,4 @@
-/*----------------------------------------------------------------------------
- * Copyright IBM Corp. 2015, 2015 All Rights Reserved
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * Limitations under the License.
- * ---------------------------------------------------------------------------
- */
-
-/*============================================================================
- 07-Jul-2014    evgenyl     Initial implementation.
- 17-Jul-2014    evgenyl     Covering different enumerator representations
-                            in Java and Python JSON marshaling
- 09-Oct-2014	eranr		Calling setExecParams( JustParams ) even if
- 							JustParams is empty. Otherwise, upper layer
- 							may crash if there were no parameters.
- ===========================================================================*/
-
-package com.ibm.storlet.sbus;
+package com.urv.vertigo.bus;
 
 import java.io.FileDescriptor;
 import java.util.ArrayList;
@@ -38,13 +13,13 @@ import org.json.simple.parser.JSONParser;
 import org.json.simple.parser.ParseException;
 
 /*----------------------------------------------------------------------------
- * SBusDatagram
+ * Datagram
  * 
  * This class aggregates the data which is sent through SBusBackend. 
  * The data is collected and encoded as a SBusRawMessage
  * */
 
-public class SBusDatagram 
+public class Datagram 
 {
 	/*------------------------------------------------------------------------
 	 * Enumerating commands
@@ -53,16 +28,16 @@ public class SBusDatagram
 	 * */
 	public static enum eStorletCommand
 	{
-		SBUS_CMD_HALT           (0),
-		SBUS_CMD_EXECUTE        (1),
-		SBUS_CMD_START_DAEMON   (2),
-		SBUS_CMD_STOP_DAEMON    (3),
-		SBUS_CMD_DAEMON_STATUS  (4),
-		SBUS_CMD_STOP_DAEMONS   (5),
-		SBUS_CMD_PING           (6),
-		SBUS_CMD_DESCRIPTOR     (7),
-		SBUS_CMD_CANCEL         (8),
-		SBUS_CMD_NOP            (9);
+		BUS_CMD_HALT           (0),
+		BUS_CMD_EXECUTE        (1),
+		BUS_CMD_START_DAEMON   (2),
+		BUS_CMD_STOP_DAEMON    (3),
+		BUS_CMD_DAEMON_STATUS  (4),
+		BUS_CMD_STOP_DAEMONS   (5),
+		BUS_CMD_PING           (6),
+		BUS_CMD_DESCRIPTOR     (7),
+		BUS_CMD_CANCEL         (8),
+		BUS_CMD_NOP            (9);
 				
 		private eStorletCommand(int n){}
 	};
@@ -107,11 +82,11 @@ public class SBusDatagram
 	/*------------------------------------------------------------------------
 	 * Default CTOR
 	 * */    
-    public SBusDatagram()
+    public Datagram()
     {
     	this.hFiles_ 		= null;
     	this.nFiles_ 		= 0;
-    	this.eCommand_ 		= eStorletCommand.SBUS_CMD_NOP;
+    	this.eCommand_ 		= eStorletCommand.BUS_CMD_NOP;
     	this.FilesMetadata_	= null;
     	this.ExecParams_ 	= null;
     	this.taskId_            = null;
@@ -120,7 +95,7 @@ public class SBusDatagram
 	/*------------------------------------------------------------------------
 	 * Conversion CTOR
 	 * */    
-    public SBusDatagram( final SBusRawMessage RawMsg )
+    public Datagram( final RawMessage RawMsg )
     {
     	setFiles( RawMsg.getFiles() );
     	setCommandAndParamsFromJSON( RawMsg.getParams() );
@@ -240,9 +215,9 @@ public class SBusDatagram
 	 * 
 	 * Converter to Raw Message format
 	 * */    
-    public SBusRawMessage toRawMessage()
+    public RawMessage toRawMessage()
     {
-    	SBusRawMessage Res = new SBusRawMessage();
+    	RawMessage Res = new RawMessage();
     	Res.setFiles(    this.getFiles()                  );
 	    Res.setParams(   this.getParamsAndCommandAsJSON() );
 	    Res.setMetadata( this.getFilesMetadataAsJSON()    );	    
@@ -296,26 +271,26 @@ public class SBusDatagram
      * */
     private eStorletCommand convertStringToCommand( final String strVal )
     {
-        eStorletCommand eCmd = eStorletCommand.SBUS_CMD_NOP;
+        eStorletCommand eCmd = eStorletCommand.BUS_CMD_NOP;
 
-        if(     strVal.equals("0") || strVal.equals("SBUS_CMD_HALT"))
-            eCmd = eStorletCommand.SBUS_CMD_HALT;
-        else if(strVal.equals("1") || strVal.equals( "SBUS_CMD_EXECUTE" ))
-            eCmd = eStorletCommand.SBUS_CMD_EXECUTE;
-        else if(strVal.equals("2") || strVal.equals( "SBUS_CMD_START_DAEMON"))
-            eCmd = eStorletCommand.SBUS_CMD_START_DAEMON;
-        else if(strVal.equals("3") || strVal.equals( "SBUS_CMD_STOP_DAEMON" ))
-            eCmd = eStorletCommand.SBUS_CMD_STOP_DAEMON;
-        else if(strVal.equals("4") || strVal.equals("SBUS_CMD_DAEMON_STATUS"))
-            eCmd = eStorletCommand.SBUS_CMD_DAEMON_STATUS;
-        else if(strVal.equals("5") || strVal.equals( "SBUS_CMD_STOP_DAEMONS"))
-            eCmd = eStorletCommand.SBUS_CMD_STOP_DAEMONS;
-        else if(strVal.equals("6") || strVal.equals( "SBUS_CMD_PING" ))
-            eCmd = eStorletCommand.SBUS_CMD_PING;
-        else if(strVal.equals("7") || strVal.equals( "SBUS_CMD_DESCRIPTOR" ))
-            eCmd = eStorletCommand.SBUS_CMD_DESCRIPTOR;
-        else if(strVal.equals("8") || strVal.equals( "SBUS_CMD_CANCEL" ))
-            eCmd = eStorletCommand.SBUS_CMD_CANCEL;
+        if(     strVal.equals("0") || strVal.equals("BUS_CMD_HALT"))
+            eCmd = eStorletCommand.BUS_CMD_HALT;
+        else if(strVal.equals("1") || strVal.equals( "BUS_CMD_EXECUTE" ))
+            eCmd = eStorletCommand.BUS_CMD_EXECUTE;
+        else if(strVal.equals("2") || strVal.equals( "BUS_CMD_START_DAEMON"))
+            eCmd = eStorletCommand.BUS_CMD_START_DAEMON;
+        else if(strVal.equals("3") || strVal.equals( "BUS_CMD_STOP_DAEMON" ))
+            eCmd = eStorletCommand.BUS_CMD_STOP_DAEMON;
+        else if(strVal.equals("4") || strVal.equals("BUS_CMD_DAEMON_STATUS"))
+            eCmd = eStorletCommand.BUS_CMD_DAEMON_STATUS;
+        else if(strVal.equals("5") || strVal.equals( "BUS_CMD_STOP_DAEMONS"))
+            eCmd = eStorletCommand.BUS_CMD_STOP_DAEMONS;
+        else if(strVal.equals("6") || strVal.equals( "BUS_CMD_PING" ))
+            eCmd = eStorletCommand.BUS_CMD_PING;
+        else if(strVal.equals("7") || strVal.equals( "BUS_CMD_DESCRIPTOR" ))
+            eCmd = eStorletCommand.BUS_CMD_DESCRIPTOR;
+        else if(strVal.equals("8") || strVal.equals( "BUS_CMD_CANCEL" ))
+            eCmd = eStorletCommand.BUS_CMD_CANCEL;
        
         return eCmd;
     }
@@ -329,25 +304,25 @@ public class SBusDatagram
         switch(strFileType)
         {
         case "0":
-            strType = "SBUS_FD_INPUT_OBJECT";
+            strType = "BUS_FD_INPUT_OBJECT";
             break;
         case "1":
-            strType = "SBUS_FD_OUTPUT_OBJECT";
+            strType = "BUS_FD_OUTPUT_OBJECT";
             break;
         case "2":
-            strType = "SBUS_FD_OUTPUT_OBJECT_METADATA";
+            strType = "BUS_FD_OUTPUT_OBJECT_METADATA";
             break;
         case "3":
-            strType = "SBUS_FD_OUTPUT_OBJECT_AND_METADATA";
+            strType = "BUS_FD_OUTPUT_OBJECT_AND_METADATA";
             break;
         case "4":
-            strType = "SBUS_FD_LOGGER";
+            strType = "BUS_FD_LOGGER";
             break;
         case "5":
-            strType = "SBUS_FD_OUTPUT_CONTAINER";
+            strType = "BUS_FD_OUTPUT_CONTAINER";
             break;
         case "6":
-            strType = "SBUS_FD_OUTPUT_TASK_ID";
+            strType = "BUS_FD_OUTPUT_TASK_ID";
             break;
         }
         return strType;
@@ -402,4 +377,3 @@ public class SBusDatagram
 		ExecParams_ = execParams;
 	}
 }
-/*============================== END OF FILE ===============================*/

@@ -1,18 +1,18 @@
-package com.ibm.storlet.sbus;
+package com.urv.vertigo.bus;
 
 import java.io.IOException;
 
 /*----------------------------------------------------------------------------
- * SBusBackend
+ * Backend
  * 
  * This class wraps and transfers calls to the JNI implementation 
  * */
-public class SBusBackend 
+public class Backend 
 {
 	/*------------------------------------------------------------------------
 	 * JNI layer delegate, common to every instance of SBusBackend
 	 * */
-	private static SBusJNI SBusJNIObj_  = new SBusJNI();
+	private static JNI BusJNIObj_  = new JNI();
 	
 	/*------------------------------------------------------------------------
 	 * Enumerating logging levels
@@ -20,11 +20,11 @@ public class SBusBackend
 	 * */
 	public static enum eLogLevel
 	{
-		SBUS_LOG_DEBUG,
-		SBUS_LOG_INFO,
-		SBUS_LOG_WARNING,
-		SBUS_LOG_CRITICAL,
-		SBUS_LOG_OFF
+		BUS_LOG_DEBUG,
+		BUS_LOG_INFO,
+		BUS_LOG_WARNING,
+		BUS_LOG_CRITICAL,
+		BUS_LOG_OFF
 	};
 		
 	/*------------------------------------------------------------------------
@@ -35,26 +35,26 @@ public class SBusBackend
 		String strLogLevel = null;
 		switch( eLogLevel )
 		{
-		case SBUS_LOG_DEBUG:
+		case BUS_LOG_DEBUG:
 			strLogLevel = "DEBUG";
 			break;
-		case SBUS_LOG_INFO:
+		case BUS_LOG_INFO:
 			strLogLevel = "INFO";
 			break;
-		case SBUS_LOG_WARNING:
+		case BUS_LOG_WARNING:
 			strLogLevel = "WARNING";
 			break;
-		case SBUS_LOG_CRITICAL:
+		case BUS_LOG_CRITICAL:
 			strLogLevel = "CRITICAL";
 			break;
-		case SBUS_LOG_OFF:
+		case BUS_LOG_OFF:
 			strLogLevel = "OFF";
 			break;
 		default:
 			strLogLevel = "WARNINIG";
 			break;
 		}
-		SBusJNIObj_.startLogger(strLogLevel, contId);
+		BusJNIObj_.startLogger(strLogLevel, contId);
 	}
 	
 	/*------------------------------------------------------------------------
@@ -62,29 +62,29 @@ public class SBusBackend
 	 * */
 	public void stopLogger()
 	{
-		SBusJNIObj_.stopLogger();
+		BusJNIObj_.stopLogger();
 	}
 	
 	/*------------------------------------------------------------------------
 	 * Create the bus. 
 	 * */
-	public SBusHandler createSBus( final String strSBusName ) 
+	public Handler createBus( final String strBusName ) 
 			                                                throws IOException
 	{
-		int nSBus = SBusJNIObj_.createSBus( strSBusName );
+		int nSBus = BusJNIObj_.createBus( strBusName );
 		if( 0 > nSBus )
-			throw new IOException( "Unable to create SBus - " + strSBusName );
-		return new SBusHandler( nSBus );
+			throw new IOException( "Unable to create SBus - " + strBusName );
+		return new Handler( nSBus );
 	}
 	
 	/*------------------------------------------------------------------------
 	 * Wait and listen to the bus.
 	 * The executing thread is suspended until some data arrives. 
 	 * */
-	public boolean listenSBus( final SBusHandler hSBus ) 
+	public boolean listenBus( final Handler hBus ) 
 			                                                throws IOException
 	{
-		int nStatus = SBusJNIObj_.listenSBus( hSBus.getFD() );
+		int nStatus = BusJNIObj_.listenBus( hBus.getFD() );
 		if( 0 > nStatus )
 			throw new IOException( "Unable to listen to SBus" );
 		return true;
@@ -94,10 +94,10 @@ public class SBusBackend
 	 * Take the message and send it.
 	 * */
 	public int sendRawMessage( final String 		strBusName, 
-			                   final SBusRawMessage Msg ) 
+			                   final RawMessage Msg ) 
 			                		                       throws IOException
 	{
-		int nStatus = SBusJNIObj_.sendRawMessage(strBusName, Msg );
+		int nStatus = BusJNIObj_.sendRawMessage(strBusName, Msg );
 		if( 0 > nStatus )
 			throw new IOException( "Unable to send message" );
 		return nStatus;
@@ -106,10 +106,10 @@ public class SBusBackend
 	/*------------------------------------------------------------------------
 	 * Read some actual raw data from the bus
 	 * */
-	public SBusRawMessage receiveRawMessage( final SBusHandler hSBus )
+	public RawMessage receiveRawMessage( final Handler hBus )
 	                                                        throws IOException
 	{
-		SBusRawMessage Msg = SBusJNIObj_.receiveRawMessage( hSBus.getFD() );
+		RawMessage Msg = BusJNIObj_.receiveRawMessage( hBus.getFD() );
 		if( null == Msg )
 			throw new IOException( "Unable to retrieve a message" );
 		return Msg;

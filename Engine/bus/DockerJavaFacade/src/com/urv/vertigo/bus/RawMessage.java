@@ -1,15 +1,15 @@
-package com.ibm.storlet.sbus;
+package com.urv.vertigo.bus;
 
 import java.io.FileDescriptor;
 
 /*----------------------------------------------------------------------------
- * SBusRawMessage
+ * RawMessage
  * 
- * This class aggregates the data which is sent through SBus.
+ * This class aggregates the data which is sent through Bus.
  * No logic is implemented here. 
  * */
 
-public class SBusRawMessage 
+public class RawMessage 
 {
 	/*------------------------------------------------------------------------
 	 * Data Fields
@@ -22,13 +22,13 @@ public class SBusRawMessage
 	private String strMetadata_;
 	
 	// JSON-encoded string with additional information 
-	// for storlet execution 
+	// for micro-controller execution 
 	private String strParams_;
 
 	/*------------------------------------------------------------------------
 	 * Default CTOR
 	 * */
-	public SBusRawMessage()
+	public RawMessage()
 	{
 		hFiles_      = null;
 		strMetadata_ = null;

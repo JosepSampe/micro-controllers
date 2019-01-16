@@ -13,9 +13,9 @@
 #include <stdarg.h>
 
 
-#include "sbus.h"
+#include "bus.h"
 
-#define SBUS_SYSLOG_PATH  "sbus"
+#define BUS_SYSLOG_PATH  "bus"
 #define MAX_FDS           4096
 #define MAX_MSG_LENGTH    4096
 
@@ -28,7 +28,7 @@
  *
  */
 static
-int sbus_translate_log_level( const char* str_log_level )
+int bus_translate_log_level( const char* str_log_level )
 {
     int level;
     if( strncmp(      str_log_level, "DEBUG",    5 ) == 0 )
@@ -52,18 +52,18 @@ char str[80] = "CONT #";
 /*----------------------------------------------------------------------------
  *  start_sbus_logger
  *
- *  initiates sbus object' logger
+ *  initiates bus object' logger
  *
  */
-void sbus_start_logger( const char* str_log_level, const char* container_id )
+void bus_start_logger( const char* str_log_level, const char* container_id )
 {
-    int n_level = sbus_translate_log_level( str_log_level );
+    int n_level = bus_translate_log_level( str_log_level );
 
     closelog();
 
     strcat(str, container_id);
     strcat(str, ": ");
-    strcat(str, SBUS_SYSLOG_PATH);
+    strcat(str, BUS_SYSLOG_PATH);
 
     openlog( str, LOG_PID, LOG_SYSLOG );
     if( LOG_EMERG == n_level )
@@ -71,7 +71,7 @@ void sbus_start_logger( const char* str_log_level, const char* container_id )
     else
         setlogmask( LOG_UPTO( n_level ) );
     syslog( LOG_ERR,
-            "sbus_start_logger: Started with Level  %s",
+            "bus_start_logger: Started with Level  %s",
             str_log_level );
 }
 
@@ -79,7 +79,7 @@ void sbus_start_logger( const char* str_log_level, const char* container_id )
  * sbus_stop_logger
  *
  */
-void sbus_stop_logger( void )
+void bus_stop_logger( void )
 {
     closelog();
 }
@@ -87,17 +87,17 @@ void sbus_stop_logger( void )
 /*----------------------------------------------------------------------------
  * sbus_create
  *
- * sbus object actual creation
+ * bus object actual creation
  *
  */
-int sbus_create( const char* str_sbus_path )
+int bus_create( const char* str_bus_path )
 {
 	int n_status = 0;
     int n_sbus_handle = socket( PF_UNIX, SOCK_DGRAM, 0 );
     if( n_sbus_handle < 0 )
     {
         syslog( LOG_ERR,
-                "sbus_create: Failed to create a socket. %s",
+                "bus_create: Failed to create a socket. %s",
                 strerror( errno ) );
         n_status = -1;
     }
@@ -108,7 +108,7 @@ int sbus_create( const char* str_sbus_path )
         memset( &sockaddr, 0, sizeof(sockaddr) );
         sockaddr.sun_family = AF_UNIX;
         strncpy( sockaddr.sun_path,
-                 str_sbus_path,
+                 str_bus_path,
                  sizeof( sockaddr.sun_path ) );
         sockaddr.sun_path[sizeof(sockaddr.sun_path)-1] = 0;
         unlink( sockaddr.sun_path ); //TBD - How to handle it
@@ -119,17 +119,17 @@ int sbus_create( const char* str_sbus_path )
         if( -1 == n_status )
         {
             syslog( LOG_ERR,
-                   "sbus_create: Failed to bind to socket. %s",
+                   "bus_create: Failed to bind to socket. %s",
                    strerror(errno) );
             close(n_sbus_handle);
         }
 
     	char mode[] = "0777";
-        n_status = chmod( str_sbus_path, strtol(mode, 0, 8) );
+        n_status = chmod( str_bus_path, strtol(mode, 0, 8) );
         if( 0 != n_status )
         {
         	syslog( LOG_ERR,
-        			"sbus_create: Failed to set socket permissions. %s",
+        			"bus_create: Failed to set socket permissions. %s",
         			strerror(errno) );
         	close(n_sbus_handle);
         }
@@ -143,13 +143,13 @@ int sbus_create( const char* str_sbus_path )
         if( -1 == n_status )
         {
             syslog( LOG_ERR,
-                    "sbus_create: Failed to set socket options. %s",
+                    "bus_create: Failed to set socket options. %s",
                     strerror(errno));
                     close( n_sbus_handle );
         }
     }
     syslog( LOG_DEBUG,
-            "sbus_create: SBus created at - %s", str_sbus_path );
+            "sbus_create: SBus created at - %s", str_bus_path );
 
     return ( 0 <= n_status ? n_sbus_handle : n_status );
 }
@@ -160,7 +160,7 @@ int sbus_create( const char* str_sbus_path )
  * listens to the binded socket. The executing thread is suspended.
  *
  */
-int sbus_listen( int n_sbus_handle )
+int bus_listen( int n_sbus_handle )
 {
     fd_set fdset;
 
@@ -253,11 +253,11 @@ int dump_data_to_bytestream(	char**			pp_bytestream,
     return ( 0 == n_status ? n_bytestream_len : -1 );
 }
 /*----------------------------------------------------------------------------
- * sbus_pack_message
+ * bus_pack_message
  * prepares msghdr structure to be sent, fills it with the actual data
  */
 static
-int sbus_pack_message(	struct msghdr*	p_message,
+int bus_pack_message(	struct msghdr*	p_message,
 						struct iovec*   p_msg_iov,
 						const int*		p_files,
 						int				n_files,
@@ -268,7 +268,7 @@ int sbus_pack_message(	struct msghdr*	p_message,
 {
 	int n_status = 0;
 	syslog( LOG_DEBUG,
-			"sbus_pack_message: Got message with %d files",
+			"bus_pack_message: Got message with %d files",
 			n_files );
 
     char* p_bytestream = NULL;
@@ -307,7 +307,7 @@ int sbus_pack_message(	struct msghdr*	p_message,
  * sbus_send_msg
  * packs the message data and sends it
  */
-int sbus_send_msg(	const char*		str_sbus_path,
+int bus_send_msg(	const char*		str_bus_path,
 					const int*		p_files,
 					int				n_files,
 					const char*		str_files_metadata,
@@ -319,7 +319,7 @@ int sbus_send_msg(	const char*		str_sbus_path,
     if( 0 > n_sock )
     {
 			syslog( LOG_ERR,
-						"sbus_send_msg: Failed to create socket. %s",
+						"bus_send_msg: Failed to create socket. %s",
 						strerror(errno));
 			return -1;
     }
@@ -328,7 +328,7 @@ int sbus_send_msg(	const char*		str_sbus_path,
     struct sockaddr_un sockaddr;
 	memset( &sockaddr, 0, sizeof(sockaddr) );
 	sockaddr.sun_family = AF_UNIX;
-	strncpy(sockaddr.sun_path, str_sbus_path, sizeof(sockaddr.sun_path));
+	strncpy(sockaddr.sun_path, str_bus_path, sizeof(sockaddr.sun_path));
 	sockaddr.sun_path[sizeof(sockaddr.sun_path)-1]=0;
 	struct msghdr the_message;
 	memset(&the_message, 0, sizeof(the_message));
@@ -337,14 +337,14 @@ int sbus_send_msg(	const char*		str_sbus_path,
 	struct iovec msg_iov;
 
     int n_status = 0;
-    n_status = sbus_pack_message(	&the_message,
-										&msg_iov,
-										p_files,
-										n_files,
-										str_files_metadata,
-										n_files_metadata_len,
-										str_msg_data,
-										n_msg_len );
+    n_status = bus_pack_message(	&the_message,
+									&msg_iov,
+									p_files,
+									n_files,
+									str_files_metadata,
+									n_files_metadata_len,
+									str_msg_data,
+									n_msg_len );
 	if( 0 > n_status )
 		close( n_sock );
 	else
@@ -353,9 +353,9 @@ int sbus_send_msg(	const char*		str_sbus_path,
 		n_status = sendmsg( n_sock, &the_message, 0 );
 		if( 0 > n_status )
 			syslog( LOG_ERR,
-					"sbus_send_msg: Failed to send message on channel %s,"
+					"bus_send_msg: Failed to send message on channel %s,"
 					" error is %s. Is server side running?",
-					str_sbus_path, strerror(errno) );
+					str_bus_path, strerror(errno) );
 
 		// Free resources.
 		free( the_message.msg_iov->iov_base );
@@ -365,8 +365,8 @@ int sbus_send_msg(	const char*		str_sbus_path,
 	}
 	if( 0 <= n_status )
 		syslog( LOG_DEBUG,
-				"sbus_send_msg: Message with %d files was sent through %s",
-				n_files, str_sbus_path );
+				"bus_send_msg: Message with %d files was sent through %s",
+				n_files, str_bus_path );
 	return n_status;
 }
 
@@ -374,12 +374,12 @@ int sbus_send_msg(	const char*		str_sbus_path,
 /*=========================== MESSAGE RECEIVING ============================*/
 
 /*----------------------------------------------------------------------------
- * sbus_extract_integer
+ * bus_extract_integer
  * reads sizeof(int) from character stream and packs an integer.
  * Assumption: the stream is expected to be at least sizeof(int) long
  */
 static
-int sbus_extract_integer( const char* p_str )
+int bus_extract_integer( const char* p_str )
 {
 	int n_res = 0;
 	memcpy( (void*) &n_res, p_str, sizeof(int) );
@@ -387,13 +387,13 @@ int sbus_extract_integer( const char* p_str )
 }
 
 /*----------------------------------------------------------------------------
- * sbus_copy_substr
+ * bus_copy_substr
  * allocates a new buffer of n_len characters,
  * copies n_len characters from p_src to the new buffer
  * Caller shall free the allocated chunk.
  */
 static
-char* sbus_copy_substr(	const char* p_src,
+char* bus_copy_substr(	const char* p_src,
 						int			n_len )
 {
 	char* p_dst = (char*) malloc( n_len + 1 );
@@ -403,12 +403,12 @@ char* sbus_copy_substr(	const char* p_src,
 }
 
 /*----------------------------------------------------------------------------
- * sbus_extract_files
+ * bus_extract_files
  * allocates a new buffer of n_files file descriptors,
  * Caller shall free the allocated chunk.
  */
 static
-int sbus_extract_files(	struct msghdr*	p_msg,
+int bus_extract_files(	struct msghdr*	p_msg,
 						int				n_files ,
 						int**				pp_files )
 {
@@ -417,7 +417,7 @@ int sbus_extract_files(	struct msghdr*	p_msg,
     if( NULL == cmsg )
     {
         syslog( LOG_ERR,
-						"sbus_extract_files: NULL cmsg. Error is %s",
+						"bus_extract_files: NULL cmsg. Error is %s",
 						strerror(errno) );
         n_status = -1;
     }
@@ -425,7 +425,7 @@ int sbus_extract_files(	struct msghdr*	p_msg,
     if( 0 != n_status || SCM_RIGHTS != cmsg->cmsg_type )
     {
         syslog( LOG_ERR,
-						"sbus_extract_files: cmsg with wrong type. Type is %d",
+						"bus_extract_files: cmsg with wrong type. Type is %d",
 						cmsg->cmsg_type );
         n_status = -1;
     }
@@ -433,7 +433,7 @@ int sbus_extract_files(	struct msghdr*	p_msg,
     if( 0 != n_status || SOL_SOCKET != cmsg->cmsg_level )
     {
         syslog( LOG_ERR,
-						"sbus_extract_files: cmsg with wrong level. Level is %d",
+						"bus_extract_files: cmsg with wrong level. Level is %d",
 						cmsg->cmsg_level );
         n_status = -1;
     }
@@ -442,7 +442,7 @@ int sbus_extract_files(	struct msghdr*	p_msg,
     if( 0 != n_status || n_actual_num != n_files )
     {
         syslog( LOG_ERR,
-						"sbus_extract_files:  Incompatible number of descriptors"
+						"bus_extract_files:  Incompatible number of descriptors"
 						" in message. expected %d, found %d",
 						n_files, n_actual_num );
         n_status = -1;
@@ -459,7 +459,7 @@ int sbus_extract_files(	struct msghdr*	p_msg,
  * sbus_recv_msg
  * receives the data and unpacks the message
  */
-int sbus_recv_msg(	int		n_sbus_handler,
+int bus_recv_msg(	int		n_sbus_handler,
 					int**		pp_files,
 					int*		pn_files,
 					char**	pstr_files_metadata,
@@ -488,7 +488,7 @@ int sbus_recv_msg(	int		n_sbus_handler,
 	int n_msg_len = recvmsg( n_sbus_handler, &recv_msg, 0 );
 	if( n_msg_len < 0 )
 	{
-		syslog(LOG_ERR, "sbus_recv_msg: recvmsg failed. %s", strerror(errno));
+		syslog(LOG_ERR, "bus_recv_msg: recvmsg failed. %s", strerror(errno));
 		close(n_sbus_handler);
 		n_status = -1;
 	}
@@ -500,28 +500,26 @@ int sbus_recv_msg(	int		n_sbus_handler,
 		char*		p_bytestream = recv_msg.msg_iov->iov_base;
 		int i;
 		for( i = 0; i < 3; ++i )
-			*(n_lengths[i]) = sbus_extract_integer(p_bytestream + i*int_size);
+			*(n_lengths[i]) = bus_extract_integer(p_bytestream + i*int_size);
 
 		if( 0 < *pn_files )
-			sbus_extract_files( &recv_msg, *pn_files , pp_files );
+			bus_extract_files( &recv_msg, *pn_files , pp_files );
 
 		int n_offset = 3 * int_size;
 		if( 0 < *pn_files_metadata_len )
-			*pstr_files_metadata = sbus_copy_substr( p_bytestream + n_offset,
+			*pstr_files_metadata = bus_copy_substr( p_bytestream + n_offset,
 													 *pn_files_metadata_len );
 
 		n_offset += *pn_files_metadata_len;
 		if( 0 < *pn_msg_len )
-			*pstr_msg_data	= sbus_copy_substr(	p_bytestream + n_offset,
+			*pstr_msg_data	= bus_copy_substr(	p_bytestream + n_offset,
 												*pn_msg_len );
 
 	}
 	if( 0 <= n_status )
 		syslog( LOG_DEBUG,
-				"sbus_recv_msg: Message with %d files was received",
+				"bus_recv_msg: Message with %d files was received",
 				*pn_files );
 
 	return n_status;
 }
-
-/*=============================== END OF FILE ==============================*/
