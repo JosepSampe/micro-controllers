@@ -71,9 +71,9 @@ class Bus(object):
 
     def create(self, bus_name):
         '''@summary:         Instantiate an Bus. A wrapper for C function.
-        @param sbus_name: Path to domain socket "file".
-        @type  sbus_name: string
-        @return:          Handler to the opened SBus.
+        @param bus_name: Path to domain socket "file".
+        @type  bus_name: string
+        @return:          Handler to the opened Bus.
         @rtype:           integer
         '''
         return self.bus_back_.bus_create(bus_name)
@@ -83,7 +83,7 @@ class Bus(object):
                              Suspend the executing thread.
         @param bus_handler: Handler to Bus to listen.
         @type  bus_handler: integer
-        @return:             Status, whether SBus is listened successfully.
+        @return:             Status, whether Bus is listened successfully.
         @rtype:              integer
         '''
         return self.bus_back_.bus_listen(bus_handler)
@@ -142,7 +142,7 @@ class Bus(object):
 
     @staticmethod
     def send(bus_name, datagram):
-        '''@summary:         Send the datagram through SBus.
+        '''@summary:         Send the datagram through Bus.
                           Serialize dictionaries into JSON strings.
         @param bus_name:  Path to domain socket "file".
         @type  bus_name:  string

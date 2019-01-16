@@ -149,7 +149,7 @@ int bus_create( const char* str_bus_path )
         }
     }
     syslog( LOG_DEBUG,
-            "sbus_create: SBus created at - %s", str_bus_path );
+            "bus_create: Bus created at - %s", str_bus_path );
 
     return ( 0 <= n_status ? n_sbus_handle : n_status );
 }
@@ -174,7 +174,7 @@ int bus_listen( int n_sbus_handle )
                            (struct timeval*) 0);
     if( 0 > n_status )
         syslog( LOG_ERR,
-                "sbus_listen: Select returned unexpectedly. %s",
+                "bus_listen: Select returned unexpectedly. %s",
                 strerror(errno));
     else
     {
@@ -182,7 +182,7 @@ int bus_listen( int n_sbus_handle )
         {
             // TBD +1 means return to select.
             syslog( LOG_ERR,
-                    "sbus_listen: Select returned on a different fs. %s",
+                    "bus_listen: Select returned on a different fs. %s",
                     strerror(errno) );
                     n_status = 1;
         }
@@ -190,7 +190,7 @@ int bus_listen( int n_sbus_handle )
             n_status = 0;
     }
     syslog( LOG_DEBUG,
-            "sbus_listen: SBus listened successfully" );
+            "bus_listen: Bus listened successfully" );
 
     return n_status;
 }

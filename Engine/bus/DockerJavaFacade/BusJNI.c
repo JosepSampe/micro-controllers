@@ -4,7 +4,7 @@
 #include <syslog.h>
 #include <string.h>
 
-#include "com_urv_vertigo_bus_JNI.h"
+#include "com_urv_vertigo_bus_BusJNI.h"
 #include "bus.h"
 
 
@@ -37,7 +37,7 @@ int init_java_accessors( JNIEnv* env )
      * Reflecting RawMessage
      * */
 	g_ClassRawMessage =
-			(*env)->FindClass( env, "com/urv/vertigo/bus/RawMessage" );
+			(*env)->FindClass( env, "com/urv/vertigo/bus/BusRawMessage" );
     if( NULL == g_ClassRawMessage )
         return -1;
 
@@ -93,7 +93,7 @@ int init_java_accessors( JNIEnv* env )
  *
  * */
 JNIEXPORT void JNICALL
-Java_com_urv_vertigo_bus_JNI_startLogger( 	JNIEnv* env,
+Java_com_urv_vertigo_bus_BusJNI_startLogger( 	JNIEnv* env,
 												jobject obj,
 												jstring jLevel,
 												jstring jContId )
@@ -114,7 +114,7 @@ Java_com_urv_vertigo_bus_JNI_startLogger( 	JNIEnv* env,
  *
  * */
 JNIEXPORT void JNICALL
-Java_com_urv_vertigo_bus_JNI_stopLogger( 	JNIEnv* env,
+Java_com_urv_vertigo_bus_BusJNI_stopLogger( 	JNIEnv* env,
 												jobject obj )
 {
 	bus_stop_logger();
@@ -124,7 +124,7 @@ Java_com_urv_vertigo_bus_JNI_stopLogger( 	JNIEnv* env,
  *
  * */
 JNIEXPORT jint JNICALL
-Java_com_urv_vertigo_bus_JNI_createBus( 	JNIEnv* env,
+Java_com_urv_vertigo_bus_BusJNI_createBus( 	JNIEnv* env,
 												jobject obj,
 												jstring jstrPath )
 {
@@ -143,7 +143,7 @@ Java_com_urv_vertigo_bus_JNI_createBus( 	JNIEnv* env,
  *
  * */
 JNIEXPORT jint JNICALL
-Java_com_urv_vertigo_bus_JNI_listenBus( 	JNIEnv* env,
+Java_com_urv_vertigo_bus_BusJNI_listenBus( 	JNIEnv* env,
 												jobject obj,
 												jint    jnBus )
 {
@@ -154,7 +154,7 @@ Java_com_urv_vertigo_bus_JNI_listenBus( 	JNIEnv* env,
  *
  * */
 JNIEXPORT jint JNICALL
-Java_com_urv_vertigo_bus_JNI_sendRawMessage( 	JNIEnv* env,
+Java_com_urv_vertigo_bus_BusJNI_sendRawMessage( 	JNIEnv* env,
 													jobject obj,
 													jstring jstrPath,
 													jobject jMsg )
@@ -227,7 +227,7 @@ Java_com_urv_vertigo_bus_JNI_sendRawMessage( 	JNIEnv* env,
  *
  * */
 JNIEXPORT jobject JNICALL
-Java_com_urv_vertigo_bus_JNI_receiveRawMessage( 	JNIEnv* env,
+Java_com_urv_vertigo_bus_BusJNI_receiveRawMessage( 	JNIEnv* env,
 														jobject obj,
 														jint    jnBus )
 {

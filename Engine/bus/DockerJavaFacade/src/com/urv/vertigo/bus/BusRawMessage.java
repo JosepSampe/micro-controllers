@@ -9,7 +9,7 @@ import java.io.FileDescriptor;
  * No logic is implemented here. 
  * */
 
-public class RawMessage 
+public class BusRawMessage 
 {
 	/*------------------------------------------------------------------------
 	 * Data Fields
@@ -28,7 +28,7 @@ public class RawMessage
 	/*------------------------------------------------------------------------
 	 * Default CTOR
 	 * */
-	public RawMessage()
+	public BusRawMessage()
 	{
 		hFiles_      = null;
 		strMetadata_ = null;

@@ -1,33 +1,33 @@
 package com.urv.vertigo.bus;
 
 import java.io.IOException;
-import com.urv.vertigo.bus.Backend.eLogLevel;
+import com.urv.vertigo.bus.BusBackend.eLogLevel;
 
 /*----------------------------------------------------------------------------
- * SBus
+ * Bus
  * 
  * The front end Java class for Bus functionality.
  * */
 public class Bus 
 {
-    private Handler hServerSideBus_;
-    private Backend BusBack_;
+    private BusHandler hServerSideBus_;
+    private BusBackend BusBack_;
     
     /*------------------------------------------------------------------------
      * CTOR
      * 
-     * Instantiate the SBusBackend object. Start logging
+     * Instantiate the BusBackend object. Start logging
      * */
     public Bus( final String contId ) throws IOException
     {
-        BusBack_ = new Backend();
+        BusBack_ = new BusBackend();
         BusBack_.startLogger( eLogLevel.BUS_LOG_DEBUG, contId );
     }
 
     /*------------------------------------------------------------------------
      * create
      * 
-     * Initialize the server side SBus
+     * Initialize the server side Bus
      * */
     public void create( final String strPath ) throws IOException 
     {
@@ -37,7 +37,7 @@ public class Bus
     /*------------------------------------------------------------------------
      * listen
      * 
-     * Listen to the SBus. Suspend the executing thread
+     * Listen to the Bus. Suspend the executing thread
      * */
     public void listen() throws IOException 
     {
@@ -47,10 +47,10 @@ public class Bus
     /*------------------------------------------------------------------------
      * receive
      * */
-    public Datagram receive() throws IOException 
+    public BusDatagram receive() throws IOException 
     {
-        RawMessage Msg = BusBack_.receiveRawMessage( hServerSideBus_ );
-        Datagram Dtg = new Datagram( Msg );
+        BusRawMessage Msg = BusBack_.receiveRawMessage( hServerSideBus_ );
+        BusDatagram Dtg = new BusDatagram( Msg );
         return Dtg;
     }
     
@@ -58,10 +58,10 @@ public class Bus
      * send
      * */
     public void send( final String       strBusPath,
-                      final Datagram Dtg         ) throws IOException 
+                      final BusDatagram Dtg         ) throws IOException 
     {
         
-        RawMessage Msg = Dtg.toRawMessage();
+        BusRawMessage Msg = Dtg.toRawMessage();
         BusBack_.sendRawMessage(strBusPath, Msg);
     }
 

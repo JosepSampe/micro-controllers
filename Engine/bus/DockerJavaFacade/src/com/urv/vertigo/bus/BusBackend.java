@@ -7,12 +7,12 @@ import java.io.IOException;
  * 
  * This class wraps and transfers calls to the JNI implementation 
  * */
-public class Backend 
+public class BusBackend 
 {
 	/*------------------------------------------------------------------------
-	 * JNI layer delegate, common to every instance of SBusBackend
+	 * JNI layer delegate, common to every instance of BusBackend
 	 * */
-	private static JNI BusJNIObj_  = new JNI();
+	private static BusJNI BusJNIObj_  = new BusJNI();
 	
 	/*------------------------------------------------------------------------
 	 * Enumerating logging levels
@@ -68,25 +68,25 @@ public class Backend
 	/*------------------------------------------------------------------------
 	 * Create the bus. 
 	 * */
-	public Handler createBus( final String strBusName ) 
+	public BusHandler createBus( final String strBusName ) 
 			                                                throws IOException
 	{
-		int nSBus = BusJNIObj_.createBus( strBusName );
-		if( 0 > nSBus )
-			throw new IOException( "Unable to create SBus - " + strBusName );
-		return new Handler( nSBus );
+		int nBus = BusJNIObj_.createBus( strBusName );
+		if( 0 > nBus )
+			throw new IOException( "Unable to create Bus - " + strBusName );
+		return new BusHandler( nBus );
 	}
 	
 	/*------------------------------------------------------------------------
 	 * Wait and listen to the bus.
 	 * The executing thread is suspended until some data arrives. 
 	 * */
-	public boolean listenBus( final Handler hBus ) 
+	public boolean listenBus( final BusHandler hBus ) 
 			                                                throws IOException
 	{
 		int nStatus = BusJNIObj_.listenBus( hBus.getFD() );
 		if( 0 > nStatus )
-			throw new IOException( "Unable to listen to SBus" );
+			throw new IOException( "Unable to listen to Bus" );
 		return true;
 	}
 	
@@ -94,7 +94,7 @@ public class Backend
 	 * Take the message and send it.
 	 * */
 	public int sendRawMessage( final String 		strBusName, 
-			                   final RawMessage Msg ) 
+			                   final BusRawMessage Msg ) 
 			                		                       throws IOException
 	{
 		int nStatus = BusJNIObj_.sendRawMessage(strBusName, Msg );
@@ -106,10 +106,10 @@ public class Backend
 	/*------------------------------------------------------------------------
 	 * Read some actual raw data from the bus
 	 * */
-	public RawMessage receiveRawMessage( final Handler hBus )
+	public BusRawMessage receiveRawMessage( final BusHandler hBus )
 	                                                        throws IOException
 	{
-		RawMessage Msg = BusJNIObj_.receiveRawMessage( hBus.getFD() );
+		BusRawMessage Msg = BusJNIObj_.receiveRawMessage( hBus.getFD() );
 		if( null == Msg )
 			throw new IOException( "Unable to retrieve a message" );
 		return Msg;

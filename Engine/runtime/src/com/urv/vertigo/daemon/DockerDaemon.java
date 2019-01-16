@@ -4,7 +4,7 @@ import com.urv.vertigo.microcontroller.MicrocontrollerExecutionTask;
 import java.io.IOException;
 import org.slf4j.LoggerFactory;
 import ch.qos.logback.classic.Level;
-import com.ibm.storlet.sbus.*;
+import com.urv.vertigo.bus.*;
 import java.util.concurrent.*;
 
 /*----------------------------------------------------------------------------
@@ -14,8 +14,8 @@ import java.util.concurrent.*;
 public class DockerDaemon {
 
 	private static ch.qos.logback.classic.Logger logger_;
-	private static SBus bus_;
-	private static SBus apiBus_;
+	private static Bus bus_;
+	private static Bus apiBus_;
 	private static String apiBusPath_;
 	private static ExecutorService threadPool_;
 	private static int nDefaultTimeoutToWaitBeforeShutdown_ = 3;
@@ -41,7 +41,7 @@ public class DockerDaemon {
 	 * main
 	 * 
 	 * Entry point.
-	 * args[1] - path to SBus
+	 * args[1] - path to Bus
 	 * args[2] - log level
 	 * args[3] - thread pool size
 	 * 
@@ -68,8 +68,8 @@ public class DockerDaemon {
 			return;
 
 		logger_.trace("Instanciating Bus");
-		bus_ = new SBus(strContId);
-		apiBus_ = new SBus(strContId);
+		bus_ = new Bus(strContId);
+		apiBus_ = new Bus(strContId);
 
 		try {
 			logger_.trace("Initialising Swift and API bus");
@@ -103,7 +103,7 @@ public class DockerDaemon {
 			}
 
 			logger_.trace("Calling receive");
-			SBusDatagram dtg = null;
+			BusDatagram dtg = null;
 			try {
 				dtg = bus_.receive();
 				logger_.trace("Receive returned");

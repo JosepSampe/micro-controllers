@@ -15,11 +15,11 @@ import org.json.simple.parser.ParseException;
 /*----------------------------------------------------------------------------
  * Datagram
  * 
- * This class aggregates the data which is sent through SBusBackend. 
- * The data is collected and encoded as a SBusRawMessage
+ * This class aggregates the data which is sent through BusBackend. 
+ * The data is collected and encoded as a BusRawMessage
  * */
 
-public class Datagram 
+public class BusDatagram 
 {
 	/*------------------------------------------------------------------------
 	 * Enumerating commands
@@ -50,13 +50,13 @@ public class Datagram
 	 * */
 	public static enum eFileDescription
 	{
-		SBUS_FD_INPUT_OBJECT                (0),
-		SBUS_FD_OUTPUT_OBJECT               (1),
-		SBUS_FD_OUTPUT_OBJECT_METADATA      (2),
-		SBUS_FD_OUTPUT_OBJECT_AND_METADATA  (3),
-		SBUS_FD_LOGGER                      (4),
-		SBUS_FD_OUTPUT_CONTAINER            (5),
-		SBUS_FD_OUTPUT_TASK_ID              (6);
+		BUS_FD_INPUT_OBJECT                (0),
+		BUS_FD_OUTPUT_OBJECT               (1),
+		BUS_FD_OUTPUT_OBJECT_METADATA      (2),
+		BUS_FD_OUTPUT_OBJECT_AND_METADATA  (3),
+		BUS_FD_LOGGER                      (4),
+		BUS_FD_OUTPUT_CONTAINER            (5),
+		BUS_FD_OUTPUT_TASK_ID              (6);
 
 		private eFileDescription(int n){}
 	};	
@@ -82,7 +82,7 @@ public class Datagram
 	/*------------------------------------------------------------------------
 	 * Default CTOR
 	 * */    
-    public Datagram()
+    public BusDatagram()
     {
     	this.hFiles_ 		= null;
     	this.nFiles_ 		= 0;
@@ -95,7 +95,7 @@ public class Datagram
 	/*------------------------------------------------------------------------
 	 * Conversion CTOR
 	 * */    
-    public Datagram( final RawMessage RawMsg )
+    public BusDatagram( final BusRawMessage RawMsg )
     {
     	setFiles( RawMsg.getFiles() );
     	setCommandAndParamsFromJSON( RawMsg.getParams() );
@@ -215,9 +215,9 @@ public class Datagram
 	 * 
 	 * Converter to Raw Message format
 	 * */    
-    public RawMessage toRawMessage()
+    public BusRawMessage toRawMessage()
     {
-    	RawMessage Res = new RawMessage();
+    	BusRawMessage Res = new BusRawMessage();
     	Res.setFiles(    this.getFiles()                  );
 	    Res.setParams(   this.getParamsAndCommandAsJSON() );
 	    Res.setMetadata( this.getFilesMetadataAsJSON()    );	    

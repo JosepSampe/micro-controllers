@@ -16,7 +16,7 @@
 
 	<target name="h" depends="java">
 		<javah destdir="." force="yes" classpath="bin">
-			<class name="com.urv.vertigo.bus.JNI" />
+			<class name="com.urv.vertigo.bus.BusJNI" />
 		</javah>
 	</target>
 

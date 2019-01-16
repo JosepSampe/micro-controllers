@@ -6,7 +6,7 @@ package com.urv.vertigo.bus;
  * Just declarations here.
  * See BusJNI.c for the implementation
  * */
-public class JNI 
+public class BusJNI 
 {
 	static 
 	{
@@ -18,6 +18,6 @@ public class JNI
 	public native int createBus(     final String         strBusName  );
 	public native int listenBus(     int                  nBus        );
 	public native int sendRawMessage( final String         strBusName,
-                                      final RawMessage Msg         );
-	public native RawMessage receiveRawMessage( int    nBus        );
+                                      final BusRawMessage Msg         );
+	public native BusRawMessage receiveRawMessage( int    nBus        );
 }

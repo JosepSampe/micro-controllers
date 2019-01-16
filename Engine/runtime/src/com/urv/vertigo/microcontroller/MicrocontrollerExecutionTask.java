@@ -1,6 +1,6 @@
 package com.urv.vertigo.microcontroller;
 
-import com.ibm.storlet.sbus.SBusDatagram;
+import com.urv.vertigo.bus.BusDatagram;
 import com.urv.vertigo.api.Api;
 import com.urv.vertigo.context.Context;
 
@@ -16,12 +16,12 @@ import java.util.Map;
 
 public class MicrocontrollerExecutionTask implements Runnable {
 	private Logger logger_ = null;
-	private SBusDatagram dtg = null;
+	private BusDatagram dtg = null;
 
 	/*------------------------------------------------------------------------
 	 * CTOR
 	 * */
-	public MicrocontrollerExecutionTask(SBusDatagram dtg, Logger logger) {
+	public MicrocontrollerExecutionTask(BusDatagram dtg, Logger logger) {
 		this.logger_ = logger;
 		//this.mc_ = mc;
 		//this.api_ = api;
@@ -60,11 +60,11 @@ public class MicrocontrollerExecutionTask implements Runnable {
 		for (int i = 0; i < nFiles; ++i) {	
 			String strFDtype = FilesMD[i].get("type");
 			
-			if (strFDtype.equals("SBUS_FD_OUTPUT_OBJECT")) {
+			if (strFDtype.equals("BUS_FD_OUTPUT_OBJECT")) {
 				toSwift = dtg.getFiles()[i];
 				logger_.trace("Got Micro-controller output fd");
 				
-			} else if (strFDtype.equals("SBUS_FD_INPUT_OBJECT")){
+			} else if (strFDtype.equals("BUS_FD_INPUT_OBJECT")){
 				//Isn't need to get fd
 				JSONObject jsonMetadata;
 				try {
@@ -76,7 +76,7 @@ public class MicrocontrollerExecutionTask implements Runnable {
 				}
 				logger_.trace("Got object and request metadata");
 	
-			} else if (strFDtype.equals("SBUS_FD_LOGGER")){
+			} else if (strFDtype.equals("BUS_FD_LOGGER")){
 				logFd = dtg.getFiles()[i];
 				mcName = FilesMD[i].get("microcontroller");
 				logger_.trace("Got logger micro-controller fd for: "+mcName);

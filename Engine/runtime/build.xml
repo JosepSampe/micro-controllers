@@ -14,7 +14,7 @@
 				<pathelement 
 					path="lib/logback-core-1.1.2.jar"/>
 		        <pathelement 
-		        	path="lib/SBusJavaFacade.jar"/>
+		        	path="../bus/DockerJavaFacade/bin/BusDockerJavaFacade.jar"/>
 				<pathelement 
 					path="lib/slf4j-api-1.7.7.jar"/>
 				<pathelement 

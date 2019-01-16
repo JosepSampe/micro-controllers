@@ -48,7 +48,7 @@ class Datagram(object):
         @param outfd:   Output stream for command execution results
         @type  outfd:   File descriptor or Integer
         @return:        A datagram with the required data
-        @rtype:         SBusDatagram
+        @rtype:         BusDatagram
         '''
         dtg = Datagram()
         dtg.set_command(command)
@@ -264,7 +264,7 @@ class Datagram(object):
     def get_command(self):
         '''@summary: Getter.
         @return:  The DockerDaemon command.
-        @rtype:   SBusStorletCommand
+        @rtype:   BusCommand
         '''
         return self.e_command_
 
@@ -272,7 +272,7 @@ class Datagram(object):
         '''@summary:   Setter.
                     Assign DockerDaemon command.
         @param cmd: Command to assign
-        @type  cmd: SBusStorletCommand enumerator
+        @type  cmd: BusCommand enumerator
         @rtype:     void
         '''
         self.e_command_ = cmd

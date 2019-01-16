@@ -8,12 +8,12 @@ import subprocess
 import time
 import cmd
 
-SBUS_FD_INPUT_OBJECT = 0
-SBUS_FD_OUTPUT_OBJECT = 1
-SBUS_FD_OUTPUT_OBJECT_METADATA = 2
-SBUS_FD_LOGGER = 4
+BUS_FD_INPUT_OBJECT = 0
+BUS_FD_OUTPUT_OBJECT = 1
+BUS_FD_OUTPUT_OBJECT_METADATA = 2
+BUS_FD_LOGGER = 4
 
-SBUS_CMD_EXECUTE = 1
+BUS_CMD_EXECUTE = 1
 
 MC_MAIN_HEADER = "X-Object-Meta-Microcontroller-Main"
 MC_DEP_HEADER = "X-Object-Meta-Microcontroller-Library-Dependency"
@@ -181,14 +181,14 @@ class VertigoInvocationProtocol(object):
     def _add_output_stream(self):
         self.fds.append(self.response_write_fd)
         md = dict()
-        md['type'] = SBUS_FD_OUTPUT_OBJECT
+        md['type'] = BUS_FD_OUTPUT_OBJECT
         self.fdmd.append(md)
 
     def _add_logger_stream(self):
         for mc in self.microcontrollers:
             self.fds.append(mc.get_logfd())
             md = dict()
-            md['type'] = SBUS_FD_LOGGER
+            md['type'] = BUS_FD_LOGGER
             md['microcontroller'] = mc.get_name()
             md['main'] = mc.get_main()
             md['dependencies'] = mc.get_dependencies()
@@ -205,7 +205,7 @@ class VertigoInvocationProtocol(object):
         headers = {'req_md': self.req_md, 'object_md': self.object_md}
 
         md = dict()
-        md['type'] = SBUS_FD_INPUT_OBJECT
+        md['type'] = BUS_FD_INPUT_OBJECT
         md['json_md'] = json.dumps(headers)
         self.fdmd.append(md)
 
@@ -230,7 +230,7 @@ class VertigoInvocationProtocol(object):
         dtg.set_files(self.fds)
         dtg.set_metadata(self.fdmd)
         # dtg.set_exec_params(prms)
-        dtg.set_command(SBUS_CMD_EXECUTE)
+        dtg.set_command(BUS_CMD_EXECUTE)
 
         # Send datagram to container daemon
         rc = Bus.send(self.mc_pipe_path, dtg)

@@ -5,7 +5,7 @@ package com.urv.vertigo.bus;
  * in Transport Layer APIs. 
  * */
 
-public class Handler 
+public class BusHandler 
 {
 	private int nFD_;
 
@@ -13,7 +13,7 @@ public class Handler
 	 * CTOR
 	 * No default value
 	 * */
-	public Handler( int nFD )
+	public BusHandler( int nFD )
 	{
 		nFD_ = nFD;
 	}
