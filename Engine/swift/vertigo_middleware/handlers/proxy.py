@@ -172,10 +172,10 @@ class VertigoProxyHandler(VertigoBaseHandler):
 
         return sub_req.get_response(self.app)
 
-    def _get_parent_vertigo_metadata(self):
+    def _get_parent_mc_metadata(self):
         """
         Makes a HEAD to the parent pseudo-folder or container (7ms overhead)
-        in order to get the microcontroller assignated metadata.
+        in order to get the associated micro-controllers.
         :return: vertigo metadata dictionary
         """
         obj_split = self.obj.rsplit('/', 1)
@@ -190,10 +190,11 @@ class VertigoProxyHandler(VertigoBaseHandler):
             mc_key = 'X-Container-Sysmeta-Vertigo-Microcontroller'
             dest_path = os.path.join('/', self.api_version, self.account, self.container)
 
-        # We first try to get the microcontroller execution list from the memcache
         vertigo_metadata = self.memcache.get("vertigo_"+dest_path)
-
         if vertigo_metadata:
+            """
+            We first try to get the micro-controller execution list from memcache
+            """
             for key in vertigo_metadata.keys():
                 if key.replace('Container', 'Object').startswith('X-Object-Sysmeta-Vertigo-'):
                     if key == mc_key:
@@ -201,29 +202,31 @@ class VertigoProxyHandler(VertigoBaseHandler):
                         vertigo_metadata[key.replace('Container', 'Object')] = mc
                     else:
                         vertigo_metadata[key.replace('Container', 'Object')] = vertigo_metadata.pop(key)
-            return vertigo_metadata
+        else:
+            """
+            If the micro-controller execution list is not in memcache, we get it from Swift
+            """
+            new_env = dict(self.request.environ)
+            auth_token = self.request.headers.get('X-Auth-Token')
+            sub_req = make_subrequest(new_env, 'HEAD', dest_path,
+                                      headers={'X-Auth-Token': auth_token},
+                                      swift_source='Vertigo')
+            response = sub_req.get_response(self.app)
 
-        # If the microcontroller execution list is not in memcache, we get it from Swift
-        new_env = dict(self.request.environ)
-        auth_token = self.request.headers.get('X-Auth-Token')
-        sub_req = make_subrequest(new_env, 'HEAD', dest_path,
-                                  headers={'X-Auth-Token': auth_token},
-                                  swift_source='Vertigo')
-        response = sub_req.get_response(self.app)
+            vertigo_metadata = dict()
+            if response.is_success:
+                for key in response.headers:
+                    if key.replace('Container', 'Object').startswith('X-Object-Sysmeta-Vertigo-'):
+                        # if key.replace('Container', 'Object').startswith('X-Object-Sysmeta-Vertigo-Onput'):
+                        #    continue
+                        if key == mc_key:
+                            mc = eval(response.headers[key])
+                            # del mc['onput']
+                            vertigo_metadata[key.replace('Container', 'Object')] = mc
+                        else:
+                            vertigo_metadata[key.replace('Container', 'Object')] = response.headers[key]
+            self.memcache.set("vertigo_"+dest_path, vertigo_metadata)
 
-        vertigo_metadata = dict()
-        if response.is_success:
-            for key in response.headers:
-                if key.replace('Container', 'Object').startswith('X-Object-Sysmeta-Vertigo-'):
-                    # if key.replace('Container', 'Object').startswith('X-Object-Sysmeta-Vertigo-Onput'):
-                    #    continue
-                    if key == mc_key:
-                        mc = eval(response.headers[key])
-                        # del mc['onput']
-                        vertigo_metadata[key.replace('Container', 'Object')] = mc
-                    else:
-                        vertigo_metadata[key.replace('Container', 'Object')] = response.headers[key]
-        self.memcache.set("vertigo_"+dest_path, vertigo_metadata)
         return vertigo_metadata
 
     def _process_trigger_assignation_deletion_request(self):
@@ -314,7 +317,7 @@ class VertigoProxyHandler(VertigoBaseHandler):
 
         elif mc_data['command'] == 'STORLET':
             slist = mc_data['list']
-            self.logger.info('Vertigo - Go to execute Storlets: ' + str(slist))
+            self.logger.info('Vertigo - Going to execute Storlets: ' + str(slist))
             return self.apply_storlet_on_put(self.request, slist)
 
         elif mc_data['command'] == 'CANCEL':
@@ -370,7 +373,7 @@ class VertigoProxyHandler(VertigoBaseHandler):
             # parent container or pseudo-folder are assigned by default to
             # the new object. Onput microcontrollers are executed here.
             # start = time.time()
-            mc_metadata = self._get_parent_vertigo_metadata()
+            mc_metadata = self._get_parent_mc_metadata()
             self.request.headers.update(mc_metadata)
             mc_list = get_microcontroller_list_object(mc_metadata, self.method)
             if mc_list:

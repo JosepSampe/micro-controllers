@@ -6,6 +6,7 @@ from vertigo_middleware.handlers import VertigoObjectHandler
 from vertigo_middleware.handlers.base import NotVertigoRequest
 from storlets.gateway.loader import load_gateway
 
+
 class VertigoHandlerMiddleware(object):
 
     def __init__(self, app, conf, vertigo_conf):
