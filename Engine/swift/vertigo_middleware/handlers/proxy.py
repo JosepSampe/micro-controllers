@@ -1,9 +1,6 @@
 from vertigo_middleware.handlers import VertigoBaseHandler
-from vertigo_middleware.common.utils import verify_access, create_link
-from vertigo_middleware.common.utils import set_microcontroller_container
-from vertigo_middleware.common.utils import delete_microcontroller_container
-from vertigo_middleware.common.utils import get_microcontroller_list_object
-
+from vertigo_middleware.handlers.base import DEFAULT_MD_STRING, SYSMETA_OBJ_HEADER, \
+    MICROCONTROLLERS_OBJ_HEADER, SYSMETA_CONT_HEADER, MICROCONTROLLERS_CONT_HEADER
 from swift.common.swob import HTTPMethodNotAllowed, HTTPNotFound, HTTPUnauthorized, Response
 from swift.common.utils import public, cache_from_env
 from swift.common.wsgi import make_subrequest
@@ -87,7 +84,22 @@ class VertigoProxyHandler(VertigoBaseHandler):
         :return md: Object metadata
         """
         path = os.path.join('/', self.api_version, self.account, cont, obj)
-        response = verify_access(self, path)
+        self.logger.debug(' Verifying access to %s' % path)
+
+        new_env = dict(self.request.environ)
+        if 'HTTP_TRANSFER_ENCODING' in new_env.keys():
+            del new_env['HTTP_TRANSFER_ENCODING']
+
+        for key in DEFAULT_MD_STRING.keys():
+            env_key = 'HTTP_X_VERTIGO_' + key.upper()
+            if env_key in new_env.keys():
+                del new_env[env_key]
+
+        auth_token = self.request.headers.get('X-Auth-Token')
+        sub_req = make_subrequest(new_env, 'HEAD', path,
+                                  headers={'X-Auth-Token': auth_token},
+                                  swift_source='micro-controllers_middleware')
+        response = sub_req.get_response(self.app)
 
         if not response.is_success:
             if response.status_int == 401:
@@ -229,15 +241,14 @@ class VertigoProxyHandler(VertigoBaseHandler):
 
         return vertigo_metadata
 
-    def _process_trigger_assignation_deletion_request(self):
+    def _process_mc_assignation_deletion_request(self):
         """
-        Process both trigger assignation and trigger deletion over an object
+        Process both mc-trigger assignation and trigger deletion over an object
         or a group of objects
         """
-        self.request.method = 'PUT'
         obj_list = list()
         if self.is_trigger_assignation:
-            _, micro_controller = self.get_mc_assignation_data()
+            trigger, micro_controller = self.get_mc_assignation_data()
             self._verify_access(self.mc_container, micro_controller)
 
         if '*' in self.obj:
@@ -245,55 +256,40 @@ class VertigoProxyHandler(VertigoBaseHandler):
         else:
             obj_list.append(self.obj)
 
-        specific_md = self.request.body
-
         if self.obj == '*':
-            # Save microcontroller information into container metadata
+            # Save micro-controller information into container metadata
             if self.is_trigger_assignation:
-                trigger, micro_controller = self.get_mc_assignation_data()
-                set_microcontroller_container(self, trigger, micro_controller)
+                self.set_microcontroller_container(trigger, micro_controller)
             elif self.is_trigger_deletion:
                 trigger, micro_controller = self.get_mc_deletion_data()
-                delete_microcontroller_container(self, trigger, micro_controller)
+                self.delete_microcontroller_container(trigger, micro_controller)
 
         for obj in obj_list:
-            self.request.body = specific_md
-            response = self._verify_access(self.container, obj)
-            new_path = os.path.join('/', self.api_version, self.account, self.container, obj)
-            if response.headers['Content-Type'] == 'vertigo/link':
-                link = response.headers["X-Object-Sysmeta-Vertigo-Link-to"]
-                container, obj = link.split('/', 2)
-                self._verify_access(container, obj)
-                new_path = os.path.join('/', self.api_version, self.account, container, obj)
-            self.request.environ['PATH_INFO'] = new_path
-            self._augment_empty_request()
+            if self.is_trigger_assignation:
+                try:
+                    self.set_microcontroller_object(trigger, micro_controller, obj)
+                    msg = 'Micro-controller "' + micro_controller + \
+                        '" correctly assigned to the "' + trigger + '" trigger.\n'
+                except ValueError as e:
+                    msg = e.args[0]
 
-            response = self.request.get_response(self.app)
+                self.logger.info(msg)
+                response = Response(body=msg, headers={'etag': ''},
+                                    request=self.request)
 
-        return response
+            elif self.is_trigger_deletion:
+                trigger, micro_controller = self.get_mc_deletion_data()
+                try:
+                    self.delete_microcontroller_object(trigger, micro_controller, obj)
+                    msg = 'Micro-controller "' + micro_controller +\
+                        '" correctly removed from the "' + trigger + '" trigger.\n'
+                except ValueError as e:
+                    msg = e.args[0]
 
-    def _process_object_move_and_link(self):
-        """
-        Moves an object to the destination path and leaves a soft-link in
-        the original location.
-        """
-        link_path = os.path.join(self.container, self.obj)
-        dest_path = self.request.headers['X-Vertigo-Link-To']
-        if link_path != dest_path:
-            response = self._verify_access(self.container, self.obj)
-            headers = response.headers
-            if "X-Object-Sysmeta-Vertigo-Link-to" not in response.headers \
-                    and response.headers['Content-Type'] != 'vertigo/link':
-                self.request.method = 'COPY'
-                self.request.headers['Destination'] = dest_path
-                response = self.request.get_response(self.app)
-            if response.is_success:
-                response = create_link(self, link_path, dest_path, headers)
-        else:
-            msg = ("Vertigo - Error: Source path and destination path "
-                   "cannot be the same.\n")
-            response = Response(body=msg, headers={'etag': ''},
-                                request=self.request)
+                self.logger.info(msg)
+                response = Response(body=msg, headers={'etag': ''},
+                                    request=self.request)
+
         return response
 
     def _check_microcntroller_execution(self, obj):
@@ -364,30 +360,25 @@ class VertigoProxyHandler(VertigoBaseHandler):
         """
         PUT handler on Proxy
         """
-        if self.is_trigger_assignation or self.is_trigger_deletion:
-            response = self._process_trigger_assignation_deletion_request()
-        elif self.is_object_move:
-            response = self._process_object_move_and_link()
+        # When a users puts an object, the micro-controllers assigned to the
+        # parent container or pseudo-folder are assigned by default to
+        # the new object. Onput micro-controllers are executed here.
+        # start = time.time()
+        mc_metadata = self._get_parent_mc_metadata()
+        self.request.headers.update(mc_metadata)
+        mc_list = self.get_microcontroller_list_object(mc_metadata, self.method)
+        if mc_list:
+            self.logger.info('Vertigo - There are microcontrollers' +
+                             ' to execute: ' + str(mc_list))
+            self._setup_docker_gateway()
+            mc_data = self.mc_docker_gateway.execute_microcontrollers(mc_list)
+            # end = time.time() - start
+            response = self._process_mc_data(mc_data)
+            # f = open("/tmp/vertigo/vertigo_put_overhead.log", 'a')
+            # f.write(str(int(round(end * 1000)))+'\n')
+            # f.close()
         else:
-            # When a users puts an object, the microcontrollers assigned to the
-            # parent container or pseudo-folder are assigned by default to
-            # the new object. Onput microcontrollers are executed here.
-            # start = time.time()
-            mc_metadata = self._get_parent_mc_metadata()
-            self.request.headers.update(mc_metadata)
-            mc_list = get_microcontroller_list_object(mc_metadata, self.method)
-            if mc_list:
-                self.logger.info('Vertigo - There are microcontrollers' +
-                                 ' to execute: ' + str(mc_list))
-                self._setup_docker_gateway()
-                mc_data = self.mc_docker_gateway.execute_microcontrollers(mc_list)
-                # end = time.time() - start
-                response = self._process_mc_data(mc_data)
-                # f = open("/tmp/vertigo/vertigo_put_overhead.log", 'a')
-                # f.write(str(int(round(end * 1000)))+'\n')
-                # f.close()
-            else:
-                response = self.request.get_response(self.app)
+            response = self.request.get_response(self.app)
 
         return response
 
@@ -397,10 +388,15 @@ class VertigoProxyHandler(VertigoBaseHandler):
         POST handler on Proxy
         """
         if self.is_trigger_assignation or self.is_trigger_deletion:
-            response = self._process_trigger_assignation_deletion_request()
-        elif self.is_object_move:
-            response = self._process_object_move_and_link()
+            response = self._process_mc_assignation_deletion_request()
         else:
+            obj_metadata = self.get_object_metadata(self.obj)
+
+            for key in obj_metadata:
+                if key.startswith(MICROCONTROLLERS_OBJ_HEADER) or \
+                   key.startswith(MICROCONTROLLERS_CONT_HEADER):
+                    self.request.headers[key] = obj_metadata[key]
+
             response = self.request.get_response(self.app)
 
         return response
@@ -411,17 +407,18 @@ class VertigoProxyHandler(VertigoBaseHandler):
         HEAD handler on Proxy
         """
         response = self.request.get_response(self.app)
+
         if self.conf['metadata_visibility']:
             for key in response.headers.keys():
-                if key.replace('Container', 'Object').startswith('X-Object-Sysmeta-Vertigo-'):
-                    new_key = key.replace('Container', 'Object').replace('X-Object-Sysmeta-', '')
+                if key.replace('Container', 'Object').startswith(MICROCONTROLLERS_OBJ_HEADER):
+                    new_key = key.replace('Container', 'Object').replace(SYSMETA_OBJ_HEADER, '')
                     response.headers[new_key] = response.headers[key]
 
-            if 'Vertigo-Microcontroller' in response.headers:
-                mc_dict = eval(response.headers['Vertigo-Microcontroller'])
+            if 'Microcontrollers-list' in response.headers:
+                mc_dict = eval(response.headers.pop('Microcontrollers-list'))
                 for trigger in mc_dict.keys():
                     if not mc_dict[trigger]:
                         del mc_dict[trigger]
-                response.headers['Vertigo-Microcontroller'] = mc_dict
+                response.headers['Micro-controllers List'] = mc_dict
 
         return response

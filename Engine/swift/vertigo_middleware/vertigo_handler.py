@@ -1,5 +1,5 @@
 from swift.common.swob import HTTPInternalServerError, HTTPException, wsgify
-from swift.common.utils import get_logger
+from swift.common.utils import get_logger, register_swift_info
 from ConfigParser import RawConfigParser
 from vertigo_middleware.handlers import VertigoProxyHandler
 from vertigo_middleware.handlers import VertigoObjectHandler
@@ -61,6 +61,8 @@ class VertigoHandlerMiddleware(object):
 
 def filter_factory(global_conf, **local_conf):
     """Standard filter factory to use the middleware with paste.deploy"""
+
+    register_swift_info('vertigo')
 
     conf = global_conf.copy()
     conf.update(local_conf)
