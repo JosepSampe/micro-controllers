@@ -15,7 +15,7 @@ For testing purposes, it is possible to install an All-In-One (AiO) machine with
 We prepared a script for automating this task. The requirements of the machine are a clean installation of **Ubuntu Server 16.04**, at least **2GB** of RAM, and a **fixed IP address**. It is preferable to upgrade the system to the latest versions of the packages with `apt update && apt dist-upgrade` before starting the installation, and set the server name as `controller` in the `/etc/hostname` file. Then, download the `aio_installation.sh` script and run it as sudo:
 
 ```bash
-curl -fsSL https://git.io/fhn5r | sudo bash /dev/stdin install
+curl -fsSL https://git.io/fhEdm | sudo bash /dev/stdin install
 ```
 
 The script first installs Keystone, Swift and Horizon (Pike release), then it proceeds to install the micor-controllers framework package (Vertigo). Note that the script uses weak passwords for the installed services, so if you want more secure services, please change them at the top of the script.
@@ -30,7 +30,7 @@ The script takes long to complete (~10 minutes) (it depends of the network conne
 
 If you already ran the installation script, you can update micro-controllers framework from this repository by the following command:
 ```bash
-curl -fsSL https://git.io/fhn5r | sudo bash /dev/stdin update
+curl -fsSL https://git.io/fhEdm | sudo bash /dev/stdin update
 ```
 
 ## Verify
