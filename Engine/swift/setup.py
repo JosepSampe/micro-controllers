@@ -1,7 +1,7 @@
 from setuptools import setup, find_packages
 
 paste_factory = ['vertigo_handler = '
-                 'vertigo_middleware.vertigo_handler:filter_factory']
+                 'vertigo_middleware.handler:filter_factory']
 
 setup(name='swift_vertigo',
       version='1.0.2',

@@ -346,8 +346,8 @@ class VertigoBaseHandler(object):
                                   headers=metadata,
                                   swift_source='micro-controllers_middleware')
         response = sub_req.get_response(self.app)
-
-        print(response.body)
+        if response.status_int != 202:
+            raise
 
     def set_container_metadata(self, container, metadata):
         """
@@ -368,7 +368,9 @@ class VertigoBaseHandler(object):
         sub_req = make_subrequest(new_env, 'POST', dest_path,
                                   headers=metadata,
                                   swift_source='micro-controllers_middleware')
-        sub_req.get_response(self.app)
+        response = sub_req.get_response(self.app)
+        if response.status_int != 202:
+            raise
 
     def verify_access(self, path):
         """
@@ -436,7 +438,7 @@ class VertigoBaseHandler(object):
             self.set_container_metadata(self.container, metadata)
         except:
             raise ValueError('ERROR: There was an error setting trigger'
-                             ' dictionary from the object.\n')
+                             ' dictionary to the object.\n')
 
     def delete_microcontroller_container(self, trigger, mc):
         """
@@ -575,18 +577,21 @@ class VertigoBaseHandler(object):
                             if sysmeta_key in metadata:
                                 del metadata[sysmeta_key]
                     elif mc in mc_dict[trigger]:
-                        mc_dict[trigger].remove(mc)
+                        mc_list = mc_dict[trigger]
+                        mc_list.remove(mc)
                         sysmeta_key = (MICROCONTROLLERS_OBJ_HEADER + trigger + '-' + mc).title()
                         if sysmeta_key in metadata:
                             del metadata[sysmeta_key]
                     else:
                         raise
+
                     metadata[MICROCONTROLLERS_LIST_OBJ_HEADER] = mc_dict
                     metadata = self.clean_microcontroller_dict_object(metadata)
                 else:
                     raise
             self.set_object_metadata(obj, metadata)
-        except:
+        except Exception as e:
+            print(e)
             raise ValueError('Error: Micro-controller "' + mc + '" not'
                              ' assigned to the "' + trigger + '" trigger.\n')
 
@@ -599,11 +604,17 @@ class VertigoBaseHandler(object):
         :param microcontroller_dict: micro-controller dictionary
         :returns microcontroller_dict: micro-controller dictionary
         """
-        for trigger in metadata[MICROCONTROLLERS_LIST_OBJ_HEADER].keys():
-            if not metadata[MICROCONTROLLERS_LIST_OBJ_HEADER][trigger]:
-                metadata[MICROCONTROLLERS_LIST_OBJ_HEADER][trigger] = None
+        if isinstance(metadata[MICROCONTROLLERS_LIST_OBJ_HEADER], dict):
+            mc_dict = metadata[MICROCONTROLLERS_LIST_OBJ_HEADER]
+        else:
+            mc_dict = eval(metadata[MICROCONTROLLERS_LIST_OBJ_HEADER])
 
-        if all(value is None for value in metadata[MICROCONTROLLERS_LIST_OBJ_HEADER].values()):
+        for trigger in mc_dict.keys():
+            print(trigger)
+            if not mc_dict[trigger]:
+                mc_dict[trigger] = None
+
+        if all(value is None for value in mc_dict.values()):
             del metadata[MICROCONTROLLERS_LIST_OBJ_HEADER]
 
         return metadata
