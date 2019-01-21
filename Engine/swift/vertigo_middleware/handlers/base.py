@@ -604,10 +604,9 @@ class VertigoBaseHandler(object):
         :param microcontroller_dict: micro-controller dictionary
         :returns microcontroller_dict: micro-controller dictionary
         """
-        if isinstance(metadata[MICROCONTROLLERS_LIST_OBJ_HEADER], dict):
-            mc_dict = metadata[MICROCONTROLLERS_LIST_OBJ_HEADER]
-        else:
-            mc_dict = eval(metadata[MICROCONTROLLERS_LIST_OBJ_HEADER])
+        mc_dict = metadata[MICROCONTROLLERS_LIST_OBJ_HEADER]
+        if not isinstance(mc_dict, dict):
+            mc_dict = eval(mc_dict)
 
         for trigger in mc_dict.keys():
             print(trigger)
@@ -628,7 +627,9 @@ class VertigoBaseHandler(object):
         :param metadata: micro-controller dictionary
         :returns metadata: micro-controller dictionary
         """
-        mc_dict = eval(metadata[MICROCONTROLLERS_LIST_CONT_HEADER])
+        mc_dict = metadata[MICROCONTROLLERS_LIST_CONT_HEADER]
+        if not isinstance(mc_dict, dict):
+            mc_dict = eval(mc_dict)
         for trigger in mc_dict.keys():
             if not mc_dict[trigger]:
                 mc_dict[trigger] = None
