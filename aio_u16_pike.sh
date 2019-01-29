@@ -363,14 +363,14 @@ install_microcontrollers(){
 
 	mkdir -p /opt/vertigo
 	cp micro-controllers/Engine/runtime/bin/DockerDaemon.jar /opt/vertigo
-	cp micro-controllers/Engine/runtime/lib/SBusJavaFacade.jar /opt/vertigo
 	cp micro-controllers/Engine/runtime/lib/spymemcached-2.12.1.jar /opt/vertigo
 	cp micro-controllers/Engine/runtime/lib/jedis-2.9.0.jar /opt/vertigo
 	cp micro-controllers/Engine/runtime/utils/start_daemon.sh /opt/vertigo
 	cp micro-controllers/Engine/runtime/utils/logback.xml /opt/vertigo
 	cp micro-controllers/Engine/runtime/utils/docker_daemon.config /opt/vertigo
-	cp micro-controllers/Engine/bus/SBusJavaFacade/bin/libjsbus.so /opt/vertigo
-	cp micro-controllers/Engine/bus/SBusTransportLayer/bin/sbus.so /opt/vertigo
+	cp micro-controllers/Engine/bus/DockerJavaFacade/bin/BusDockerJavaFacade.jar /opt/vertigo
+	cp micro-controllers/Engine/bus/DockerJavaFacade/bin/libjbus.so /opt/vertigo
+	cp micro-controllers/Engine/bus/TransportLayer/bin/bus.so /opt/vertigo
 	
 	sed -i '/swift_ip=/c\swift_ip=$IP_ADDRESS' /opt/vertigo/docker_daemon.config
 	sed -i '/redis_ip=/c\redis_ip=$IP_ADDRESS' /opt/vertigo/docker_daemon.config
@@ -462,14 +462,14 @@ update_vertigo(){
 	printf "Installing Libraries\t\t ... \t85%%"
 	mkdir -p /opt/vertigo
 	cp micro-controllers/Engine/runtime/bin/DockerDaemon.jar /opt/vertigo
-	cp micro-controllers/Engine/runtime/lib/SBusJavaFacade.jar /opt/vertigo
 	cp micro-controllers/Engine/runtime/lib/spymemcached-2.12.1.jar /opt/vertigo
 	cp micro-controllers/Engine/runtime/lib/jedis-2.9.0.jar /opt/vertigo
 	cp micro-controllers/Engine/runtime/utils/start_daemon.sh /opt/vertigo
 	cp micro-controllers/Engine/runtime/utils/logback.xml /opt/vertigo
 	cp micro-controllers/Engine/runtime/utils/docker_daemon.config /opt/vertigo
-	cp micro-controllers/Engine/bus/SBusJavaFacade/bin/libjsbus.so /opt/vertigo
-	cp micro-controllers/Engine/bus/SBusTransportLayer/bin/sbus.so /opt/vertigo
+	cp micro-controllers/Engine/bus/DockerJavaFacade/bin/BusDockerJavaFacade.jar /opt/vertigo
+	cp micro-controllers/Engine/bus/DockerJavaFacade/bin/libjbus.so /opt/vertigo
+	cp micro-controllers/Engine/bus/TransportLayer/bin/bus.so /opt/vertigo
 	rm -rf micro-controllers
 
 	sed -i '/swift_ip=/c\swift_ip='$IP_ADDRESS /opt/vertigo/docker_daemon.config
