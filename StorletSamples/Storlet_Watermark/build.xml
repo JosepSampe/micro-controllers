@@ -1,0 +1,33 @@
+<project>
+	
+	<target name="common">
+		<mkdir dir="bin" />
+	</target>
+
+	<target name="watermarkstorlet">
+		<javac srcdir="src/com/urv/storlet/watermark" destdir="bin" includeantruntime="false">
+			<classpath>
+		        <pathelement 
+		        	path="lib/SCommon.jar"/>
+		        <pathelement 
+		        	path="lib/commons-io-1.3.2.jar"/>
+			</classpath>
+		</javac>
+
+	     <jar destfile="bin/watermark-1.0.jar" 
+	          basedir="bin"
+	     	  includes="com/urv/storlet/watermark/*">
+	     </jar>
+	</target>
+	
+	<target name="clean">
+		<delete dir="bin" />
+	</target>
+	
+	<target name="cleancom">
+			<delete dir="bin/com" />
+	</target>
+
+	<target name="build" depends="clean, common, watermarkstorlet, cleancom"/>
+
+</project>
