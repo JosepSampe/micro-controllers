@@ -1,0 +1,33 @@
+<project>
+	
+	<target name="common">
+		<mkdir dir="bin" />
+	</target>
+
+	<target name="blurfaces">
+		<javac srcdir="src/com/urv/storlet/blurfaces" destdir="bin" includeantruntime="false">
+			<classpath>
+		        <pathelement 
+		        	path="lib/SCommon.jar"/>
+		        <pathelement 
+		        	path="lib/commons-compress-1.6.jar"/>
+			</classpath>
+		</javac>
+
+	     <jar destfile="bin/blurfaces-1.0.jar" 
+	          basedir="bin"
+	     	  includes="com/urv/storlet/blurfaces/*">
+	     </jar>
+	</target>
+	
+	<target name="clean">
+		<delete dir="bin" />
+	</target>
+
+	<target name="cleancom">
+			<delete dir="bin/com" />
+	</target>
+
+	<target name="build" depends="clean,common, blurfaces, cleancom"/>
+
+</project>

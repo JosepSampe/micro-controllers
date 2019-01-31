@@ -41,7 +41,7 @@ def put_storlet_dependency(url, token, local_path_to_dep, dep_name):
     assert (status == 200 or status == 201)
 
 
-keystone_ip = '10.30.223.31'
+keystone_ip = '10.30.220.98'
 keystone_url = 'http://{}:5000/v3'.format(keystone_ip)
 ACCOUNT = 'vertigo'
 USER_NAME = 'vertigo'
@@ -84,15 +84,14 @@ put_storlet_object(url, token, path+'/Storlet_ScanHtml/bin', 'ScanHtml-1.0.jar',
 put_storlet_dependency(url, token, path+'/Storlet_ScanHtml/lib', 'jsoup-1.8.3.jar')
 
 # Blurfaces Storlet
-# put_storlet_object(url, token, path+'/Storlet_BlurFaces/bin', 'blurfaces-1.0.jar', 'com.ibm.storlet.blurfaces.BlurFacesStorlet', 'commons-compress-1.2.jar,blur_faces_all.tar.gz')
-# put_storlet_dependency(url, token, path+'/Storlet_BlurFaces/lib', 'commons-compress-1.6.jar')
-# put_storlet_dependency(url, token, path+'/Storlet_BlurFaces/lib', 'blur_faces_all.tar.gz')
+put_storlet_object(url, token, path+'/Storlet_BlurFaces/bin', 'blurfaces-1.0.jar', 'com.ibm.storlet.blurfaces.BlurFacesStorlet', 'commons-compress-1.2.jar,blur_faces_all.tar.gz')
+put_storlet_dependency(url, token, path+'/Storlet_BlurFaces/lib', 'commons-compress-1.6.jar')
+put_storlet_dependency(url, token, path+'/Storlet_BlurFaces/lib', 'blur_faces_all.tar.gz')
 
 # Watermark Storlet
-# put_storlet_object(url, token, path+'/Storlet_Watermark/bin', 'watermark-1.0.jar', 'it.rai.crit.activemediastore.storlets.WatermarkStorlet', 'commons-compress-1.2.jar,commons-io-1.3.2.jar,ffmpeg')
-# put_storlet_dependency(url, token,'commons-compress-1.6.jar','/home/josep/Josep/workspace/Storlet_Watermark/lib')
-# put_storlet_dependency(url, token,'commons-io-1.3.2.jar','/home/josep/Josep/workspace/Storlet_Watermark/lib')
-# put_storlet_dependency(url, token,'ffmpeg','/home/josep/Josep/workspace/Storlet_Watermark/lib')
+put_storlet_object(url, token, path+'/Storlet_Watermark/bin', 'watermark-1.0.jar', 'com.urv.storlet.watermark.WatermarkStorlet', 'commons-compress-1.2.jar,commons-io-1.3.2.jar,ffmpeg')
+put_storlet_dependency(url, token, path+'/Storlet_Watermark/lib', 'commons-io-1.3.2.jar')
+put_storlet_dependency(url, token, path+'/Storlet_Watermark/lib', 'ffmpeg')
 
 # Transcoder Storlet
 # put_storlet_object(url, token, path+'/Storlet_Transcoder/bin', 'transcoder-1.0.jar', 'com.ibm.storlet.transcoder.TranscoderStorlet', 'commons-logging-1.1.3.jar,fontbox-1.8.4.jar,jempbox-1.8.4.jar,pdfbox-app-1.8.4.jar')
