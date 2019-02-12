@@ -1,0 +1,36 @@
+<project>
+
+	<target name="common">
+		<mkdir dir="bin" />
+	</target>
+		
+	<target name="transcoder">
+		<javac srcdir="src/com/urv/storlet/transcoder" destdir="bin" includeantruntime="false">
+			<classpath>
+		        <pathelement 
+		        	path="lib/SCommon.jar"/>
+		        <pathelement 
+		        	path="lib/fontbox-1.8.4.jar"/>
+		        <pathelement 
+		        	path="lib/jempbox-1.8.4.jar"/>
+		        <pathelement 
+		        	path="lib/pdfbox-app-1.8.4.jar"/>
+			</classpath>
+		</javac>
+
+	     <jar destfile="bin/transcoder-1.0.jar" 
+	          basedir="bin"
+	     	  includes="com/urv/storlet/transcoder/*">
+	     </jar>
+	</target>	
+	<target name="clean">
+		<delete dir="bin" />
+	</target>
+
+	<target name="cleancom">
+			<delete dir="bin/com" />
+	</target>
+
+	<target name="build" depends="clean, common, transcoder, cleancom"/>
+
+</project>

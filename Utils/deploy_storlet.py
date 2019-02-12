@@ -94,10 +94,9 @@ put_storlet_dependency(url, token, path+'/Storlet_Watermark/lib', 'commons-io-1.
 put_storlet_dependency(url, token, path+'/Storlet_Watermark/lib', 'ffmpeg')
 
 # Transcoder Storlet
-# put_storlet_object(url, token, path+'/Storlet_Transcoder/bin', 'transcoder-1.0.jar', 'com.ibm.storlet.transcoder.TranscoderStorlet', 'commons-logging-1.1.3.jar,fontbox-1.8.4.jar,jempbox-1.8.4.jar,pdfbox-app-1.8.4.jar')
-# put_storlet_dependency(url, token, path+'/Storlet_Transcoder/lib', 'commons-logging-1.1.3.jar')
-# put_storlet_dependency(url, token, path+'/Storlet_Transcoder/lib', 'fontbox-1.8.4.jar')
-# put_storlet_dependency(url, token, path+'/Storlet_Transcoder/lib', 'jempbox-1.8.4.jar')
-# put_storlet_dependency(url, token, path+'/Storlet_Transcoder/lib', 'pdfbox-app-1.8.4.jar')
+put_storlet_object(url, token, path+'/Storlet_Transcoder/bin', 'transcoder-1.0.jar', 'com.urv.storlet.transcoder.TranscoderStorlet', 'fontbox-1.8.4.jar,jempbox-1.8.4.jar,pdfbox-app-1.8.4.jar')
+put_storlet_dependency(url, token, path+'/Storlet_Transcoder/lib', 'fontbox-1.8.4.jar')
+put_storlet_dependency(url, token, path+'/Storlet_Transcoder/lib', 'jempbox-1.8.4.jar')
+put_storlet_dependency(url, token, path+'/Storlet_Transcoder/lib', 'pdfbox-app-1.8.4.jar')
 
 print('Done!')
