@@ -18,7 +18,7 @@ We prepared a script for automating this task. The requirements of the machine a
 curl -fsSL https://git.io/fhEdm | sudo bash /dev/stdin install
 ```
 
-The script first installs Keystone, Swift and Horizon (Pike release), then it proceeds to install the micor-controllers framework package (Vertigo). Note that the script uses weak passwords for the installed services, so if you want more secure services, please change them at the top of the script.
+The script first installs Keystone, Swift and Horizon (Pike release), then it proceeds to install the micro-controllers framework package (Vertigo). Note that the script uses weak passwords for the installed services, so if you want more secure services, please change them at the top of the script.
 
 By default, the script has low verbosity. To see the full installation log, run the following command in another terminal:
 
@@ -102,7 +102,7 @@ or
 curl -H "X-Auth-Token:$TOKEN" $STORAGE_URL/data/test.json
 ```
 
-6- The Counter micro-controller adds into the object metadata an access counter and the last access timestamt. Verify the correct execution of the micro-controller by running the following command:
+6- The Counter micro-controller adds into the object metadata an access counter and the last access timestamp. Verify the correct execution of the micro-controller by running the following command:
 ```bash
 swift stat data test.json
 ```
