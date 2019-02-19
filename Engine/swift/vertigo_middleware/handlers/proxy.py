@@ -5,6 +5,7 @@ from swift.common.swob import HTTPMethodNotAllowed, HTTPNotFound, HTTPUnauthoriz
 from swift.common.utils import public, cache_from_env
 from swift.common.wsgi import make_subrequest
 import pickle
+import redis
 import json
 import os
 
