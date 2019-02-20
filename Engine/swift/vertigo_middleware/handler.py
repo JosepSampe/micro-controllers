@@ -5,6 +5,7 @@ from vertigo_middleware.handlers import VertigoProxyHandler
 from vertigo_middleware.handlers import VertigoObjectHandler
 from vertigo_middleware.handlers.base import NotVertigoRequest
 from storlets.gateway.loader import load_gateway
+import redis
 
 
 class VertigoHandlerMiddleware(object):
@@ -97,6 +98,32 @@ def filter_factory(global_conf, **local_conf):
     module_name = vertigo_conf.get('storlet_gateway_module', 'stub')
     gateway_class = load_gateway(module_name)
     vertigo_conf['storlets_gateway_module'] = gateway_class
+
+    """
+    Register Lua script to retrieve policies in a single redis call
+    """
+    vertigo_conf['redis_host'] = conf.get('redis_host', 'controller')
+    vertigo_conf['redis_port'] = int(conf.get('redis_port', 6379))
+    vertigo_conf['redis_db'] = int(conf.get('redis_db', 0))
+
+    r = redis.StrictRedis(conf['redis_host'],
+                          conf['redis_port'],
+                          conf['redis_db'])
+    lua = """
+        local t = {}
+        if redis.call('EXISTS', 'pipeline:'..ARGV[1]..':'..ARGV[2])==1 then
+          t = redis.call('HGETALL', 'pipeline:'..ARGV[1]..':'..ARGV[2])
+        elseif redis.call('EXISTS', 'pipeline:'..ARGV[1])==1 then
+          t = redis.call('HGETALL', 'pipeline:'..ARGV[1])
+        end
+        t[#t+1] = '@@@@'
+        local t3 = redis.call('HGETALL', 'pipeline:global')
+        for i=1,#t3 do
+          t[#t+1] = t3[i]
+        end
+        return t"""
+    lua_sha = r.script_load(lua)
+    vertigo_conf['LUA_get_policy_sha'] = lua_sha
 
     def swift_vertigo(app):
         return VertigoHandlerMiddleware(app, global_conf, vertigo_conf)
