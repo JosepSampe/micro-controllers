@@ -21,6 +21,25 @@ class VertigoProxyHandler(VertigoBaseHandler):
         self.request.headers['mc-enabled'] = True
         self.memcache = cache_from_env(self.request.environ)
 
+    def _get_dynamic_filters(self):
+        # Dynamic binding of policies: using a Lua script that executes
+        # a hgetall on the first matching key of a list and also returns
+        # the global filters
+        lua_sha = self.conf.get('LUA_get_pipeline_sha')
+        args = (self.account.replace('AUTH_', ''), self.container)
+        redis_list = self.redis.evalsha(lua_sha, 0, *args)
+        index = redis_list.index("@@@@")  # Separator between pipeline and global filters
+
+        self.filter_list = dict(zip(redis_list[0:index:2], redis_list[1:index:2]))
+        self.global_filters = dict(zip(redis_list[index+1::2], redis_list[index+2::2]))
+
+        self.proxy_filter_exec_list = {}
+        self.object_filter_exec_list = {}
+
+        if self.global_filters or self.filter_list:
+            self.proxy_filter_exec_list = self._build_filter_execution_list('proxy')
+            self.object_filter_exec_list = self._build_filter_execution_list('object')
+
     def _parse_vaco(self):
         return self.request.split_path(3, 4, rest_with_last=True)
 

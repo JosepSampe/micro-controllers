@@ -117,10 +117,6 @@ def filter_factory(global_conf, **local_conf):
           t = redis.call('HGETALL', 'pipeline:'..ARGV[1])
         end
         t[#t+1] = '@@@@'
-        local t3 = redis.call('HGETALL', 'pipeline:global')
-        for i=1,#t3 do
-          t[#t+1] = t3[i]
-        end
         return t"""
     lua_sha = r.script_load(lua)
     vertigo_conf['LUA_get_policy_sha'] = lua_sha
