@@ -25,6 +25,22 @@ class VertigoProxyHandler(VertigoBaseHandler):
         # Dynamic binding of policies: using a Lua script that executes
         # a hgetall on the first matching key of a list and also returns
         # the global filters
+
+        policy = {"object": "v1/{account}/{container}/foo.xml",
+                  "event": "GET",
+                  "type": "clac",
+                  "precedence": 1,
+                  "input": {
+                        "policies": [
+                            {"ulabel": "manager",
+                             "action": "read",
+                             "olabel": "sensitive"}
+                        ],
+                        "units": [
+                            {"path": "$.personalrecord.identification.SSN", "labels": ["sensitive"]}
+                        ]},
+                  "action": "output == true: FILTER, PRE"}
+
         lua_sha = self.conf.get('LUA_get_pipeline_sha')
         args = (self.account.replace('AUTH_', ''), self.container)
         redis_list = self.redis.evalsha(lua_sha, 0, *args)
