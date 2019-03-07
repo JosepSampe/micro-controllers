@@ -335,6 +335,7 @@ install_microcontrollers(){
 	apt install redis-server -y
 	sed -i '/bind 127.0.0.1/c\bind 0.0.0.0' /etc/redis/redis.conf
 	service redis restart
+	pip install -U redis
 	
 	git clone https://github.com/JosepSampe/micro-controllers
 	pip install micro-controllers/Engine/swift

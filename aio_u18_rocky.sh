@@ -59,7 +59,6 @@ install_mysql_server(){
 	
 	mysql -uroot -p$MYSQL_PASSWD -e "DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1')"
 	mysql -uroot -p$MYSQL_PASSWD -e "DELETE FROM mysql.user WHERE User=''"
-	mysql -uroot -p$MYSQL_PASSWD -e "DROP DATABASE test"
 	mysql -uroot -p$MYSQL_PASSWD -e "FLUSH PRIVILEGES"
 	
 	cat <<-EOF >> /etc/mysql/mariadb.conf.d/99-openstack.cnf
@@ -335,15 +334,17 @@ install_microcontrollers(){
 	apt install redis-server -y
 	sed -i '/bind 127.0.0.1/c\bind 0.0.0.0' /etc/redis/redis.conf
 	service redis restart
+	pip install -U redis
 	
 	git clone https://github.com/JosepSampe/micro-controllers
-	pip install micro-controllers/Engine/swift
+	pip install -U micro-controllers/Engine/swift
 	
 	cat <<-EOF >> /etc/swift/proxy-server.conf
 	
 	[filter:vertigo_handler]
 	use = egg:swift-vertigo#vertigo_handler
 	execution_server = proxy
+	redis_host = $IP_ADDRESS
 	EOF
 	
 	cat <<-EOF >> /etc/swift/object-server.conf
@@ -420,12 +421,12 @@ install_vertigo(){
 	printf "See the full log at $LOG\n\n"
 	
 	printf "Upgrading Server System\t\t ... \t2%%"
-	#upgrade_system >> $LOG 2>&1; printf "\tDone!\n"
+	upgrade_system >> $LOG 2>&1; printf "\tDone!\n"
 	
 	printf "Installing Memcache Server\t ... \t4%%"
 	install_memcache_server >> $LOG 2>&1; printf "\tDone!\n"
 	printf "Installing RabbitMQ Server\t ... \t6%%"
-	#install_rabbitmq_server >> $LOG 2>&1; printf "\tDone!\n"
+	install_rabbitmq_server >> $LOG 2>&1; printf "\tDone!\n"
 	printf "Installing MySQL Server\t\t ... \t8%%"
 	install_mysql_server >> $LOG 2>&1; printf "\tDone!\n"
 	

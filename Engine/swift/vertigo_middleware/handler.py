@@ -106,20 +106,22 @@ def filter_factory(global_conf, **local_conf):
     vertigo_conf['redis_port'] = int(conf.get('redis_port', 6379))
     vertigo_conf['redis_db'] = int(conf.get('redis_db', 0))
 
-    r = redis.StrictRedis(conf['redis_host'],
-                          conf['redis_port'],
-                          conf['redis_db'])
-    lua = """
-        local t = {}
-        if redis.call('EXISTS', 'pipeline:'..ARGV[1]..':'..ARGV[2])==1 then
-          t = redis.call('HGETALL', 'pipeline:'..ARGV[1]..':'..ARGV[2])
-        elseif redis.call('EXISTS', 'pipeline:'..ARGV[1])==1 then
-          t = redis.call('HGETALL', 'pipeline:'..ARGV[1])
-        end
-        t[#t+1] = '@@@@'
-        return t"""
-    lua_sha = r.script_load(lua)
-    vertigo_conf['LUA_get_policy_sha'] = lua_sha
+    if vertigo_conf['execution_server'] == 'proxy':
+        r = redis.StrictRedis(vertigo_conf['redis_host'],
+                              vertigo_conf['redis_port'],
+                              vertigo_conf['redis_db'])
+        lua = """
+            local t = {}
+            if redis.call('EXISTS', 'pipeline:'..ARGV[1]..':'..ARGV[2])==1 then
+              t = redis.call('HGETALL', 'pipeline:'..ARGV[1]..':'..ARGV[2])
+            elseif redis.call('EXISTS', 'pipeline:'..ARGV[1])==1 then
+              t = redis.call('HGETALL', 'pipeline:'..ARGV[1])
+            end
+            t[#t+1] = '@@@@'
+            return t"""
+
+        lua_sha = r.script_load(lua)
+        vertigo_conf['LUA_get_policy_sha'] = lua_sha
 
     def swift_vertigo(app):
         return VertigoHandlerMiddleware(app, global_conf, vertigo_conf)

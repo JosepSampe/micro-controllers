@@ -30,16 +30,16 @@ class VertigoProxyHandler(VertigoBaseHandler):
                   "event": "GET",
                   "type": "clac",
                   "precedence": 1,
-                  "input": {
-                        "policies": [
-                            {"ulabel": "manager",
-                             "action": "read",
-                             "olabel": "sensitive"}
-                        ],
-                        "units": [
-                            {"path": "$.personalrecord.identification.SSN", "labels": ["sensitive"]}
-                        ]},
-                  "action": "output == true: FILTER, PRE"}
+                  "input": {"policies": [
+                                {"ulabel": "manager",
+                                 "action": "read",
+                                 "olabel": "sensitive"}
+                            ],
+                            "units": [
+                                {"path": "$.personalrecord.identification.SSN", "labels": ["sensitive"]}
+                            ]},
+                  "action": "output == true: FILTER, PRE"
+                  }
 
         lua_sha = self.conf.get('LUA_get_pipeline_sha')
         args = (self.account.replace('AUTH_', ''), self.container)
