@@ -199,7 +199,7 @@ install_openstack_swift(){
 	sed -i '/# account_autocreate = false/c\account_autocreate = True' /etc/swift/proxy-server.conf
 	sed -i '/# \[filter:authtoken]/c\[filter:authtoken]' /etc/swift/proxy-server.conf
 	sed -i '/# paste.filter_factory = keystonemiddleware.auth_token:filter_factory/c\paste.filter_factory = keystonemiddleware.auth_token:filter_factory' /etc/swift/proxy-server.conf
-	sed -i '/# auth_url = http:\/\/keystonehost:5000/c\auth_url = http://controller:5000' /etc/swift/proxy-server.conf
+	sed -i '/# auth_url = http:\/\/keystonehost:35357/c\auth_url = http://controller:5000' /etc/swift/proxy-server.conf
 	sed -i '/# auth_plugin = password/c\auth_type = password' /etc/swift/proxy-server.conf
 	sed -i '/# project_domain_id = default/c\project_domain_name = default' /etc/swift/proxy-server.conf
 	sed -i '/# user_domain_id = default/c\user_domain_name = default' /etc/swift/proxy-server.conf

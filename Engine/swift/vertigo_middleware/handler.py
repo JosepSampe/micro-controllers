@@ -112,16 +112,15 @@ def filter_factory(global_conf, **local_conf):
                               vertigo_conf['redis_db'])
         lua = """
             local t = {}
-            if redis.call('EXISTS', 'pipeline:'..ARGV[1]..':'..ARGV[2])==1 then
-              t = redis.call('HGETALL', 'pipeline:'..ARGV[1]..':'..ARGV[2])
-            elseif redis.call('EXISTS', 'pipeline:'..ARGV[1])==1 then
-              t = redis.call('HGETALL', 'pipeline:'..ARGV[1])
+            if redis.call('EXISTS', 'mc_pipeline:'..ARGV[1]..'/'..ARGV[2]..'/'..ARGV[3])==1 then
+              t = redis.call('HGET', 'mc_pipeline:'..ARGV[1]..'/'..ARGV[2]..'/'..ARGV[3], ARGV[4])
+            elseif redis.call('EXISTS', 'mc_pipeline:'..ARGV[1])==1 then
+              t = redis.call('HGET', 'mc_pipeline:'..ARGV[1])
             end
-            t[#t+1] = '@@@@'
             return t"""
 
         lua_sha = r.script_load(lua)
-        vertigo_conf['LUA_get_policy_sha'] = lua_sha
+        vertigo_conf['LUA_get_mc_sha'] = lua_sha
 
     def swift_vertigo(app):
         return VertigoHandlerMiddleware(app, global_conf, vertigo_conf)

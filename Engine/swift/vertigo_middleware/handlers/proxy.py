@@ -21,40 +21,36 @@ class VertigoProxyHandler(VertigoBaseHandler):
         self.request.headers['mc-enabled'] = True
         self.memcache = cache_from_env(self.request.environ)
 
-    def _get_dynamic_filters(self):
+        self.redis = redis.StrictRedis(conf['redis_host'],
+                                       conf['redis_port'],
+                                       conf['redis_db'])
+
+    def _get_dynamic_microcontrollers(self):
         # Dynamic binding of policies: using a Lua script that executes
         # a hgetall on the first matching key of a list and also returns
         # the global filters
-
-        policy = {"object": "v1/{account}/{container}/foo.xml",
-                  "event": "GET",
-                  "type": "clac",
-                  "precedence": 1,
-                  "input": {"policies": [
-                                {"ulabel": "manager",
-                                 "action": "read",
-                                 "olabel": "sensitive"}
-                            ],
-                            "units": [
-                                {"path": "$.personalrecord.identification.SSN", "labels": ["sensitive"]}
-                            ]},
-                  "action": "output == true: FILTER, PRE"
-                  }
-
-        lua_sha = self.conf.get('LUA_get_pipeline_sha')
-        args = (self.account.replace('AUTH_', ''), self.container)
+        """
+        key = 'mc_pipeline:00be261d2db3422e97693cdd91609c88/data/test.json'
+        policy = {'get' : '{"precedence": 1,
+                            "type": "clac",
+                            "input": {"policies": [
+                                        {"ulabel": "manager",
+                                         "action": "read",
+                                         "olabel": "sensitive"}
+                                    ],
+                                    "units": [
+                                        {"path": "$.personalrecord.identification.SSN", "labels": ["sensitive"]}
+                                    ]},
+                            "action": "output == true: FILTER, PRE"
+                            }'}
+        self.redis.hset(key, policy)
+        """
+        lua_sha = self.conf.get('LUA_get_mc_sha')
+        args = (self.account.replace('AUTH_', ''), self.container, self.obj, self.method)
         redis_list = self.redis.evalsha(lua_sha, 0, *args)
-        index = redis_list.index("@@@@")  # Separator between pipeline and global filters
+        dynamic_mc = json.loads(redis_list)
 
-        self.filter_list = dict(zip(redis_list[0:index:2], redis_list[1:index:2]))
-        self.global_filters = dict(zip(redis_list[index+1::2], redis_list[index+2::2]))
-
-        self.proxy_filter_exec_list = {}
-        self.object_filter_exec_list = {}
-
-        if self.global_filters or self.filter_list:
-            self.proxy_filter_exec_list = self._build_filter_execution_list('proxy')
-            self.object_filter_exec_list = self._build_filter_execution_list('object')
+        return dynamic_mc
 
     def _parse_vaco(self):
         return self.request.split_path(3, 4, rest_with_last=True)
@@ -364,6 +360,9 @@ class VertigoProxyHandler(VertigoBaseHandler):
         """
         obj = os.path.join(self.account, self.container, self.obj)
         # self._check_microcntroller_execution(obj)
+
+        dynamic_mc = self._get_dynamic_microcontrollers()
+        print(dynamic_mc)
 
         if self._is_object_in_cache(obj):
             response = self._get_cached_object(obj)
