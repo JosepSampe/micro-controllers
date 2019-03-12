@@ -8,6 +8,7 @@ import pickle
 import redis
 import json
 import os
+import time
 
 
 class VertigoProxyHandler(VertigoBaseHandler):
@@ -27,24 +28,27 @@ class VertigoProxyHandler(VertigoBaseHandler):
 
     def _get_dynamic_microcontrollers(self):
         # Dynamic binding of policies: using a Lua script that executes
-        # a hgetall on the first matching key of a list and also returns
-        # the global filters
+        # a hgetall on the first matching key of a list
         """
         key = 'mc_pipeline:00be261d2db3422e97693cdd91609c88/data/test.json'
-        policy = {'get' : '{"precedence": 1,
-                            "type": "clac",
-                            "input": {"policies": [
-                                        {"ulabel": "manager",
-                                         "action": "read",
-                                         "olabel": "sensitive"}
-                                    ],
-                                    "units": [
-                                        {"path": "$.personalrecord.identification.SSN", "labels": ["sensitive"]}
-                                    ]},
-                            "action": "output == true: FILTER, PRE"
-                            }'}
-        self.redis.hset(key, policy)
+        policy = {'get': '{"precedence": 1, \
+                           "type": "clac", \
+                           "input": {"policies": [ \
+                                        {"ulabel": "manager", \
+                                         "action": "read", \
+                                         "olabel": "sensitive"} \
+                                    ], \
+                                    "units": [ \
+                                        {"path": "$.personalrecord.identification.SSN", "labels": ["sensitive"]} \
+                                    ]}, \
+                           "action": "output == true: FILTER, PRE" \
+                           }'}
+
+        for i in range(1, 1000):
+            key = 'mc_pipeline:00be261d2db3422e97693cdd91609c88/data/test{}.json'.format(i) 
+            self.redis.hmset(key, policy)
         """
+
         lua_sha = self.conf.get('LUA_get_mc_sha')
         args = (self.account.replace('AUTH_', ''), self.container, self.obj, self.method)
         redis_list = self.redis.evalsha(lua_sha, 0, *args)
@@ -360,9 +364,15 @@ class VertigoProxyHandler(VertigoBaseHandler):
         """
         obj = os.path.join(self.account, self.container, self.obj)
         # self._check_microcntroller_execution(obj)
-
+        fo = open('/tmp/stats_redis_10000.txt', 'a+')
+        t1 = time.time()
         dynamic_mc = self._get_dynamic_microcontrollers()
-        print(dynamic_mc)
+        t2 = time.time()
+        fo.write(str(t2-t1)+'\n')
+        fo.close()
+        print('-------------')
+        print(t2-t1)
+        print('-------------')
 
         if self._is_object_in_cache(obj):
             response = self._get_cached_object(obj)
