@@ -45,14 +45,18 @@ class VertigoProxyHandler(VertigoBaseHandler):
                            }'}
 
         for i in range(1, 1000):
-            key = 'mc_pipeline:00be261d2db3422e97693cdd91609c88/data/test{}.json'.format(i) 
+            key = 'mc_pipeline:00be261d2db3422e97693cdd91609c88/data/test{}.json'.format(i)
             self.redis.hmset(key, policy)
         """
 
         lua_sha = self.conf.get('LUA_get_mc_sha')
         args = (self.account.replace('AUTH_', ''), self.container, self.obj, self.method)
         redis_list = self.redis.evalsha(lua_sha, 0, *args)
-        dynamic_mc = json.loads(redis_list)
+        self.logger.info('Vertigo - Dynamic micro-controller list: {}'.format(redis_list))
+        if redis_list:
+            dynamic_mc = json.loads(redis_list)
+        else:
+            dynamic_mc = None
 
         return dynamic_mc
 
@@ -364,16 +368,19 @@ class VertigoProxyHandler(VertigoBaseHandler):
         """
         obj = os.path.join(self.account, self.container, self.obj)
         # self._check_microcntroller_execution(obj)
-        fo = open('/tmp/stats_redis_10000.txt', 'a+')
+        """
+        fo = open('/tmp/stats_redis_100000.txt', 'a+')
         t1 = time.time()
+        """
         dynamic_mc = self._get_dynamic_microcontrollers()
+        """
         t2 = time.time()
         fo.write(str(t2-t1)+'\n')
         fo.close()
         print('-------------')
         print(t2-t1)
         print('-------------')
-
+        """
         if self._is_object_in_cache(obj):
             response = self._get_cached_object(obj)
         else:
