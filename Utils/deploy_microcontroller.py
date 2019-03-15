@@ -22,7 +22,7 @@ def put_mc_object(url, token, mc_path, mc_name, main_class, dependency=''):
 
 
 def put_mc_dependency(url, token, local_path_to_dep, dep_name):
-    metadata = {'X-Object-Meta-Function-Dependency-Version': '1'}
+    metadata = {'X-Object-Meta-Storlet-Dependency-Version': '1'}
     f = open('%s/%s' % (local_path_to_dep, dep_name), 'r')
     content_length = None
     response = dict()
@@ -50,7 +50,8 @@ url, token = c.get_auth(keystone_url, ACCOUNT + ":"+USER_NAME, PASSWORD, auth_ve
 path = '../MicrocontrollerSamples'
 
 # No-operation Micro-controller
-put_mc_object(url, token, path+'/MC_Noop/bin', 'noop-1.0.jar', 'com.urv.microcontroller.noop.NoopHandler')
+put_mc_object(url, token, path+'/MC_Noop/bin', 'noop-1.0.jar', 'com.urv.microcontroller.noop.NoopHandler', 'blur_faces_all.tar.gz')
+put_mc_dependency(url, token, path+'/MC_Noop/lib', 'blur_faces_all.tar.gz')
 
 # No-operation Storlet Micro-controller
 put_mc_object(url, token, path+'/MC_NoopStorlet/bin', 'noopstorlet-1.0.jar', 'com.urv.microcontroller.noopstorlet.NoopStorletHandler')

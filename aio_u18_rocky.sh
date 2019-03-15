@@ -373,8 +373,8 @@ install_microcontrollers(){
 	cp micro-controllers/Engine/bus/DockerJavaFacade/bin/libjbus.so /opt/vertigo
 	cp micro-controllers/Engine/bus/TransportLayer/bin/bus.so /opt/vertigo
 	
-	sed -i '/swift_ip=/c\swift_ip=$IP_ADDRESS' /opt/vertigo/docker_daemon.config
-	sed -i '/redis_ip=/c\redis_ip=$IP_ADDRESS' /opt/vertigo/docker_daemon.config
+	sed -i "/swift_ip=/c\swift_ip=$IP_ADDRESS" /opt/vertigo/docker_daemon.config
+	sed -i "/redis_ip=/c\redis_ip=$IP_ADDRESS" /opt/vertigo/docker_daemon.config
 	
 	swift-init main restart
 }
