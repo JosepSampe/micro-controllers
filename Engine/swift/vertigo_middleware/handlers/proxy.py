@@ -54,7 +54,7 @@ class VertigoProxyHandler(VertigoBaseHandler):
         redis_list = self.redis.evalsha(lua_sha, 0, *args)
         self.logger.info('Vertigo - Dynamic micro-controller list: {}'.format(redis_list))
         if redis_list:
-            dynamic_mc = json.loads(redis_list)
+            dynamic_mc = {MICROCONTROLLERS_OBJ_HEADER+'Redis': json.loads(redis_list)}
         else:
             dynamic_mc = None
 
@@ -373,6 +373,9 @@ class VertigoProxyHandler(VertigoBaseHandler):
         t1 = time.time()
         """
         dynamic_mc = self._get_dynamic_microcontrollers()
+        if dynamic_mc:
+            # Put micro-controllers in the request headers to transfer them to the object server
+            self.request.headers.update(dynamic_mc)
         """
         t2 = time.time()
         fo.write(str(t2-t1)+'\n')
@@ -442,6 +445,7 @@ class VertigoProxyHandler(VertigoBaseHandler):
         if self.is_trigger_assignation or self.is_trigger_deletion:
             response = self._process_mc_assignation_deletion_request()
         else:
+            # Keep already associated micro-controllers
             obj_metadata = self.get_object_metadata(self.obj)
 
             for key in obj_metadata:
