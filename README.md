@@ -12,10 +12,10 @@ This implementation of micro-controllers is designed for OpenStack Swift. This f
 
 ### All-In-One Machine
 For testing purposes, it is possible to install an All-In-One (AiO) machine with all the Crystal components and requirements.
-We prepared a script for automating this task. The requirements of the machine are a clean installation of **Ubuntu Server 16.04**, at least **2GB** of RAM, and a **fixed IP address**. It is preferable to upgrade the system to the latest versions of the packages with `apt update && apt dist-upgrade` before starting the installation, and set the server name as `controller` in the `/etc/hostname` file. Then, download the `aio_installation.sh` script and run it as sudo:
+We prepared a script for automating this task. The requirements of the machine are a clean installation of **Ubuntu Server 18.04**, at least **2GB** of RAM, and a **fixed IP address**. It is preferable to upgrade the system to the latest versions of the packages with `apt update && apt dist-upgrade` before starting the installation, and set the server name as `controller` in the `/etc/hostname` file. Then, download the `aio_u18_rocky.sh` script and run it as sudo:
 
 ```bash
-curl -fsSL https://git.io/fhEdm | sudo bash /dev/stdin install
+curl -fsSL https://git.io/fjfRz | sudo bash /dev/stdin install
 ```
 
 The script first installs Keystone, Swift and Horizon (Pike release), then it proceeds to install the micro-controllers framework package (Vertigo). Note that the script uses weak passwords for the installed services, so if you want more secure services, please change them at the top of the script.
@@ -29,8 +29,9 @@ tail -f /tmp/vertigo_aio_installation.log
 The script takes long to complete (~10 minutes) (it depends of the network connection). Once completed, you can access to the dashboard by typing the following URL in the web browser: `http://<node-ip>/horizon`.
 
 If you already ran the installation script, you can update micro-controllers framework from this repository by the following command:
+
 ```bash
-curl -fsSL https://git.io/fhEdm | sudo bash /dev/stdin update
+curl -fsSL hhttps://git.io/fjfRz | sudo bash /dev/stdin update
 ```
 
 ## Verify
