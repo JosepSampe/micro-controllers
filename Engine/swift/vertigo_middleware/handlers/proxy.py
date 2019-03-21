@@ -341,12 +341,12 @@ class VertigoProxyHandler(VertigoBaseHandler):
             req_token = self.request.headers['X-Vertigo-Token']
             if req_token == admin_token:
                 self.request.headers['mc-enabled'] = False
-                self.logger.info('Vertigo - Microcontroller execution disabled'
-                                 ': Request from microcontroller')
+                self.logger.info('Vertigo - Micro-controller execution disabled'
+                                 ': Request from micro-controller')
 
     def _process_mc_data(self, mc_data):
         """
-        Processes the data returned from the microcontroller
+        Processes the data returned from the micro-controller
         """
         if mc_data['command'] == 'CONTINUE':
             return self.request.get_response(self.app)
