@@ -127,15 +127,16 @@ class VertigoGatewayStorlet():
         new_env = dict(req_resp.environ)
         req = Request.blank(new_env['PATH_INFO'], new_env)
 
+        req.environ['QUERY_STRING'] = params
         self._augment_storlet_request(req)
         options = self._get_storlet_invocation_options(req)
 
         if hasattr(data_iter, '_fp'):
-            sreq = self.sreq_class(storlet_id, params, dict(),
+            sreq = self.sreq_class(storlet_id, req.params, dict(),
                                    data_fd=data_iter._fp.fileno(),
                                    options=options)
         else:
-            sreq = self.sreq_class(storlet_id, params, dict(),
+            sreq = self.sreq_class(storlet_id, req.params, dict(),
                                    data_iter, options=options)
 
         return sreq
