@@ -50,8 +50,7 @@ url, token = c.get_auth(keystone_url, ACCOUNT + ":"+USER_NAME, PASSWORD, auth_ve
 path = '../MicrocontrollerSamples'
 
 # No-operation Micro-controller
-put_mc_object(url, token, path+'/MC_Noop/bin', 'noop-1.0.jar', 'com.urv.microcontroller.noop.NoopHandler', 'blur_faces_all.tar.gz')
-put_mc_dependency(url, token, path+'/MC_Noop/lib', 'blur_faces_all.tar.gz')
+put_mc_object(url, token, path+'/MC_Noop/bin', 'noop-1.0.jar', 'com.urv.microcontroller.noop.NoopHandler')
 
 # No-operation Storlet Micro-controller
 put_mc_object(url, token, path+'/MC_NoopStorlet/bin', 'noopstorlet-1.0.jar', 'com.urv.microcontroller.noopstorlet.NoopStorletHandler')
