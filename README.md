@@ -31,7 +31,7 @@ The script takes long to complete (~10 minutes) (it depends of the network conne
 If you already ran the installation script, you can update micro-controllers framework from this repository by the following command:
 
 ```bash
-curl -fsSL hhttps://git.io/fjfRz | sudo bash /dev/stdin update
+curl -fsSL https://git.io/fjfRz | sudo bash /dev/stdin update
 ```
 
 ## Verify

@@ -248,7 +248,7 @@ class VertigoInvocationProtocol(object):
         mc_response = dict()
         for mc_name in self.mc_list:
             self._wait_for_read_with_timeout(self.response_read_fd)
-            flat_json = os.read(self.response_read_fd, 1024)
+            flat_json = os.read(self.response_read_fd, 64*1024)
 
             if flat_json:
                 mc_response[mc_name] = json.loads(flat_json)

@@ -41,7 +41,7 @@ class VertigoGatewayStorlet():
         server = storlet_data["server"]
 
         if not parameters:
-            parameters = {}
+            parameters = ''
 
         return storlet, parameters, server
 
