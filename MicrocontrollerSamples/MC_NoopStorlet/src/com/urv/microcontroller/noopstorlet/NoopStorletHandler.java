@@ -17,7 +17,8 @@ public class NoopStorletHandler implements IMicrocontroller {
 	 */
 	public void invoke(Context ctx, Api api) {
 		ctx.logger.emitLog("*** Init NoopStorlet Microcontroller ***");
-		api.storlet.set("noop-1.0.jar");
+		api.storlet.set("noop-1.0.jar", "data={\"blabla\":1,  \"blala\":2}");
+		api.storlet.set("noop-1.0.jar", "data={\"blabla\":1,  \"blala\":2}");
 		api.storlet.run();
 		ctx.logger.emitLog("Ended NoopStorlet Microcontroller");
 	}
