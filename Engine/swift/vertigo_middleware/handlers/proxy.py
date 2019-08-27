@@ -26,11 +26,11 @@ class VertigoProxyHandler(VertigoBaseHandler):
                                        conf['redis_port'],
                                        conf['redis_db'])
 
-    def _get_dynamic_microcontrollers(self):
+    def _get_dynamic_policies(self):
         # Dynamic binding of policies: using a Lua script that executes
         # a hgetall on the first matching key of a list
         """
-        key = 'mc_pipeline:00be261d2db3422e97693cdd91609c88/data/test.json'
+        key = 'policy_pipeline:00be261d2db3422e97693cdd91609c88/data/test.json'
         policy = {'get': '{"precedence": 1, \
                            "type": "clac", \
                            "input": {"policies": [ \
@@ -50,15 +50,15 @@ class VertigoProxyHandler(VertigoBaseHandler):
         """
 
         lua_sha = self.conf.get('LUA_get_mc_sha')
-        args = (self.account.replace('AUTH_', ''), self.container, self.obj, self.method)
+        args = (self.account.replace('AUTH_', ''), self.container, self.obj)
         redis_list = self.redis.evalsha(lua_sha, 0, *args)
-        self.logger.info('Vertigo - Dynamic micro-controller list: {}'.format(redis_list))
+        self.logger.info('Vertigo - Dynamic policies from redis: {}'.format(redis_list))
         if redis_list:
-            dynamic_mc = {MICROCONTROLLERS_OBJ_HEADER+'Redis': json.loads(redis_list)}
+            dynamic_policies = {'Dynamic-Policies': json.loads(redis_list)}
         else:
-            dynamic_mc = None
+            dynamic_policies = None
 
-        return dynamic_mc
+        return dynamic_policies
 
     def _parse_vaco(self):
         return self.request.split_path(3, 4, rest_with_last=True)
@@ -372,10 +372,10 @@ class VertigoProxyHandler(VertigoBaseHandler):
         fo = open('/tmp/stats_redis_100000.txt', 'a+')
         t1 = time.time()
         """
-        dynamic_mc = self._get_dynamic_microcontrollers()
-        if dynamic_mc:
+        dynamic_policies = self._get_dynamic_policies()
+        if dynamic_policies:
             # Put micro-controllers in the request headers to transfer them to the object server
-            self.request.headers.update(dynamic_mc)
+            self.request.headers.update(dynamic_policies)
         """
         t2 = time.time()
         fo.write(str(t2-t1)+'\n')

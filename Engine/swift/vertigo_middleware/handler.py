@@ -112,10 +112,10 @@ def filter_factory(global_conf, **local_conf):
                               vertigo_conf['redis_db'])
         lua = """
             local t = {}
-            if redis.call('EXISTS', 'mc_pipeline:'..ARGV[1]..'/'..ARGV[2]..'/'..ARGV[3])==1 then
-              t = redis.call('HGET', 'mc_pipeline:'..ARGV[1]..'/'..ARGV[2]..'/'..ARGV[3], ARGV[4])
-            elseif redis.call('EXISTS', 'mc_pipeline:'..ARGV[1])==1 then
-              t = redis.call('HGET', 'mc_pipeline:'..ARGV[1])
+            if redis.call('EXISTS', 'policy_pipeline:'..ARGV[1]..'/'..ARGV[2]..'/'..ARGV[3])==1 then
+              t = redis.call('HGET', 'policy_pipeline:'..ARGV[1]..'/'..ARGV[2]..'/'..ARGV[3])
+            elseif redis.call('EXISTS', 'policy_pipeline:'..ARGV[1]..'/'..ARGV[2])==1 then
+              t = redis.call('HGET', 'policy_pipeline:'..ARGV[1]..'/'..ARGV[2])
             end
             return t"""
 
