@@ -52,8 +52,9 @@ class VertigoObjectHandler(VertigoBaseHandler):
         response = self.request.get_response(self.app)
 
         # start = time.time()
-        response.headers[MICROCONTROLLERS_LIST_OBJ_HEADER] = {'onget': 'OCEmc.jar'}
-        response.headers['Dynamic-Policies'] = self.request.headers['Dynamic-Policies']
+        if 'Dynamic-Policies' in self.request.headers:
+            response.headers[MICROCONTROLLERS_LIST_OBJ_HEADER] = {'onget': 'OCEmc.jar'}
+            response.headers['Dynamic-Policies'] = self.request.headers['Dynamic-Policies']
 
         if self.obj.endswith('/'):
             # is a pseudo-folder
