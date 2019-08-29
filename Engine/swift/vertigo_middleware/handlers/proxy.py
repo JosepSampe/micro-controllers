@@ -30,7 +30,7 @@ class VertigoProxyHandler(VertigoBaseHandler):
         # Dynamic binding of policies: using a Lua script that executes
         # a hgetall on the first matching key of a list
         """
-        key = 'policy_pipeline:00be261d2db3422e97693cdd91609c88/data/test.json'
+        key = 'policy_pipeline:00be261d2db3422e97693cdd91609c88:data:test.json'
         policy = {'get': '{"precedence": 1, \
                            "type": "clac", \
                            "input": {"policies": [ \
@@ -44,8 +44,8 @@ class VertigoProxyHandler(VertigoBaseHandler):
                            "action": "output == true: FILTER, PRE" \
                            }'}
 
-        for i in range(1, 1000):
-            key = 'mc_pipeline:00be261d2db3422e97693cdd91609c88/data/test{}.json'.format(i)
+        for i in range(1, 10):
+            key = 'policy_pipeline:00be261d2db3422e97693cdd91609c88:data:test{}.json'.format(i)
             self.redis.hmset(key, policy)
         """
 
