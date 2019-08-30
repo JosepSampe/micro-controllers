@@ -50,12 +50,14 @@ class VertigoProxyHandler(VertigoBaseHandler):
         """
 
         lua_sha = self.conf.get('LUA_get_mc_sha')
-        args = (self.account.replace('AUTH_', ''), self.container, self.obj)
-        redis_list = self.redis.evalsha(lua_sha, 0, *args)
-        self.logger.info('Vertigo - Dynamic policies from redis: {}'.format(redis_list))
-        if redis_list:
-            dynamic_policies = {'Dynamic-Policies': json.loads(redis_list)}
+        args = (self.account.replace('AUTH_', ''), self.container, self.obj, self.method)
+        redis_policies = self.redis.evalsha(lua_sha, 0, *args)
+        if redis_policies:
+            dynamic_policies = json.loads(redis_policies)
+            self.logger.info('Vertigo - Dynamic policies from redis: {}'.format(dynamic_policies))
+            dynamic_policies = {'Dynamic-Policies': dynamic_policies}
         else:
+            self.logger.info('Vertigo - No dynamic policies found')
             dynamic_policies = None
 
         return dynamic_policies
