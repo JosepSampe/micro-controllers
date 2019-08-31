@@ -33,7 +33,9 @@ public class Microcontroller {
 		String metadataKey = "x-object-sysmeta-vertigo-on"+method+"-"+name;
 		for (String key: objectMetadata.keySet()){
 			if (key.toLowerCase().equals(metadataKey)){
+				logger_.trace("Parsing micro-controller parameters in: "+metadataKey);
 				String mcMetadata = objectMetadata.get(key);
+				logger_.trace("Parameters: "+mcMetadata);
 				// TODO: check if mcMetadata is null
 				try{
 					jsonparameters = (JSONObject) new JSONParser().parse(mcMetadata);
@@ -45,7 +47,7 @@ public class Microcontroller {
 				    }
 					
 				} catch (ParseException e1) {
-					logger_.trace("Failed parsing micro-controller parameters");
+					logger_.error("Failed parsing micro-controller parameters");
 				}
 			}
 		}
