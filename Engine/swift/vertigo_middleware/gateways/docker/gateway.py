@@ -79,6 +79,8 @@ class VertigoGatewayDocker():
         :param container: container name
         :param object_name: Name of the microcontroller or dependency
         """
+        self.logger.info('Vertigo - Updating micro-controller from Swift: ' + swift_container +
+                         '/' + object_name)
         cache_target_path = os.path.join(self.conf["cache_dir"],
                                          self.scope, 'vertigo',
                                          swift_container)

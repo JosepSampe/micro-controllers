@@ -16,7 +16,7 @@ public class Request {
 	private FileOutputStream stream;
 	private JSONObject outMetadata = new JSONObject();
 	private Logger logger_;
-	private Map<String, String> metadata;
+	public Map<String, String> metadata;
 	public String method;
 	public String currentServer;
 	public String timestamp;
